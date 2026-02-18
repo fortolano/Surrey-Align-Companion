@@ -209,8 +209,17 @@ function PICard({ pi, entityColor }: { pi: ProgressIndicator; entityColor: strin
   );
 }
 
+function entityTypeColor(type: string): string {
+  switch (type) {
+    case 'organization': return '#7C3AED';
+    case 'council': return '#D97706';
+    case 'committee': return '#0F766E';
+    default: return Colors.brand.primary;
+  }
+}
+
 function EntitySection({ entity, index }: { entity: ExecutionEntity; index: number }) {
-  const color = entity.type === 'organization' ? '#7C3AED' : '#D97706';
+  const color = entityTypeColor(entity.type);
   const hasPIs = entity.progress_indicators && entity.progress_indicators.length > 0;
   const isSummaryMode = !hasPIs && entity.pi_count !== undefined;
 
@@ -221,9 +230,14 @@ function EntitySection({ entity, index }: { entity: ExecutionEntity; index: numb
           <View style={[styles.entityDot, { backgroundColor: color }]} />
           <View style={styles.entityHeaderText}>
             <Text style={styles.entityName} numberOfLines={1}>{entity.name}</Text>
-            {entity.ward && (
-              <Text style={styles.entityWard}>{entity.ward}</Text>
-            )}
+            <View style={styles.entitySubRow}>
+              {entity.ward && (
+                <Text style={styles.entityWard}>{entity.ward}</Text>
+              )}
+              <Text style={styles.entityType}>
+                {entity.type.charAt(0).toUpperCase() + entity.type.slice(1)}
+              </Text>
+            </View>
           </View>
           {isSummaryMode && entity.avg_progress !== undefined && (
             <View style={styles.entityAvgBadge}>
@@ -613,11 +627,22 @@ const styles = StyleSheet.create({
     color: Colors.brand.black,
     fontFamily: 'Inter_600SemiBold',
   },
+  entitySubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 2,
+  },
   entityWard: {
     fontSize: 12,
     color: Colors.brand.midGray,
-    marginTop: 1,
     fontFamily: 'Inter_400Regular',
+  },
+  entityType: {
+    fontSize: 11,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_400Regular',
+    fontStyle: 'italic',
   },
   entityAvgBadge: {
     backgroundColor: Colors.brand.accent,

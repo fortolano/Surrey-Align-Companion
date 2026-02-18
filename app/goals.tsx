@@ -155,10 +155,19 @@ function GoalCard({ goal, index }: { goal: Goal; index: number }) {
             <MaterialCommunityIcons name="flag-checkered" size={14} color={Colors.brand.midGray} />
             <Text style={styles.footerText}>{completedRatio} indicators</Text>
           </View>
-          <View style={styles.footerItem}>
-            <Ionicons name="person-outline" size={14} color={Colors.brand.midGray} />
-            <Text style={styles.footerText}>{goal.created_by}</Text>
-          </View>
+          {(goal.organization || goal.ward || goal.council) ? (
+            <View style={styles.footerItem}>
+              <MaterialCommunityIcons name="account-group-outline" size={14} color={Colors.brand.midGray} />
+              <Text style={styles.footerText} numberOfLines={1}>
+                {goal.organization || goal.council || goal.ward}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.footerItem}>
+              <MaterialCommunityIcons name="office-building-outline" size={14} color={Colors.brand.midGray} />
+              <Text style={styles.footerText}>{goal.scope}</Text>
+            </View>
+          )}
         </View>
       </Pressable>
     </Animated.View>
@@ -292,8 +301,8 @@ export default function GoalsScreen() {
             <Text style={styles.emptyTitle}>No goals found</Text>
             <Text style={styles.emptyDescription}>
               {activeScope === 'all'
-                ? 'No active goals in this period yet.'
-                : `No ${activeScope}-level goals found.`}
+                ? 'No active goals for your organizations in this period.'
+                : `No ${activeScope}-level goals for your entities.`}
             </Text>
           </View>
         ) : (

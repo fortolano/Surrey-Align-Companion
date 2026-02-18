@@ -62,6 +62,22 @@ function RootLayoutNav() {
         name="align-pulse"
         options={{ title: "ALIGN Pulse" }}
       />
+      <Stack.Screen
+        name="align-info"
+        options={{ title: "ALIGN" }}
+      />
+      <Stack.Screen
+        name="settings"
+        options={{ title: "Settings" }}
+      />
+      <Stack.Screen
+        name="about-app"
+        options={{ title: "About this App" }}
+      />
+      <Stack.Screen
+        name="terms"
+        options={{ title: "Terms of Service" }}
+      />
     </Stack>
   );
 }

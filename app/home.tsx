@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,6 +6,8 @@ import {
   ScrollView,
   Pressable,
   Platform,
+  Modal,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -67,6 +69,25 @@ const TILES: TileData[] = [
   },
 ];
 
+interface MenuItem {
+  id: string;
+  label: string;
+  icon: string;
+  iconSet: 'ionicons' | 'feather';
+  route?: string;
+  action?: 'logout';
+  destructive?: boolean;
+}
+
+const MENU_ITEMS: MenuItem[] = [
+  { id: 'profile', label: 'Profile', icon: 'person-outline', iconSet: 'ionicons', route: '/profile' },
+  { id: 'align', label: 'ALIGN', icon: 'compass-outline', iconSet: 'ionicons', route: '/align-info' },
+  { id: 'settings', label: 'Settings', icon: 'settings-outline', iconSet: 'ionicons', route: '/settings' },
+  { id: 'about', label: 'About this App', icon: 'information-circle-outline', iconSet: 'ionicons', route: '/about-app' },
+  { id: 'tos', label: 'Terms of Service', icon: 'document-text-outline', iconSet: 'ionicons', route: '/terms' },
+  { id: 'logout', label: 'Sign Out', icon: 'log-out', iconSet: 'feather', action: 'logout', destructive: true },
+];
+
 function FeatureTile({ tile, index }: { tile: TileData; index: number }) {
   const handlePress = () => {
     if (Platform.OS !== 'web') {
@@ -100,12 +121,49 @@ function FeatureTile({ tile, index }: { tile: TileData; index: number }) {
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const [menuVisible, setMenuVisible] = useState(false);
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
 
   const firstName = user?.name?.split(' ')[0] || 'Leader';
+
+  const handleMenuToggle = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setMenuVisible(!menuVisible);
+  };
+
+  const handleMenuSelect = (item: MenuItem) => {
+    setMenuVisible(false);
+    if (item.action === 'logout') {
+      if (Platform.OS === 'web') {
+        logout().then(() => router.replace('/'));
+        return;
+      }
+      Alert.alert(
+        'Sign Out',
+        'Are you sure you want to sign out?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Sign Out',
+            style: 'destructive',
+            onPress: async () => {
+              await logout();
+              router.replace('/');
+            },
+          },
+        ],
+      );
+    } else if (item.route) {
+      setTimeout(() => {
+        router.push(item.route as any);
+      }, 100);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -119,17 +177,12 @@ export default function HomeScreen() {
             <Text style={styles.userName}>{firstName}</Text>
           </View>
           <Pressable
-            onPress={() => {
-              if (Platform.OS !== 'web') {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }
-              router.push('/profile');
-            }}
+            onPress={handleMenuToggle}
             style={({ pressed }) => [
               styles.profileButton,
               pressed && { opacity: 0.7 },
             ]}
-            testID="profile-button"
+            testID="menu-button"
           >
             <Ionicons name="person-circle-outline" size={32} color={Colors.brand.white} />
           </Pressable>
@@ -155,6 +208,65 @@ export default function HomeScreen() {
           <FeatureTile key={tile.id} tile={tile} index={index} />
         ))}
       </ScrollView>
+
+      <Modal
+        visible={menuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <Pressable
+          style={styles.menuOverlay}
+          onPress={() => setMenuVisible(false)}
+        >
+          <View
+            style={[
+              styles.menuContainer,
+              {
+                top: insets.top + webTopInset + 60,
+                right: 16,
+              },
+            ]}
+          >
+            {MENU_ITEMS.map((item, index) => (
+              <React.Fragment key={item.id}>
+                {item.destructive && <View style={styles.menuDivider} />}
+                <Pressable
+                  onPress={() => handleMenuSelect(item)}
+                  style={({ pressed }) => [
+                    styles.menuItem,
+                    pressed && styles.menuItemPressed,
+                    index === 0 && styles.menuItemFirst,
+                    index === MENU_ITEMS.length - 1 && styles.menuItemLast,
+                  ]}
+                >
+                  {item.iconSet === 'feather' ? (
+                    <Feather
+                      name={item.icon as any}
+                      size={18}
+                      color={item.destructive ? Colors.brand.error : Colors.brand.dark}
+                    />
+                  ) : (
+                    <Ionicons
+                      name={item.icon as any}
+                      size={18}
+                      color={item.destructive ? Colors.brand.error : Colors.brand.dark}
+                    />
+                  )}
+                  <Text
+                    style={[
+                      styles.menuLabel,
+                      item.destructive && styles.menuLabelDestructive,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </Pressable>
+              </React.Fragment>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -170,6 +282,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+    zIndex: 10,
   },
   headerContent: {
     flexDirection: 'row',
@@ -273,5 +386,51 @@ const styles = StyleSheet.create({
     color: Colors.brand.darkGray,
     lineHeight: 18,
     fontFamily: 'Inter_400Regular',
+  },
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  menuContainer: {
+    position: 'absolute',
+    width: 220,
+    backgroundColor: Colors.brand.white,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+    overflow: 'hidden',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+  },
+  menuItemPressed: {
+    backgroundColor: Colors.brand.offWhite,
+  },
+  menuItemFirst: {
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+  },
+  menuItemLast: {
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
+  },
+  menuLabel: {
+    fontSize: 15,
+    color: Colors.brand.dark,
+    fontFamily: 'Inter_500Medium',
+  },
+  menuLabelDestructive: {
+    color: Colors.brand.error,
+  },
+  menuDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.brand.lightGray,
   },
 });

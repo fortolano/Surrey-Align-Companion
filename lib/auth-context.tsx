@@ -2,8 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useCall
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const SA_API_BASE = "https://surreyalign.org/api/external/v1";
+import { getApiUrl } from '@/lib/query-client';
 
 export interface SAUser {
   id: number;
@@ -30,6 +29,14 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+function getProxyBase(): string {
+  try {
+    return getApiUrl();
+  } catch {
+    return '';
+  }
+}
 
 async function secureSet(key: string, value: string) {
   if (Platform.OS === 'web') {
@@ -73,7 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const res = await fetch(`${SA_API_BASE}/auth/me`, {
+      const base = getProxyBase();
+      const res = await fetch(`${base}api/auth/me`, {
         headers: {
           'Authorization': `Bearer ${storedToken}`,
           'Accept': 'application/json',
@@ -104,7 +112,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     try {
-      const res = await fetch(`${SA_API_BASE}/auth/login`, {
+      const base = getProxyBase();
+      const res = await fetch(`${base}api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -137,7 +146,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     try {
       if (token) {
-        await fetch(`${SA_API_BASE}/auth/logout`, {
+        const base = getProxyBase();
+        await fetch(`${base}api/auth/logout`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,

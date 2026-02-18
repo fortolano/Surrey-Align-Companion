@@ -195,7 +195,18 @@ export default function GoalsScreen() {
         },
       });
       if (!res.ok) throw new Error('Failed to load goals');
-      return res.json();
+      const result = await res.json();
+      if (result.goals && result.goals.length === 0 && !result.period?.is_current) {
+        const fallbackUrl = `${base}api/goals?${params.toString()}&period_id=7`;
+        const fallbackRes = await fetch(fallbackUrl, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+          },
+        });
+        if (fallbackRes.ok) return fallbackRes.json();
+      }
+      return result;
     },
     enabled: !!token,
     staleTime: 60000,

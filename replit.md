@@ -6,16 +6,72 @@ SurreyAlign is a private mobile companion app for the Surrey British Columbia St
 
 The app is a **companion** to the main platform at surreyalign.org — it does NOT replace the website. SurreyAlign.org remains the single source of truth for all data. The mobile app reads from and writes to SurreyAlign via REST API endpoints.
 
-Current feature tiles (most marked "coming soon"):
-- **Callings & Releases** — Browse current callings by ward/organization
-- **High Council Agenda** — View/manage High Council meeting agendas
-- **Stake Council Agenda** — View/manage Stake Council meeting agendas
-- **My Assignments** — Personal task dashboard with deadlines and progress
-- **ALIGN Pulse** — Monthly progress check-in submissions
+Current feature tiles:
+- **Callings & Releases** — Browse current callings by ward/organization (coming soon)
+- **High Council Agenda** — View/manage High Council meeting agendas (coming soon)
+- **Stake Council Agenda** — View/manage Stake Council meeting agendas (coming soon)
+- **My Assignments** — Personal task dashboard with deadlines and progress (coming soon)
+- **Goals & Execution** — Track stake and ward goals with progress indicators (LIVE)
+- **ALIGN Pulse** — Monthly progress check-in submissions (coming soon)
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+
+## SurreyAlign Data Model — Entity-Centric Architecture
+
+### Critical Concept: Everything is Entity-Scoped, NOT User-Scoped
+
+SurreyAlign does NOT work like a personal todo app. Goals, boards, progress indicators, and actions all belong to **entities** — organizations, councils, committees, and wards. Users access them based on their leadership roles (callings) within those entities.
+
+A user doesn't "own" goals; their organization has goals. A user doesn't have progress indicators; their entity's board has progress indicators. The user is a window into entity-scoped data, not the owner of it. The API automatically resolves entity access based on the authenticated user's callings.
+
+### Entity Types
+
+| Entity Type  | What It Is | Examples |
+|---|---|---|
+| Stake | Top-level geographic unit | Surrey British Columbia Stake |
+| Ward/Branch | Local congregation within the stake | Surrey 1st, Brookswood, White Rock, Richmond 2nd |
+| Organization | Functional group within a ward or at stake level | Surrey 4th Relief Society, Stake Primary |
+| Council | Governance body that reviews/approves goals | Stake Council, Ward Council, High Council |
+| Committee | Cross-cutting working group under a council | Stake Missionary Committee, Youth Leadership Committee |
+
+Structure: 1 Stake → 8 Wards → ~64 ward orgs + 6 stake orgs = 70 organizations, 13 councils + 10 committees = 23 councils/committees.
+
+### How Goals Work
+
+Goals are created at one of four scopes: stake, ward, organization, committee. They cascade DOWN the hierarchy — a single stake goal may be visible to 95 different entities. Each entity responds independently by creating their own Progress Indicators on their execution board.
+
+- **Stake goals**: Created by Stake Presidency, approved by Stake Council vote, then released to wards
+- **Ward goals**: Created by Bishop, approved by Ward Council
+- **Organization/Committee goals**: Created by leader, auto-approved
+
+### Progress Indicators (PIs)
+
+PIs belong to entities, not users. Three types:
+- **Achieve (milestone)**: Binary done/not done (e.g., "Temple prep class launched")
+- **Growth (increase)**: Numeric start → target (e.g., "Families with temple plans: 0 → 20")
+- **Momentum**: Subjective 0-100% assessment (e.g., "Ministering quality")
+
+Each PI can have up to 3 per entity per goal. Each PI has Actions — concrete tasks that drive it forward.
+
+### User Access Model (Role-Based)
+
+Users see goals based on entity membership through their callings:
+- **Stake President**: Sees ALL goals
+- **High Councilor** (with assigned wards/stewardships): Sees goals for assigned entities
+- **Bishop**: Sees stake goals released to their ward + ward-level goals
+- **Org President** (e.g., RS President): Sees goals assigned to their organization
+
+The API handles access automatically — `GET /goals` returns only goals the authenticated user should see based on their bearer token.
+
+### Planning Periods
+
+Goals belong to planning periods (cycles). The API defaults to the current cycle. The current active period is **period_id=7 (Annual 2026)**. If no goals appear, the user may need to select a different period.
+
+### Execution Endpoint Auto-Summary
+
+If `GET /goals/{id}/execution` returns `meta.includes_actions: false`, there were >15 entities and the response was auto-summarized. The app shows summary view and lets users tap into a specific entity for full detail using `?entity_type=organization&entity_id=17`.
 
 ## System Architecture
 
@@ -33,47 +89,47 @@ Preferred communication style: Simple, everyday language.
 ### Authentication
 
 - Users log in with the same email/password credentials they use on surreyalign.org
-- The app calls `https://surreyalign.org/api/external/v1` to validate credentials and receive a bearer token
+- The app calls the Express proxy which forwards to `https://surreyalign.org/api/external/v1`
 - Tokens and user data are persisted using `expo-secure-store` on native platforms and `@react-native-async-storage/async-storage` on web
 - The `AuthProvider` in `lib/auth-context.tsx` manages the full auth lifecycle (login, logout, token restoration)
 - User profile data (name, email, calling, ward, stake, admin flags) is cached locally from the SurreyAlign API response
 
-### Backend — Express Server
+### Backend — Express Server (API Proxy)
 
 - **Framework**: Express 5 running on Node.js
-- **Purpose**: Serves as a lightweight API proxy and static file server. The server is intentionally thin since surreyalign.org is the data source of truth.
-- **Routes**: Defined in `server/routes.ts` — currently minimal, prefixed with `/api`
-- **Storage**: `server/storage.ts` has an in-memory storage implementation (`MemStorage`) with a basic user CRUD interface. This is a local abstraction, not the primary data store.
-- **CORS**: Configured dynamically based on Replit domain environment variables and localhost origins for development
-- **Build**: Server is bundled with esbuild for production (`server_dist/`)
+- **Purpose**: Serves as a lightweight API proxy to SurreyAlign.org (avoids CORS issues from browser) and static file server. The server is intentionally thin.
+- **Proxy Routes** in `server/routes.ts`:
+  - `POST /api/auth/login` → forwards to SurreyAlign login
+  - `GET /api/auth/me` → validates session
+  - `POST /api/auth/logout` → ends session
+  - `GET /api/goals` → list goals (supports scope, status, period_id query params)
+  - `GET /api/goals/:goalId/execution` → goal execution detail (supports entity_type, entity_id, summary params)
+- **CORS**: Configured dynamically based on Replit domain environment variables and localhost origins. Allows `Content-Type` and `Authorization` headers.
 
 ### Database — PostgreSQL with Drizzle ORM
 
 - **ORM**: Drizzle ORM with PostgreSQL dialect
-- **Schema**: Defined in `shared/schema.ts` — currently has a `users` table with `id` (UUID), `username`, and `password` fields
-- **Validation**: Zod schemas generated from Drizzle schemas via `drizzle-zod`
-- **Migrations**: Output to `./migrations` directory, managed via `drizzle-kit push`
-- **Connection**: Uses `DATABASE_URL` environment variable
+- **Schema**: Defined in `shared/schema.ts` — currently has a `users` table (supplementary, not primary data store)
 - **Note**: The local database is supplementary. The primary data source is the SurreyAlign.org external API.
 
 ### Build & Deployment
 
-- **Development**: Two processes run concurrently — `expo:dev` for the mobile app and `server:dev` for the Express backend
+- **Development**: Two processes run concurrently — `expo:dev` for the mobile app (port 8081) and `server:dev` for the Express backend (port 5000)
 - **Production**: Static web build via custom `scripts/build.js`, server bundled with esbuild
-- **Platform Support**: iOS, Android, and Web. The app uses `Platform.OS` checks for platform-specific behavior (e.g., web bottom insets, secure storage fallbacks)
-- **Patches**: Uses `patch-package` (postinstall script)
+- **Platform Support**: iOS, Android, and Web
 
 ## External Dependencies
 
 ### SurreyAlign.org API
 - **Base URL**: `https://surreyalign.org/api/external/v1`
-- **Purpose**: Single source of truth for all app data — authentication, user profiles, agendas, assignments, callings, and pulse check-ins
+- **Purpose**: Single source of truth for all app data
 - **Auth Method**: Email/password login returns a bearer token used for subsequent API calls
+- **All API calls route through Express proxy** to avoid browser CORS restrictions
 
-### Database
-- **PostgreSQL** via `DATABASE_URL` environment variable
-- **ORM**: Drizzle ORM for schema definition and queries
-- Uses `drizzle-kit` for schema management (`npm run db:push`)
+### Test Credentials
+- Email: `ana@ortolanos.com` / Password: `12345678`
+- Returns: Ana C. Ortolano, Relief Society Second Counselor, Surrey 4th Ward
+- Note: Ward-level counselor — may have limited goal visibility
 
 ### Key NPM Dependencies
 - `expo` (~54.0.27) — Core framework
@@ -88,3 +144,13 @@ Preferred communication style: Simple, everyday language.
 - `react-native-gesture-handler` — Gesture support
 - `react-native-safe-area-context` — Safe area handling
 - `expo-haptics` — Haptic feedback on native
+
+## Recent Changes
+
+- 2026-02-18: Added Goals & Execution feature (goals list with scope filters, goal detail with entity-grouped PIs and actions)
+- 2026-02-18: Added Goals proxy endpoints (`/api/goals`, `/api/goals/:goalId/execution`)
+- 2026-02-18: Fixed CORS to allow Authorization header in preflight
+- 2026-02-18: Updated goals UI to reflect entity-centric model (goals belong to entities, not individuals)
+- 2026-02-18: Added ALIGN, Settings, About, Terms of Service informational screens
+- 2026-02-18: Implemented Express proxy for all auth API calls to avoid CORS
+- 2026-02-18: Added dropdown menu on home screen (Profile, ALIGN, Settings, About, TOS, Sign Out)

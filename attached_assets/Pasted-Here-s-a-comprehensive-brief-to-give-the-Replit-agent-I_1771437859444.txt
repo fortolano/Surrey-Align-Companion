@@ -1,0 +1,166 @@
+Here's a comprehensive brief to give the Replit agent. It explains the governance model, entity-scoped data, and how everything
+  connects — from the perspective of someone building a mobile app that consumes this API:
+
+  ---
+  SurreyAlign Data Model — How Goals & Leadership Work (For the Mobile App Developer)
+
+  Critical Concept: Everything is Entity-Scoped, NOT User-Scoped
+
+  SurreyAlign does NOT work like a personal todo app where each user has their own goals. Goals, boards, progress indicators, and actions
+   all belong to entities — organizations, councils, committees, and wards. Users access them based on their leadership roles within
+  those entities.
+
+  Think of it like a company: the "Q1 Revenue Target" doesn't belong to John in Sales — it belongs to the Sales Department. John can see
+  it because he works in Sales. If John transfers to Marketing, he loses access to the Sales goal and gains access to Marketing's goals.
+  Same principle here.
+
+  ---
+  The Entity Types
+
+  | Entity Type  | What It Is                                                   | Examples
+          | DB Table                  |
+  |--------------|--------------------------------------------------------------|--------------------------------------------------------
+  --------|---------------------------|
+  | Stake        | The top-level geographic unit (like a regional district)     | Surrey British Columbia Stake
+          | stakes                    |
+  | Ward/Branch  | A local congregation within the stake (like a branch office) | Surrey 1st, Brookswood, White Rock, Richmond 2nd
+          | wards                     |
+  | Organization | A functional group within a ward or at stake level           | Surrey 4th Relief Society, Stake Primary, Brookswood
+  Young Men | organizations             |
+  | Council      | A governance body that reviews and approves goals            | Stake Council, Surrey 1st Ward Council, High Council
+          | councils (kind=council)   |
+  | Committee    | A cross-cutting working group under a council                | Stake Missionary Committee, Youth Leadership Committee
+          | councils (kind=committee) |
+
+  Key structure:
+  - 1 Stake → 8 Wards
+  - Each ward has ~7 organizations (Bishopric, Elders Quorum, Relief Society, Primary, Sunday School, Young Men, Young Women)
+  - The stake has 6 stake-level organizations (Stake Presidency, Stake RS, Stake Primary, Stake YM, Stake YW, Stake SS)
+  - Total: ~64 ward orgs + 6 stake orgs = 70 organizations
+  - 13 councils + 10 committees = 23 councils/committees
+
+  ---
+  How Goals Work (Entity-Owned, Not User-Owned)
+
+  A goal is created at one of four scopes:
+
+  | Scope        | Who Creates It       | Who Approves It     | Example                                               |
+  |--------------|----------------------|---------------------|-------------------------------------------------------|
+  | stake        | Stake Presidency     | Stake Council votes | "Strengthen temple worship across the stake"          |
+  | ward         | Bishop (ward leader) | Ward Council votes  | "Increase ministering visits in our ward"             |
+  | organization | Org President        | Auto-approved       | "Launch temple prep class" (created by RS Presidency) |
+  | committee    | Committee Chair      | Auto-approved       | "Coordinate stake youth conference"                   |
+
+  Goals cascade DOWN the hierarchy:
+
+  STAKE GOAL (created by Stake Presidency)
+    ↓ approved by Stake Council
+    ↓ released to wards (manual step)
+    ↓
+    ├── Ward Council sees it → can create Progress Indicators on their board
+    ├── Ward organizations see it → can create Progress Indicators on their boards
+    ├── Stake organizations see it → can create PIs on their boards
+    └── Committees see it → can create PIs on their boards
+
+  A single stake goal may be visible to 95 different entities across the stake. Each entity responds to the goal independently by
+  creating their own Progress Indicators.
+
+  ---
+  How Users See Goals (Role-Based Access, Not Ownership)
+
+  Users don't "own" goals. They see goals based on which entities they belong to through their callings (church leadership positions):
+
+  | User Role                                                           | What Entities They Belong To
+                                                     | What Goals They See                                                  |
+  |---------------------------------------------------------------------|----------------------------------------------------------------
+  ---------------------------------------------------|----------------------------------------------------------------------|
+  | Stake President                                                     | All entities
+                                                     | ALL goals in the stake                                               |
+  | High Councilor (e.g., assigned to Surrey 4th + Primary stewardship) | Surrey 4th ward (all 7 orgs), Stake Primary, all ward Primary
+  orgs, High Council, Stake Council, their committees | Goals assigned to ANY of those entities                              |
+  | Bishop (e.g., Surrey 1st)                                           | Surrey 1st ward (all 7 orgs), Surrey 1st Ward Council
+                                                     | Stake goals released to Surrey 1st + ward-level goals for Surrey 1st |
+  | RS President (e.g., Surrey 4th RS)                                  | Surrey 4th Relief Society, possibly Surrey 4th Ward Council
+                                                     | Goals assigned to her organization                                   |
+
+  The API handles all of this automatically. When you call GET /goals, the backend resolves which entities the authenticated user belongs
+   to and returns only the goals they should see. You don't need to pass entity IDs or role information — the bearer token identifies the
+   user and the server figures out access.
+
+  ---
+  Progress Indicators (PIs) — The Execution Layer
+
+  When an entity (org, council, committee) receives a goal, leaders on that entity's execution board create Progress Indicators —
+  observable commitments that show the goal is being worked on.
+
+  PIs belong to entities, not users. The "Surrey 4th Relief Society" board might have a PI called "Families with temple plans" for a
+  stake goal about temple worship. That PI belongs to the organization, not to the sister who created it.
+
+  There are 3 types of Progress Indicators:
+
+  | Type                | What It Tracks                          | Example                                                |
+  |---------------------|-----------------------------------------|--------------------------------------------------------|
+  | Achieve (milestone) | Binary — done or not done               | "Temple prep class launched" (yes/no)                  |
+  | Growth (increase)   | Numeric increase from start to target   | "Families with temple plans: 0 → 20" (currently at 12) |
+  | Momentum            | Subjective assessment on a 0-100% scale | "Ministering quality" (leader rates 0/25/50/75/100)    |
+
+  Each PI can have up to 3 per entity per goal. Each PI has Actions — concrete tasks that drive the PI forward.
+
+  ---
+  Actions — What People Actually Do
+
+  Actions are the specific tasks attached to a Progress Indicator:
+  - "Coordinate temple trip for March 15" (progress: 75%)
+  - "Run temple prep class for new converts" (progress: 100%, completed)
+  - "Follow up with 5 families about temple recommends" (progress: 50%)
+
+  When all actions reach 100% AND the PI metric target is met, the PI auto-completes.
+
+  ---
+  How the Execution Endpoint Works
+
+  GET /goals/{id}/execution returns the PIs and Actions for a goal, grouped by entity:
+
+  Goal: "Strengthen temple worship"
+    │
+    ├── Entity: Surrey 4th Relief Society
+    │     ├── PI: "Families with temple plans" (Growth, 60%)
+    │     │     ├── Action: "Coordinate temple trips" (75%)
+    │     │     └── Action: "Temple prep class" (100%)
+    │     └── PI: "RS sisters with recommend" (Momentum, 50%)
+    │
+    ├── Entity: Surrey 4th Ward Council
+    │     └── PI: "Ward temple night monthly" (Achieve, not started)
+    │           └── Action: "Schedule first temple night" (0%)
+    │
+    └── Entity: Stake Primary
+          └── PI: "Children learning about temples" (Momentum, 75%)
+
+  The API only returns entities the authenticated user can see. A ward RS President would see only the "Surrey 4th Relief Society"
+  entity. A High Councilor with Primary stewardship would see "Surrey 4th Relief Society" + "Surrey 4th Ward Council" + "Stake Primary" +
+   all ward Primary orgs.
+
+  ---
+  What This Means for Mobile App Development
+
+  1. Don't build "My Goals" as a personal list. Build it as "Goals I can see based on my calling." The API already filters correctly.
+  2. Group goals by scope in the UI. The scope field tells you: stake goals are the big picture, ward goals are local,
+  organization/committee goals are team-specific.
+  3. The execution view is entity-grouped. When showing PIs for a goal, display them under entity headers ("Surrey 4th Relief Society",
+  "Ward Council", etc.) — not as a flat list.
+  4. Progress is hierarchical: Goal progress = average of its PIs. PI progress = metric calculation + action completion. Show progress at
+   each level.
+  5. period_id matters. Goals belong to planning periods (cycles). The API defaults to the current cycle. If no goals appear, the user
+  may need to select a different period. The current active period is period_id=7 (Annual 2026).
+  6. Auto-summary mode: If the execution endpoint returns meta.includes_actions: false, it means there were too many entities (>15) and
+  the response was automatically summarized. Show the summary view and let users tap into a specific entity to get full detail using
+  ?entity_type=organization&entity_id=17.
+
+  ---
+  ★ Insight ─────────────────────────────────────
+  The fundamental mental model shift: Most app developers assume data is user-centric — "show me MY stuff." Church leadership is
+  entity-centric — "show me what my ORGANIZATION is doing." A user doesn't have goals; their organization has goals. A user doesn't have
+  progress indicators; their entity's board has progress indicators. The user is a window into entity-scoped data, not the owner of it.
+  Once the Replit agent grasps this, everything else falls into place — the API responses make sense, the grouping makes sense, and the
+  access model makes sense.
+  ─────────────────────────────────────────────────

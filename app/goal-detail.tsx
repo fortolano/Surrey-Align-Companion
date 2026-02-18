@@ -218,49 +218,75 @@ function entityTypeColor(type: string): string {
   }
 }
 
-function EntitySection({ entity, index }: { entity: ExecutionEntity; index: number }) {
+function EntitySection({
+  entity,
+  index,
+  isSummaryView,
+  onDrillDown,
+}: {
+  entity: ExecutionEntity;
+  index: number;
+  isSummaryView: boolean;
+  onDrillDown?: (entityType: string, entityId: number) => void;
+}) {
   const color = entityTypeColor(entity.type);
   const hasPIs = entity.progress_indicators && entity.progress_indicators.length > 0;
   const isSummaryMode = !hasPIs && entity.pi_count !== undefined;
 
+  const content = (
+    <View style={styles.entitySection}>
+      <View style={styles.entityHeader}>
+        <View style={[styles.entityDot, { backgroundColor: color }]} />
+        <View style={styles.entityHeaderText}>
+          <Text style={styles.entityName} numberOfLines={1}>{entity.name}</Text>
+          <View style={styles.entitySubRow}>
+            {entity.ward && (
+              <Text style={styles.entityWard}>{entity.ward}</Text>
+            )}
+            <Text style={styles.entityType}>
+              {entity.type.charAt(0).toUpperCase() + entity.type.slice(1)}
+            </Text>
+          </View>
+        </View>
+        {isSummaryMode && entity.avg_progress !== undefined && (
+          <View style={styles.entityAvgBadge}>
+            <Text style={styles.entityAvgText}>{Math.round(entity.avg_progress)}%</Text>
+          </View>
+        )}
+        {isSummaryView && (
+          <Ionicons name="chevron-forward" size={18} color={Colors.brand.midGray} />
+        )}
+      </View>
+
+      {isSummaryMode ? (
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryText}>
+            {entity.pi_completed_count}/{entity.pi_count} indicators complete
+          </Text>
+          <ProgressBar progress={entity.avg_progress || 0} color={color} />
+        </View>
+      ) : hasPIs ? (
+        <View style={styles.piList}>
+          {entity.progress_indicators!.map((pi) => (
+            <PICard key={pi.id} pi={pi} entityColor={color} />
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+
   return (
     <Animated.View entering={FadeInDown.duration(300).delay(60 + index * 40)}>
-      <View style={styles.entitySection}>
-        <View style={styles.entityHeader}>
-          <View style={[styles.entityDot, { backgroundColor: color }]} />
-          <View style={styles.entityHeaderText}>
-            <Text style={styles.entityName} numberOfLines={1}>{entity.name}</Text>
-            <View style={styles.entitySubRow}>
-              {entity.ward && (
-                <Text style={styles.entityWard}>{entity.ward}</Text>
-              )}
-              <Text style={styles.entityType}>
-                {entity.type.charAt(0).toUpperCase() + entity.type.slice(1)}
-              </Text>
-            </View>
-          </View>
-          {isSummaryMode && entity.avg_progress !== undefined && (
-            <View style={styles.entityAvgBadge}>
-              <Text style={styles.entityAvgText}>{Math.round(entity.avg_progress)}%</Text>
-            </View>
-          )}
-        </View>
-
-        {isSummaryMode ? (
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryText}>
-              {entity.pi_completed_count}/{entity.pi_count} indicators complete
-            </Text>
-            <ProgressBar progress={entity.avg_progress || 0} color={color} />
-          </View>
-        ) : hasPIs ? (
-          <View style={styles.piList}>
-            {entity.progress_indicators!.map((pi) => (
-              <PICard key={pi.id} pi={pi} entityColor={color} />
-            ))}
-          </View>
-        ) : null}
-      </View>
+      {isSummaryView && onDrillDown ? (
+        <Pressable
+          onPress={() => onDrillDown(entity.type, entity.id)}
+          style={({ pressed }) => pressed ? { opacity: 0.85 } : undefined}
+        >
+          {content}
+        </Pressable>
+      ) : (
+        content
+      )}
     </Animated.View>
   );
 }
@@ -270,6 +296,7 @@ export default function GoalDetailScreen() {
   const { goalId } = useLocalSearchParams<{ goalId: string }>();
   const { token } = useAuth();
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
+  const [drillDown, setDrillDown] = useState<{ entityType: string; entityId: number } | null>(null);
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery<ExecutionResponse>({
     queryKey: ['/api/goals', goalId, 'execution'],
@@ -287,6 +314,25 @@ export default function GoalDetailScreen() {
       return res.json();
     },
     enabled: !!token && !!goalId,
+    staleTime: 60000,
+  });
+
+  const { data: drillDownData, isLoading: drillDownLoading } = useQuery<ExecutionResponse>({
+    queryKey: ['/api/goals', goalId, 'execution', drillDown?.entityType, drillDown?.entityId],
+    queryFn: async () => {
+      if (!drillDown) throw new Error('No drill down');
+      const base = getApiUrl();
+      const url = `${base}api/goals/${goalId}/execution?entity_type=${drillDown.entityType}&entity_id=${drillDown.entityId}`;
+      const res = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+      if (!res.ok) throw new Error('Failed to load entity detail');
+      return res.json();
+    },
+    enabled: !!token && !!goalId && !!drillDown,
     staleTime: 60000,
   });
 
@@ -397,13 +443,48 @@ export default function GoalDetailScreen() {
         </View>
       </Animated.View>
 
-      {entities.length > 0 && (
+      {drillDown && drillDownLoading && (
+        <View style={styles.drillDownLoading}>
+          <ActivityIndicator size="small" color={Colors.brand.primary} />
+          <Text style={styles.loadingText}>Loading entity details...</Text>
+        </View>
+      )}
+
+      {drillDown && drillDownData && drillDownData.entities.length > 0 && (
+        <View style={styles.entitiesSection}>
+          <View style={styles.drillDownHeader}>
+            <Pressable onPress={() => setDrillDown(null)} style={styles.backToSummary}>
+              <Ionicons name="arrow-back" size={16} color={Colors.brand.primary} />
+              <Text style={styles.backToSummaryText}>Back to all entities</Text>
+            </Pressable>
+          </View>
+          {drillDownData.entities.map((entity, index) => (
+            <EntitySection
+              key={`${entity.type}-${entity.id}`}
+              entity={entity}
+              index={index}
+              isSummaryView={false}
+            />
+          ))}
+        </View>
+      )}
+
+      {!drillDown && entities.length > 0 && (
         <View style={styles.entitiesSection}>
           <Text style={styles.sectionLabel}>
             {meta?.includes_actions ? 'Execution Details' : 'Summary by Entity'}
           </Text>
+          {meta?.includes_actions === false && (
+            <Text style={styles.summaryHint}>Tap an entity to see full details</Text>
+          )}
           {entities.map((entity, index) => (
-            <EntitySection key={`${entity.type}-${entity.id}`} entity={entity} index={index} />
+            <EntitySection
+              key={`${entity.type}-${entity.id}`}
+              entity={entity}
+              index={index}
+              isSummaryView={!meta?.includes_actions}
+              onDrillDown={(entityType, entityId) => setDrillDown({ entityType, entityId })}
+            />
           ))}
         </View>
       )}
@@ -582,6 +663,30 @@ const styles = StyleSheet.create({
   heroMetaText: {
     fontSize: 12,
     color: Colors.brand.midGray,
+    fontFamily: 'Inter_400Regular',
+  },
+  drillDownLoading: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    gap: 8,
+  },
+  drillDownHeader: {
+    marginBottom: 12,
+  },
+  backToSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  backToSummaryText: {
+    fontSize: 14,
+    color: Colors.brand.primary,
+    fontFamily: 'Inter_500Medium',
+  },
+  summaryHint: {
+    fontSize: 12,
+    color: Colors.brand.midGray,
+    marginBottom: 10,
     fontFamily: 'Inter_400Regular',
   },
   entitiesSection: {

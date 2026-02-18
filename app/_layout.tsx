@@ -1,4 +1,3 @@
-// template
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -7,29 +6,92 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "@/lib/query-client";
+import { AuthProvider } from "@/lib/auth-context";
+import {
+  useFonts,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from "@expo-google-fonts/inter";
+import Colors from "@/constants/colors";
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 function RootLayoutNav() {
   return (
-    <Stack screenOptions={{ headerBackTitle: "Back" }}>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+    <Stack
+      screenOptions={{
+        headerBackTitle: "Back",
+        headerTintColor: Colors.brand.primary,
+        headerStyle: { backgroundColor: Colors.light.background },
+        headerTitleStyle: {
+          fontFamily: "Inter_600SemiBold",
+          fontSize: 17,
+          color: Colors.brand.black,
+        },
+        contentStyle: { backgroundColor: Colors.light.background },
+      }}
+    >
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="home" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          presentation: "modal",
+        }}
+      />
+      <Stack.Screen
+        name="callings"
+        options={{ title: "Callings & Releases" }}
+      />
+      <Stack.Screen
+        name="high-council-agenda"
+        options={{ title: "High Council Agenda" }}
+      />
+      <Stack.Screen
+        name="stake-council-agenda"
+        options={{ title: "Stake Council Agenda" }}
+      />
+      <Stack.Screen
+        name="assignments"
+        options={{ title: "My Assignments" }}
+      />
+      <Stack.Screen
+        name="align-pulse"
+        options={{ title: "ALIGN Pulse" }}
+      />
     </Stack>
   );
 }
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
+
   useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <GestureHandlerRootView>
           <KeyboardProvider>
-            <RootLayoutNav />
+            <AuthProvider>
+              <RootLayoutNav />
+            </AuthProvider>
           </KeyboardProvider>
         </GestureHandlerRootView>
       </QueryClientProvider>

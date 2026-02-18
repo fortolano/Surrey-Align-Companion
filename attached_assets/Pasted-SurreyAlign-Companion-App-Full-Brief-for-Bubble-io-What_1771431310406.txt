@@ -1,0 +1,166 @@
+SurreyAlign Companion App — Full Brief for Bubble.io
+
+  What is SurreyAlign?
+
+  SurreyAlign.org is a private, internal leadership coordination platform for the Surrey British Columbia Stake of The Church of Jesus
+  Christ of Latter-Day Saints. It helps stake and ward leaders coordinate goals, track progress, manage agendas, assignments, and
+  check-ins using a framework called ALIGN.
+
+  Who uses it: ~50–80 stake and ward leaders — Stake Presidency, High Councilors, Bishops, Relief Society Presidents, Elders Quorum
+  Presidents, and other organization leaders. These are volunteer church leaders, not tech professionals. The app must be simple, clean,
+  and usable during meetings on a phone.
+
+  This Bubble app is the companion mobile app to surreyalign.org. It does NOT replace the website — it gives leaders quick mobile access
+  to the tools they use most frequently, especially during in-person meetings and on the go.
+
+Next, I will provide you the architecture overview and features and Authentication API Spec (LIVE & TESTED)
+  ---
+  App Architecture Overview
+
+  Authentication: Users log in with the same email/password credentials they use on surreyalign.org. The app calls the SurreyAlign
+  external API to validate credentials and receive a bearer token. After first login, the app should keep users logged in using Bubble's
+  persistent session and device-level biometrics (Face ID, fingerprint) — users should rarely need to re-enter their password.
+
+  Data source: SurreyAlign.org is the single source of truth for all data. The Bubble app reads from and writes to SurreyAlign via REST
+  API endpoints. Bubble's own database stores only the user's session info (sa_token, sa_user_id, and cached profile fields for display).
+   All content (agendas, assignments, goals, check-ins) lives in SurreyAlign's backend.
+
+  Navigation pattern: The Home view displays a vertical scrollable list of feature tiles (large tappable cards). Each tile navigates to a
+   dedicated feature view. Within each feature view, there may be sub-menus, lists, forms, and detail screens.
+
+  ---
+  Feature Tiles (Home Screen)
+
+  Start with these 5 tiles. The list will grow to ~7 total over time.
+
+  | Tile                 | Description                                                                | What users will do
+                                                        |
+  |----------------------|----------------------------------------------------------------------------|----------------------------------
+  ------------------------------------------------------|
+  | Callings & Releases  | View who holds which calling in each ward and stake organization           | Browse a directory of current
+  callings, filter by ward/organization, view contact info |
+  | High Council Agenda  | Agenda tool for High Council meetings                                      | View upcoming agenda, add agenda
+  items, review past meeting minutes, share/export PDF  |
+  | Stake Council Agenda | Agenda tool for Stake Council meetings                                     | Same as above but for Stake
+  Council — view, add items, review minutes                  |
+  | My Assignments       | Personal dashboard of the user's assignments, tasks, and stewardship areas | View assigned tasks, check off
+  items, see deadlines, submit updates                    |
+  | ALIGN Pulse          | Monthly progress check-in for leaders                                      | Submit a short monthly narrative
+  update on how their stewardship area is progressing   |
+
+  Future tiles (not built yet, but plan the architecture to accommodate): File Library, Sacrament Meeting Planner.
+
+  ---
+  User Interactions by Type
+
+  The app is NOT view-only. Users will:
+
+  - View content — Browse agendas, directories, assignment lists, goal summaries
+  - Add/edit items — Submit new agenda items, add task checklist items, write check-in narratives
+  - Submit forms — Monthly ALIGN Pulse form, agenda item submissions
+  - Review & approve — Review agenda items submitted by others
+  - Export/share — Generate and share agenda PDFs
+
+  All of these interactions will call SurreyAlign API endpoints (which I will build as we go). Each API call will include the stored
+  sa_token as a Bearer token in the Authorization header.
+
+  ---
+  Role-Based Visibility
+
+  Different users see different tiles and content based on their role. The login API response includes role flags that control this:
+
+  - is_stake_admin — Full access to everything
+  - is_stake_presidency — Stake-level oversight, all agendas
+  - calling — Determines which organization tools are relevant (e.g., "High Councilor" sees High Council Agenda)
+  - ward / ward_id — Ward-specific content filtering
+
+  For now, show all tiles to all users. We'll add conditional visibility later using the stored sa_is_stake_admin, sa_calling, etc.
+  fields on the Bubble User.
+
+  ---
+  Design Guidelines
+
+  - Clean and minimal — No clutter. White/light backgrounds, subtle shadows on cards, generous spacing
+  - Brand color: #016183 (dark teal) for primary actions and the header
+  - Mobile-first — This is exclusively a mobile app. Large tap targets, readable fonts, thumb-friendly navigation
+  - No heavy graphics — Simple Bootstrap-style icons or equivalent. The aesthetic should feel professional and understated, appropriate
+  for a church leadership tool
+  - Fast and responsive — Leaders use this during live meetings. Every screen should load quickly
+
+  ---
+  Authentication API Spec (LIVE & TESTED)
+
+  Base URL: https://surreyalign.org/api/external/v1
+
+  1. Login
+
+  - Method: POST
+  - URL: https://surreyalign.org/api/external/v1/auth/login
+  - Headers: Content-Type: application/json, Accept: application/json
+  - Request body:
+  {
+      "email": "user@example.com",
+      "password": "their-password"
+  }
+  - Success response (200):
+  {
+      "success": true,
+      "token": "1|TGcydmrVzU33Gtc0Vy0OGWQJ8xcMW2k5wsN0mDRIefe3f000",
+      "user": {
+          "id": 7,
+          "name": "Danielle Duarte de Souza Frazão Barbosa",
+          "email": "dra.danielle.souza@gmail.com",
+          "phone": null,
+          "calling": "Relief Society President",
+          "ward": "Surrey 4th",
+          "ward_id": 9,
+          "stake": "Surrey British Columbia Stake",
+          "stake_id": 1,
+          "is_stake_admin": false,
+          "is_stake_presidency": false,
+          "is_active": true
+      }
+  }
+  - Invalid credentials (401): {"success": false, "message": "Invalid credentials."}
+  - Deactivated account (403): {"success": false, "message": "Your account has been deactivated. Please contact your administrator."}
+  - Rate limited (429): {"success": false, "message": "Too many login attempts. Please try again later."}
+  - Validation error (422): {"message": "The email field is required. (and 1 more error)", "errors": {...}}
+
+  2. Get Current User (validate session on app launch)
+
+  - Method: GET
+  - URL: https://surreyalign.org/api/external/v1/auth/me
+  - Headers: Authorization: Bearer <token>, Accept: application/json
+  - Success (200): Same user object as login (without token)
+  - Invalid/expired token (401): {"message": "Unauthenticated."}
+
+  3. Logout (revoke token)
+
+  - Method: POST
+  - URL: https://surreyalign.org/api/external/v1/auth/logout
+  - Headers: Authorization: Bearer <token>, Accept: application/json
+  - Success (200): {"success": true, "message": "Logged out successfully."}
+
+  Bubble Setup Notes
+
+  - Mirror SurreyAlign users into Bubble's User type on first login
+  - Store token → sa_token (text), user.id → sa_user_id (number)
+  - Store profile fields: sa_name, sa_calling, sa_ward, sa_stake, sa_is_stake_admin (yes/no), sa_is_stake_presidency (yes/no),
+  sa_is_active (yes/no)
+  - All future API calls include Authorization: Bearer [sa_token] header
+  - Token expires after 90 days; on any 401 → clear token, redirect to Login
+  - Login is rate-limited to 10 attempts/min per IP
+
+  ---
+  What I Need from You (Bubble Agent)
+
+  1. Build the Login view with email/password inputs and the API Connector workflow
+  2. Build the Home view with the 5 feature tiles as tappable cards
+  3. Create placeholder views for each tile (CallingReleases_View, HighCouncilAgenda_View, StakeCouncilAgenda_View, MyAssignments_View,
+  AlignPulse_View)
+  4. Wire navigation — Login → Home → Feature views and back
+  5. Handle session validation on app launch (check token validity via /me endpoint)
+
+  I control the SurreyAlign backend and will build new API endpoints as we expand each feature tile. Let's start with getting the login
+  flow and Home tile screen working.
+

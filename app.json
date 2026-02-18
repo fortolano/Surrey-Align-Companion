@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "My App",
-    "slug": "my-app",
+    "name": "SurreyAlign",
+    "slug": "surreyalign",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",

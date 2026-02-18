@@ -78,6 +78,14 @@ function RootLayoutNav() {
         name="terms"
         options={{ title: "Terms of Service" }}
       />
+      <Stack.Screen
+        name="goals"
+        options={{ title: "Goals" }}
+      />
+      <Stack.Screen
+        name="goal-detail"
+        options={{ title: "Goal Detail" }}
+      />
     </Stack>
   );
 }

@@ -60,6 +60,14 @@ const TILES: TileData[] = [
     color: '#F0E8F8',
   },
   {
+    id: 'goals',
+    title: 'Goals & Execution',
+    description: 'Track stake and ward goals with progress indicators',
+    icon: <MaterialCommunityIcons name="target" size={26} color="#016183" />,
+    route: '/goals',
+    color: '#E8F8EE',
+  },
+  {
     id: 'pulse',
     title: 'ALIGN Pulse',
     description: 'Submit your monthly leadership progress check-in',

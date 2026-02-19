@@ -80,40 +80,50 @@ interface CompleteWardResponse {
   calling_step_updated: boolean;
 }
 
-type BundleGroup = {
-  key: string;
+function TypeGroupCard({ itemType, items, selectedWardId, token, onItemsUpdated }: {
+  itemType: 'release' | 'sustaining';
   items: SundayBusinessItem[];
-  callingName: string;
-};
-
-function BundleCard({ bundle, selectedWardId, token, onItemsUpdated }: {
-  bundle: BundleGroup;
   selectedWardId: number | null;
   token: string | null;
   onItemsUpdated: (updated: CompleteWardResponse['updated_items']) => void;
 }) {
   const [marking, setMarking] = useState(false);
-  const firstItem = bundle.items[0];
-  const isConducted = selectedWardId ? firstItem.wards_completed.includes(selectedWardId) : false;
-  const isOutstanding = selectedWardId ? firstItem.wards_outstanding.includes(selectedWardId) : false;
-  const completedCount = firstItem.wards_completed.length;
-  const totalCount = firstItem.wards_required.length;
-  const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+  const count = items.length;
+  const title = itemType === 'release'
+    ? (count === 1 ? 'Release' : 'Releases')
+    : (count === 1 ? 'Sustaining' : 'Sustainings');
 
-  const markConducted = async () => {
-    if (!selectedWardId) return;
+  const outstandingItems = selectedWardId
+    ? items.filter(i => i.wards_outstanding.includes(selectedWardId))
+    : [];
+  const conductedItems = selectedWardId
+    ? items.filter(i => i.wards_completed.includes(selectedWardId))
+    : [];
+  const allConducted = selectedWardId ? outstandingItems.length === 0 && conductedItems.length > 0 : false;
+
+  const markAllConducted = async () => {
+    if (!selectedWardId || outstandingItems.length === 0) return;
     setMarking(true);
     try {
-      const result: CompleteWardResponse = await authFetch(token, `/api/sunday-business/${firstItem.id}/complete-ward`, {
-        method: 'POST',
-        body: { ward_id: selectedWardId },
-      });
-      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      if (result.calling_step_updated) {
-        Alert.alert('Updated', 'The calling lifecycle step has been updated.');
+      const processedBundles = new Set<string>();
+      let anyStepUpdated = false;
+
+      for (const item of outstandingItems) {
+        const bundleKey = item.bundle_id ?? `standalone_${item.id}`;
+        if (processedBundles.has(bundleKey)) continue;
+        processedBundles.add(bundleKey);
+
+        const result: CompleteWardResponse = await authFetch(token, `/api/sunday-business/${item.id}/complete-ward`, {
+          method: 'POST',
+          body: { ward_id: selectedWardId },
+        });
+        if (result.calling_step_updated) anyStepUpdated = true;
+        if (result.updated_items) onItemsUpdated(result.updated_items);
       }
-      if (result.updated_items) {
-        onItemsUpdated(result.updated_items);
+
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (anyStepUpdated) {
+        Alert.alert('Updated', 'Calling lifecycle steps have been updated.');
       }
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to mark as conducted.');
@@ -122,54 +132,73 @@ function BundleCard({ bundle, selectedWardId, token, onItemsUpdated }: {
     }
   };
 
+  const headerColor = itemType === 'release' ? '#92400e' : '#1e40af';
+  const headerBg = itemType === 'release' ? '#fef3c7' : '#dbeafe';
+  const accentColor = itemType === 'release' ? '#F59E0B' : '#3B82F6';
+
   return (
     <View style={cardStyles.card}>
       <View style={cardStyles.header}>
-        <Text style={cardStyles.callingTitle}>{bundle.callingName}</Text>
-        {isConducted && (
-          <View style={cardStyles.conductedBadge}>
+        <View style={[cardStyles.typeIndicator, { backgroundColor: accentColor }]} />
+        <View style={[cardStyles.headerChip, { backgroundColor: headerBg }]}>
+          <Text style={[cardStyles.headerChipText, { color: headerColor }]}>{title.toUpperCase()}</Text>
+        </View>
+        <Text style={cardStyles.countLabel}>{count} {count === 1 ? 'item' : 'items'}</Text>
+        {allConducted && (
+          <View style={cardStyles.allDoneBadge}>
             <Ionicons name="checkmark-circle" size={14} color={Colors.brand.success} />
-            <Text style={cardStyles.conductedText}>Conducted</Text>
+            <Text style={cardStyles.allDoneText}>Done</Text>
           </View>
         )}
       </View>
-      {firstItem.organization_name && (
-        <Text style={cardStyles.orgName}>{firstItem.organization_name}</Text>
-      )}
 
-      {bundle.items.map((item, idx) => (
-        <View key={item.id} style={idx > 0 ? cardStyles.itemSeparator : undefined}>
-          <View style={cardStyles.typeRow}>
-            <View style={[
-              cardStyles.typeChip,
-              item.item_type === 'release' ? cardStyles.typeChipRelease : cardStyles.typeChipSustaining,
-            ]}>
-              <Text style={[
-                cardStyles.typeChipText,
-                item.item_type === 'release' ? cardStyles.typeChipTextRelease : cardStyles.typeChipTextSustaining,
-              ]}>
-                {item.item_type_label.toUpperCase()}
-              </Text>
+      {items.map((item, idx) => {
+        const isConducted = selectedWardId ? item.wards_completed.includes(selectedWardId) : false;
+        return (
+          <View key={item.id} style={[cardStyles.itemRow, idx > 0 && cardStyles.itemRowBorder]}>
+            <View style={cardStyles.itemStatusCol}>
+              {isConducted ? (
+                <Ionicons name="checkmark-circle" size={18} color={Colors.brand.success} />
+              ) : (
+                <Ionicons name="ellipse-outline" size={18} color={Colors.brand.lightGray} />
+              )}
             </View>
-            <Text style={cardStyles.personName}>{item.person_name}</Text>
+            <View style={cardStyles.itemContent}>
+              <Text style={[cardStyles.personName, isConducted && cardStyles.personNameDone]}>
+                {item.person_name}
+              </Text>
+              <Text style={cardStyles.callingName}>{item.calling_name}</Text>
+              {item.organization_name && (
+                <Text style={cardStyles.orgName}>{item.organization_name}</Text>
+              )}
+            </View>
           </View>
-          <View style={cardStyles.scriptBlock}>
-            <View style={cardStyles.scriptBar} />
-            <Text style={cardStyles.scriptText}>{item.script_text}</Text>
-          </View>
-        </View>
-      ))}
+        );
+      })}
 
-      <View style={cardStyles.progressRow}>
-        <View style={cardStyles.progressTrack}>
-          <View style={[cardStyles.progressFill, { width: `${progress}%` }]} />
+      <View style={cardStyles.scriptSection}>
+        <View style={cardStyles.scriptHeader}>
+          <Ionicons name="document-text-outline" size={14} color={Colors.brand.primary} />
+          <Text style={cardStyles.scriptHeaderText}>
+            {count === 1 ? 'Script' : 'Scripts'}
+          </Text>
         </View>
-        <Text style={cardStyles.progressLabel}>{completedCount}/{totalCount} wards</Text>
+        {items.map((item, idx) => (
+          <View key={item.id} style={[cardStyles.scriptBlock, idx > 0 && { marginTop: 10 }]}>
+            {count > 1 && (
+              <Text style={cardStyles.scriptPersonLabel}>{item.person_name}:</Text>
+            )}
+            <View style={cardStyles.scriptTextRow}>
+              <View style={[cardStyles.scriptBar, { backgroundColor: accentColor }]} />
+              <Text style={cardStyles.scriptText}>{item.script_text}</Text>
+            </View>
+          </View>
+        ))}
       </View>
 
-      {selectedWardId && isOutstanding && (
+      {selectedWardId && outstandingItems.length > 0 && (
         <Pressable
-          onPress={markConducted}
+          onPress={markAllConducted}
           style={cardStyles.conductBtn}
           disabled={marking}
         >
@@ -178,7 +207,11 @@ function BundleCard({ bundle, selectedWardId, token, onItemsUpdated }: {
           ) : (
             <>
               <Ionicons name="checkmark" size={16} color={Colors.brand.white} />
-              <Text style={cardStyles.conductBtnText}>Mark as Conducted</Text>
+              <Text style={cardStyles.conductBtnText}>
+                {outstandingItems.length === 1
+                  ? `Mark ${itemType === 'release' ? 'Release' : 'Sustaining'} as Conducted`
+                  : `Mark All ${outstandingItems.length} ${title} as Conducted`}
+              </Text>
             </>
           )}
         </Pressable>
@@ -192,7 +225,7 @@ const cardStyles = StyleSheet.create({
     backgroundColor: Colors.brand.white,
     borderRadius: 14,
     padding: 18,
-    marginBottom: 12,
+    marginBottom: 14,
     marginHorizontal: 16,
     shadowColor: 'rgba(15, 23, 42, 0.1)',
     shadowOffset: { width: 0, height: 3 },
@@ -202,18 +235,33 @@ const cardStyles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 14,
+    gap: 8,
   },
-  callingTitle: {
-    fontSize: 16,
+  typeIndicator: {
+    width: 4,
+    height: 24,
+    borderRadius: 2,
+  },
+  headerChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  headerChipText: {
+    fontSize: 12,
     fontWeight: '700' as const,
-    color: Colors.brand.dark,
     fontFamily: 'Inter_700Bold',
+    letterSpacing: 0.5,
+  },
+  countLabel: {
+    fontSize: 13,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_500Medium',
     flex: 1,
   },
-  conductedBadge: {
+  allDoneBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -222,105 +270,92 @@ const cardStyles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
   },
-  conductedText: {
+  allDoneText: {
     fontSize: 11,
     fontWeight: '600' as const,
     color: '#065f46',
     fontFamily: 'Inter_600SemiBold',
   },
-  orgName: {
-    fontSize: 13,
-    color: Colors.brand.midGray,
-    fontFamily: 'Inter_400Regular',
-    marginBottom: 8,
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 10,
+    gap: 10,
   },
-  itemSeparator: {
-    marginTop: 12,
+  itemRowBorder: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.brand.lightGray,
-    paddingTop: 12,
   },
-  typeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
+  itemStatusCol: {
+    paddingTop: 1,
   },
-  typeChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  typeChipRelease: {
-    backgroundColor: '#fef3c7',
-  },
-  typeChipSustaining: {
-    backgroundColor: '#dbeafe',
-  },
-  typeChipText: {
-    fontSize: 10,
-    fontWeight: '700' as const,
-    fontFamily: 'Inter_700Bold',
-    letterSpacing: 0.5,
-  },
-  typeChipTextRelease: {
-    color: '#92400e',
-  },
-  typeChipTextSustaining: {
-    color: '#1e40af',
+  itemContent: {
+    flex: 1,
   },
   personName: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600' as const,
     color: Colors.brand.dark,
     fontFamily: 'Inter_600SemiBold',
   },
-  scriptBlock: {
-    flexDirection: 'row',
+  personNameDone: {
+    color: Colors.brand.midGray,
+  },
+  callingName: {
+    fontSize: 13,
+    color: Colors.brand.darkGray,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 2,
+  },
+  orgName: {
+    fontSize: 12,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 1,
+  },
+  scriptSection: {
+    marginTop: 14,
     backgroundColor: Colors.brand.sectionBg,
     borderRadius: 12,
-    padding: 12,
-    marginTop: 4,
+    padding: 14,
+  },
+  scriptHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  scriptHeaderText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.brand.primary,
+    fontFamily: 'Inter_600SemiBold',
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  scriptBlock: {},
+  scriptPersonLabel: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.brand.darkGray,
+    fontFamily: 'Inter_600SemiBold',
+    marginBottom: 4,
+  },
+  scriptTextRow: {
+    flexDirection: 'row',
   },
   scriptBar: {
     width: 3,
-    backgroundColor: Colors.brand.primary,
     borderRadius: 2,
-    marginRight: 12,
+    marginRight: 10,
   },
   scriptText: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.brand.dark,
-    lineHeight: 24,
+    lineHeight: 22,
     fontFamily: 'Inter_400Regular',
     fontStyle: 'italic' as const,
-  },
-  progressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  progressTrack: {
-    flex: 1,
-    height: 6,
-    backgroundColor: Colors.brand.lightGray,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: Colors.brand.success,
-    borderRadius: 3,
-  },
-  progressLabel: {
-    fontSize: 12,
-    color: Colors.brand.darkGray,
-    fontFamily: 'Inter_600SemiBold',
-    width: 60,
-    textAlign: 'right' as const,
   },
   conductBtn: {
     flexDirection: 'row',
@@ -329,8 +364,8 @@ const cardStyles = StyleSheet.create({
     gap: 6,
     backgroundColor: Colors.brand.primary,
     borderRadius: 8,
-    paddingVertical: 10,
-    marginTop: 4,
+    paddingVertical: 12,
+    marginTop: 14,
   },
   conductBtnText: {
     fontSize: 14,
@@ -361,7 +396,7 @@ export default function SundayBusinessScreen() {
   }, [refetch]);
 
   const wards = data?.wards || [];
-  const items = data?.business_items || [];
+  const allItems = data?.business_items || [];
   const userContext = data?.user_context;
   const selectedWard = wards.find(w => w.id === selectedWardId);
 
@@ -371,24 +406,13 @@ export default function SundayBusinessScreen() {
     }
   }, [userContext, selectedWardId]);
 
-  const bundles = useMemo<BundleGroup[]>(() => {
-    const map = new Map<string, SundayBusinessItem[]>();
-    for (const item of items) {
-      const key = item.bundle_id ?? `standalone_${item.id}`;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(item);
-    }
-    const result: BundleGroup[] = [];
-    map.forEach((bundleItems, key) => {
-      bundleItems.sort((a, b) => (a.item_type === 'release' ? -1 : 1) - (b.item_type === 'release' ? -1 : 1));
-      result.push({
-        key,
-        items: bundleItems,
-        callingName: bundleItems[0].calling_name,
-      });
-    });
-    return result;
-  }, [items]);
+  const wardItems = useMemo(() => {
+    if (!selectedWardId) return allItems;
+    return allItems.filter(item => item.wards_required.includes(selectedWardId));
+  }, [allItems, selectedWardId]);
+
+  const releaseItems = useMemo(() => wardItems.filter(i => i.item_type === 'release'), [wardItems]);
+  const sustainingItems = useMemo(() => wardItems.filter(i => i.item_type === 'sustaining'), [wardItems]);
 
   const handleItemsUpdated = useCallback((updatedItems: CompleteWardResponse['updated_items']) => {
     qClient.setQueryData<SundayBusinessResponse>(['/api/sunday-business/sunday'], (old) => {
@@ -409,9 +433,9 @@ export default function SundayBusinessScreen() {
   }, [qClient]);
 
   const relevantWards = useMemo(() => {
-    if (items.length === 0 || wards.length === 0) return [];
+    if (allItems.length === 0 || wards.length === 0) return [];
     const requiredSet = new Set<number>();
-    for (const item of items) {
+    for (const item of allItems) {
       for (const wid of item.wards_required) {
         requiredSet.add(wid);
       }
@@ -419,18 +443,17 @@ export default function SundayBusinessScreen() {
     return wards
       .filter(w => requiredSet.has(w.id))
       .map(ward => {
-        const allDone = items
-          .filter(item => item.wards_required.includes(ward.id))
-          .every(item => item.wards_completed.includes(ward.id));
-        return { ...ward, allDone };
+        const wardItemsForWard = allItems.filter(item => item.wards_required.includes(ward.id));
+        const doneCount = wardItemsForWard.filter(item => item.wards_completed.includes(ward.id)).length;
+        return { ...ward, allDone: doneCount === wardItemsForWard.length && wardItemsForWard.length > 0, doneCount, totalCount: wardItemsForWard.length };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [items, wards]);
+  }, [allItems, wards]);
 
   const showWardSelector = userContext?.role !== 'ward_leader';
   const wardPromptText = userContext?.role === 'high_councilor'
-    ? 'Which ward are you visiting today?'
-    : 'Select a ward to view progress';
+    ? 'Which ward are you attending this Sunday?'
+    : 'Select a ward to view business';
 
   if (isLoading) {
     return (
@@ -453,7 +476,7 @@ export default function SundayBusinessScreen() {
     );
   }
 
-  if (items.length === 0) {
+  if (allItems.length === 0) {
     return (
       <View style={[styles.container, styles.centered]}>
         <Ionicons name="checkmark-circle-outline" size={48} color={Colors.brand.success} />
@@ -462,6 +485,8 @@ export default function SundayBusinessScreen() {
       </View>
     );
   }
+
+  const noItemsForWard = selectedWardId && wardItems.length === 0;
 
   return (
     <ScrollView
@@ -480,23 +505,10 @@ export default function SundayBusinessScreen() {
       {showWardSelector && (
         <Animated.View entering={FadeIn.duration(300)} style={styles.wardSelector}>
           <Text style={styles.wardPrompt}>{wardPromptText}</Text>
-          <Pressable
-            onPress={() => setShowWardPicker(!showWardPicker)}
-            style={styles.wardDropdown}
-          >
-            <Text style={[styles.wardDropdownText, !selectedWard && styles.wardPlaceholder]}>
-              {selectedWard?.name || 'Select Ward...'}
-            </Text>
-            <Ionicons
-              name={showWardPicker ? 'chevron-up' : 'chevron-down'}
-              size={18}
-              color={Colors.brand.midGray}
-            />
-          </Pressable>
 
-          {showWardPicker && (
-            <Animated.View entering={FadeIn.duration(200)} style={styles.wardList}>
-              {wards.map(ward => (
+          {showWardPicker ? (
+            <Animated.View entering={FadeIn.duration(200)} style={styles.wardGrid}>
+              {relevantWards.map(ward => (
                 <Pressable
                   key={ward.id}
                   onPress={() => {
@@ -505,57 +517,131 @@ export default function SundayBusinessScreen() {
                     if (Platform.OS !== 'web') Haptics.selectionAsync();
                   }}
                   style={[
-                    styles.wardOption,
-                    selectedWardId === ward.id && styles.wardOptionActive,
+                    styles.wardChip,
+                    selectedWardId === ward.id && styles.wardChipActive,
+                    ward.allDone && styles.wardChipDone,
                   ]}
                 >
                   <Text style={[
-                    styles.wardOptionText,
-                    selectedWardId === ward.id && styles.wardOptionTextActive,
+                    styles.wardChipText,
+                    selectedWardId === ward.id && styles.wardChipTextActive,
+                    ward.allDone && styles.wardChipTextDone,
                   ]}>
                     {ward.name}
                   </Text>
-                  {selectedWardId === ward.id && (
-                    <Ionicons name="checkmark" size={18} color={Colors.brand.primary} />
+                  {ward.allDone && (
+                    <Ionicons name="checkmark-circle" size={14} color={Colors.brand.success} />
                   )}
                 </Pressable>
               ))}
             </Animated.View>
+          ) : (
+            <Pressable
+              onPress={() => setShowWardPicker(true)}
+              style={styles.wardDropdown}
+            >
+              <Text style={[styles.wardDropdownText, !selectedWard && styles.wardPlaceholder]}>
+                {selectedWard?.name || 'Select Ward...'}
+              </Text>
+              <Ionicons name="chevron-down" size={18} color={Colors.brand.midGray} />
+            </Pressable>
           )}
         </Animated.View>
       )}
 
-      <View style={styles.bundleListHeader}>
-        <Ionicons name="document-text-outline" size={18} color={Colors.brand.primary} />
-        <Text style={styles.groupHeaderText}>Sunday Business</Text>
-        <View style={styles.groupCount}>
-          <Text style={styles.groupCountText}>{bundles.length}</Text>
-        </View>
-      </View>
-
-      {bundles.map((bundle, idx) => (
-        <Animated.View
-          key={bundle.key}
-          entering={FadeInDown.duration(300).delay(100 + idx * 60)}
-        >
-          <BundleCard
-            bundle={bundle}
-            selectedWardId={selectedWardId}
-            token={token}
-            onItemsUpdated={handleItemsUpdated}
-          />
+      {!selectedWardId && showWardSelector && (
+        <Animated.View entering={FadeInDown.duration(300).delay(100)} style={styles.promptCard}>
+          <MaterialCommunityIcons name="gesture-tap" size={32} color={Colors.brand.midGray} />
+          <Text style={styles.promptText}>Select a ward above to see the releases and sustainings you need to conduct.</Text>
         </Animated.View>
-      ))}
+      )}
 
-      {relevantWards.length > 0 && (
+      {noItemsForWard && (
+        <Animated.View entering={FadeInDown.duration(300)} style={styles.promptCard}>
+          <Ionicons name="checkmark-circle-outline" size={32} color={Colors.brand.success} />
+          <Text style={styles.promptText}>No pending business for {selectedWard?.name} at this time.</Text>
+        </Animated.View>
+      )}
+
+      {selectedWardId && wardItems.length > 0 && (
+        <>
+          <View style={styles.wardSummary}>
+            <Text style={styles.wardSummaryText}>
+              {selectedWard?.name} has {wardItems.length} {wardItems.length === 1 ? 'item' : 'items'} to conduct
+            </Text>
+          </View>
+
+          {releaseItems.length > 0 && (
+            <Animated.View entering={FadeInDown.duration(300).delay(100)}>
+              <TypeGroupCard
+                itemType="release"
+                items={releaseItems}
+                selectedWardId={selectedWardId}
+                token={token}
+                onItemsUpdated={handleItemsUpdated}
+              />
+            </Animated.View>
+          )}
+
+          {sustainingItems.length > 0 && (
+            <Animated.View entering={FadeInDown.duration(300).delay(200)}>
+              <TypeGroupCard
+                itemType="sustaining"
+                items={sustainingItems}
+                selectedWardId={selectedWardId}
+                token={token}
+                onItemsUpdated={handleItemsUpdated}
+              />
+            </Animated.View>
+          )}
+        </>
+      )}
+
+      {!showWardSelector && wardItems.length > 0 && (
+        <>
+          {releaseItems.length > 0 && (
+            <Animated.View entering={FadeInDown.duration(300).delay(100)}>
+              <TypeGroupCard
+                itemType="release"
+                items={releaseItems}
+                selectedWardId={selectedWardId}
+                token={token}
+                onItemsUpdated={handleItemsUpdated}
+              />
+            </Animated.View>
+          )}
+
+          {sustainingItems.length > 0 && (
+            <Animated.View entering={FadeInDown.duration(300).delay(200)}>
+              <TypeGroupCard
+                itemType="sustaining"
+                items={sustainingItems}
+                selectedWardId={selectedWardId}
+                token={token}
+                onItemsUpdated={handleItemsUpdated}
+              />
+            </Animated.View>
+          )}
+        </>
+      )}
+
+      {showWardSelector && relevantWards.length > 0 && (
         <Animated.View entering={FadeInDown.duration(300).delay(400)}>
           <View style={styles.groupHeader}>
             <MaterialCommunityIcons name="format-list-checks" size={18} color={Colors.brand.primary} />
-            <Text style={styles.groupHeaderText}>Ward Completion Status</Text>
+            <Text style={styles.groupHeaderText}>Ward Progress</Text>
           </View>
           <View style={styles.outstandingCard}>
             {relevantWards.map(ward => (
-              <View key={ward.id} style={styles.wardCheckRow}>
+              <Pressable
+                key={ward.id}
+                onPress={() => {
+                  setSelectedWardId(ward.id);
+                  setShowWardPicker(false);
+                  if (Platform.OS !== 'web') Haptics.selectionAsync();
+                }}
+                style={styles.wardCheckRow}
+              >
                 {ward.allDone ? (
                   <Ionicons name="checkmark-circle" size={20} color={Colors.brand.success} />
                 ) : (
@@ -563,14 +649,15 @@ export default function SundayBusinessScreen() {
                 )}
                 <Text style={[
                   styles.wardCheckName,
-                  !ward.allDone && styles.wardCheckOutstanding,
+                  ward.allDone && styles.wardCheckDone,
+                  selectedWardId === ward.id && styles.wardCheckSelected,
                 ]}>
                   {ward.name}
                 </Text>
-                {!ward.allDone && (
-                  <Text style={styles.outstandingLabel}>outstanding</Text>
-                )}
-              </View>
+                <Text style={styles.wardCheckCount}>
+                  {ward.doneCount}/{ward.totalCount}
+                </Text>
+              </Pressable>
             ))}
           </View>
         </Animated.View>
@@ -637,7 +724,7 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: Colors.brand.dark,
     fontFamily: 'Inter_600SemiBold',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   wardDropdown: {
     flexDirection: 'row',
@@ -658,47 +745,65 @@ const styles = StyleSheet.create({
   wardPlaceholder: {
     color: Colors.brand.midGray,
   },
-  wardList: {
-    backgroundColor: Colors.brand.white,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.brand.inputBorder,
-    marginTop: 6,
-    overflow: 'hidden',
-    shadowColor: 'rgba(15, 23, 42, 0.1)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 4,
+  wardGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  wardOption: {
+  wardChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 4,
+    backgroundColor: Colors.brand.white,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.brand.inputBorder,
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.brand.lightGray,
+    paddingVertical: 10,
   },
-  wardOptionActive: {
+  wardChipActive: {
+    borderColor: Colors.brand.primary,
     backgroundColor: Colors.brand.accent,
   },
-  wardOptionText: {
-    fontSize: 15,
-    color: Colors.brand.dark,
-    fontFamily: 'Inter_400Regular',
+  wardChipDone: {
+    borderColor: '#86efac',
+    backgroundColor: '#f0fdf4',
   },
-  wardOptionTextActive: {
+  wardChipText: {
+    fontSize: 14,
+    color: Colors.brand.dark,
+    fontFamily: 'Inter_500Medium',
+  },
+  wardChipTextActive: {
     color: Colors.brand.primary,
     fontFamily: 'Inter_600SemiBold',
   },
-  bundleListHeader: {
-    flexDirection: 'row',
+  wardChipTextDone: {
+    color: '#065f46',
+  },
+  promptCard: {
     alignItems: 'center',
-    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 40,
+    gap: 12,
+  },
+  promptText: {
+    fontSize: 15,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_400Regular',
+    textAlign: 'center' as const,
+    lineHeight: 22,
     paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 10,
+  },
+  wardSummary: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  wardSummaryText: {
+    fontSize: 13,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_500Medium',
   },
   groupHeader: {
     flexDirection: 'row',
@@ -720,22 +825,10 @@ const styles = StyleSheet.create({
     borderLeftColor: Colors.brand.primary,
     paddingLeft: 10,
   },
-  groupCount: {
-    backgroundColor: Colors.brand.accent,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  groupCountText: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    color: Colors.brand.primary,
-    fontFamily: 'Inter_600SemiBold',
-  },
   outstandingCard: {
     backgroundColor: Colors.brand.white,
     borderRadius: 14,
-    padding: 16,
+    padding: 4,
     marginHorizontal: 16,
     shadowColor: 'rgba(15, 23, 42, 0.1)',
     shadowOffset: { width: 0, height: 3 },
@@ -746,8 +839,9 @@ const styles = StyleSheet.create({
   wardCheckRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     gap: 10,
-    paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.brand.lightGray,
   },
@@ -757,13 +851,16 @@ const styles = StyleSheet.create({
     color: Colors.brand.dark,
     fontFamily: 'Inter_500Medium',
   },
-  wardCheckOutstanding: {
+  wardCheckDone: {
     color: Colors.brand.midGray,
   },
-  outstandingLabel: {
-    fontSize: 11,
-    color: Colors.brand.warning,
+  wardCheckSelected: {
+    color: Colors.brand.primary,
     fontFamily: 'Inter_600SemiBold',
-    textTransform: 'uppercase' as const,
+  },
+  wardCheckCount: {
+    fontSize: 12,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_600SemiBold',
   },
 });

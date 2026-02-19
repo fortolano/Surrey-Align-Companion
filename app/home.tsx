@@ -4,6 +4,7 @@ import {
   View,
   Text,
   ScrollView,
+  RefreshControl,
   Pressable,
   Platform,
   Modal,
@@ -175,7 +176,7 @@ export default function HomeScreen() {
 
   const firstName = user?.name?.split(' ')[0] || 'Leader';
 
-  const { data: stakeBusinessData } = useQuery<{
+  const { data: stakeBusinessData, refetch: refetchStakeBusiness, isRefetching } = useQuery<{
     success: boolean;
     business_items: Array<{
       id: number;
@@ -291,6 +292,14 @@ export default function HomeScreen() {
           { paddingBottom: insets.bottom + webBottomInset + 24 },
         ]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={() => refetchStakeBusiness()}
+            tintColor={Colors.brand.primary}
+            colors={[Colors.brand.primary]}
+          />
+        }
       >
         <Text style={styles.sectionTitle}>Quick Access</Text>
         {TILES.map((tile, index) => (

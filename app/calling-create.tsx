@@ -86,15 +86,15 @@ function PickerField({ label, value, options, onChange, placeholder, disabled }:
 }
 
 const pfStyles = StyleSheet.create({
-  container: { marginBottom: 14 },
-  label: { fontSize: 13, fontWeight: '600' as const, color: Colors.brand.darkGray, marginBottom: 6, fontFamily: 'Inter_600SemiBold' },
+  container: { marginBottom: 18 },
+  label: { fontSize: 15, fontWeight: '600' as const, color: Colors.brand.dark, marginBottom: 6, fontFamily: 'Inter_600SemiBold' },
   trigger: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: Colors.brand.offWhite, borderRadius: 10, borderWidth: 1, borderColor: Colors.brand.lightGray,
-    paddingHorizontal: 14, paddingVertical: 12,
+    backgroundColor: Colors.brand.inputBg, borderRadius: 10, borderWidth: 1, borderColor: Colors.brand.inputBorder,
+    paddingHorizontal: 14, paddingVertical: 14,
   },
   disabled: { opacity: 0.5 },
-  triggerText: { fontSize: 14, color: Colors.brand.dark, fontFamily: 'Inter_400Regular', flex: 1, marginRight: 8 },
+  triggerText: { fontSize: 15, color: Colors.brand.dark, fontFamily: 'Inter_400Regular', flex: 1, marginRight: 8 },
   placeholder: { color: Colors.brand.midGray },
   dropdown: {
     marginTop: 4, backgroundColor: Colors.brand.white, borderRadius: 10,
@@ -169,14 +169,14 @@ function IndividualCard({ entry, index, wards, callings, onUpdate, onRemove, can
 }
 
 const icStyles = StyleSheet.create({
-  card: { backgroundColor: Colors.brand.offWhite, borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: Colors.brand.lightGray },
+  card: { backgroundColor: Colors.brand.sectionBg, borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: Colors.brand.inputBorder },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   headerText: { fontSize: 14, fontWeight: '600' as const, color: Colors.brand.primary, fontFamily: 'Inter_600SemiBold' },
-  field: { marginBottom: 14 },
-  label: { fontSize: 13, fontWeight: '600' as const, color: Colors.brand.darkGray, marginBottom: 6, fontFamily: 'Inter_600SemiBold' },
+  field: { marginBottom: 18 },
+  label: { fontSize: 15, fontWeight: '600' as const, color: Colors.brand.dark, marginBottom: 6, fontFamily: 'Inter_600SemiBold' },
   input: {
-    backgroundColor: Colors.brand.white, borderRadius: 10, borderWidth: 1, borderColor: Colors.brand.lightGray,
-    paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: Colors.brand.dark, fontFamily: 'Inter_400Regular',
+    backgroundColor: Colors.brand.white, borderRadius: 10, borderWidth: 1, borderColor: Colors.brand.inputBorder,
+    paddingHorizontal: 14, paddingVertical: 14, fontSize: 15, color: Colors.brand.dark, fontFamily: 'Inter_400Regular',
   },
   multiline: { minHeight: 70, paddingTop: 12 },
 });
@@ -524,36 +524,36 @@ const styles = StyleSheet.create({
   noAccessText: { fontSize: 15, color: Colors.brand.darkGray, textAlign: 'center', marginTop: 12, fontFamily: 'Inter_400Regular' },
   backBtn: { marginTop: 16, backgroundColor: Colors.brand.primary, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8 },
   backBtnText: { color: Colors.brand.white, fontSize: 14, fontFamily: 'Inter_600SemiBold' },
-  scrollContent: { padding: 16 },
+  scrollContent: { padding: 20 },
   section: {
-    backgroundColor: Colors.brand.white, borderRadius: 14, padding: 16, marginBottom: 14,
-    borderWidth: 1, borderColor: Colors.brand.lightGray,
+    backgroundColor: Colors.brand.white, borderRadius: 14, padding: 20, marginBottom: 20,
+    shadowColor: 'rgba(15, 23, 42, 0.08)', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 8, elevation: 2,
   },
   sectionTitle: {
-    fontSize: 15, fontWeight: '700' as const, color: Colors.brand.dark, marginBottom: 14,
+    fontSize: 15, fontWeight: '700' as const, color: Colors.brand.dark, marginBottom: 18,
     fontFamily: 'Inter_700Bold',
   },
   hintText: { fontSize: 11, color: Colors.brand.midGray, marginTop: 4, fontFamily: 'Inter_400Regular', fontStyle: 'italic' as const },
   addButton: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
   addButtonText: { fontSize: 14, color: Colors.brand.primary, fontFamily: 'Inter_600SemiBold' },
   contextInput: {
-    backgroundColor: Colors.brand.offWhite, borderRadius: 10, borderWidth: 1, borderColor: Colors.brand.lightGray,
-    paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: Colors.brand.dark, fontFamily: 'Inter_400Regular',
+    backgroundColor: Colors.brand.inputBg, borderRadius: 10, borderWidth: 1, borderColor: Colors.brand.inputBorder,
+    paddingHorizontal: 14, paddingVertical: 14, fontSize: 15, color: Colors.brand.dark, fontFamily: 'Inter_400Regular',
     minHeight: 100,
   },
   buttonRow: { flexDirection: 'row', gap: 10, marginTop: 4, marginBottom: 20 },
   cancelBtn: {
-    flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center',
+    flex: 1, paddingVertical: 16, borderRadius: 12, alignItems: 'center',
     borderWidth: 1, borderColor: Colors.brand.lightGray, backgroundColor: Colors.brand.white,
   },
   cancelBtnText: { fontSize: 14, fontWeight: '600' as const, color: Colors.brand.darkGray, fontFamily: 'Inter_600SemiBold' },
   draftBtn: {
-    flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center',
+    flex: 1, paddingVertical: 16, borderRadius: 12, alignItems: 'center',
     borderWidth: 1, borderColor: Colors.brand.primary, backgroundColor: Colors.brand.white,
   },
   draftBtnText: { fontSize: 14, fontWeight: '600' as const, color: Colors.brand.primary, fontFamily: 'Inter_600SemiBold' },
   submitBtn: {
-    flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center',
+    flex: 1, paddingVertical: 16, borderRadius: 12, alignItems: 'center',
     backgroundColor: Colors.brand.primary,
   },
   submitBtnText: { fontSize: 14, fontWeight: '600' as const, color: Colors.brand.white, fontFamily: 'Inter_600SemiBold' },

@@ -86,6 +86,14 @@ function RootLayoutNav() {
         name="goal-detail"
         options={{ title: "Goal Detail" }}
       />
+      <Stack.Screen
+        name="calling-create"
+        options={{ title: "New Calling Request" }}
+      />
+      <Stack.Screen
+        name="calling-detail"
+        options={{ title: "Calling Request" }}
+      />
     </Stack>
   );
 }

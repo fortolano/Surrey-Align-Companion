@@ -7,7 +7,7 @@ SurreyAlign is a private mobile companion app for the Surrey British Columbia St
 The app is a **companion** to the main platform at surreyalign.org — it does NOT replace the website. SurreyAlign.org remains the single source of truth for all data. The mobile app reads from and writes to SurreyAlign via REST API endpoints.
 
 Current feature tiles:
-- **Callings & Releases** — Browse current callings by ward/organization (coming soon)
+- **Callings & Releases** — Full lifecycle management: list with filters, create form, detail with role-adaptive views (LIVE)
 - **High Council Agenda** — View/manage High Council meeting agendas (coming soon)
 - **Stake Council Agenda** — View/manage Stake Council meeting agendas (coming soon)
 - **My Assignments** — Personal task dashboard with deadlines and progress (coming soon)
@@ -145,8 +145,30 @@ If `GET /goals/{id}/execution` returns `meta.includes_actions: false`, there wer
 - `react-native-safe-area-context` — Safe area handling
 - `expo-haptics` — Haptic feedback on native
 
+### Callings Module
+
+The Callings module manages the full calling lifecycle from mobile. Three screens:
+
+1. **List** (`app/callings.tsx`): Filterable list with status/scope/mine-only filters, pending action count banner, pull-to-refresh. Cards show calling name, ward/org, individuals, status badge, scope chip, relative time, and progress bar for in-progress requests.
+
+2. **Create** (`app/calling-create.tsx`): Multi-section form with server-driven cascading dropdowns. Scope → Ward → Calling → Organization → Current Holder (auto-detected). Up to 3 individuals. Save as Draft or Submit for Review.
+
+3. **Detail** (`app/calling-detail.tsx`): Role-adaptive view based on `view_level` and `is_requestor_only`:
+   - Requestor: overview, individuals with recommendations, status timeline, progress
+   - Monitor: overview, individuals without recommendations
+   - Governance (full/presidency/ward_authority/voter): tabbed interface with Discussion, Approvals (HC voting), Required Steps
+
+Proxy endpoints in `server/routes.ts` cover all CRUD, reference data, and lifecycle action endpoints.
+
+Shared API helper in `lib/api.ts` for authenticated fetches with token.
+
+LDS terminology: "Individual(s) Prayerfully Considered" (not nominees), "Approvals" (not voting), "Under Prayerful Review" (requestor view), "Under Consideration" (governance view), "Calling" (not position).
+
 ## Recent Changes
 
+- 2026-02-19: Added Callings module: list, create, and detail screens with role-adaptive views
+- 2026-02-19: Added proxy endpoints for all calling-request and reference data APIs
+- 2026-02-19: Added shared `lib/api.ts` helper for authenticated API calls
 - 2026-02-18: Added Goals & Execution feature (goals list with scope filters, goal detail with entity-grouped PIs and actions)
 - 2026-02-18: Added Goals proxy endpoints (`/api/goals`, `/api/goals/:goalId/execution`)
 - 2026-02-18: Fixed CORS to allow Authorization header in preflight

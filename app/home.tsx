@@ -36,6 +36,14 @@ const TILES: TileData[] = [
     color: '#E8F4F8',
   },
   {
+    id: 'sunday-business',
+    title: 'Sunday Business',
+    description: 'Conduct releases and sustainings in wards',
+    icon: <MaterialCommunityIcons name="church" size={26} color="#016183" />,
+    route: '/sunday-business',
+    color: '#F0F4E8',
+  },
+  {
     id: 'hc-agenda',
     title: 'High Council Agenda',
     description: 'View and manage High Council meeting agendas',

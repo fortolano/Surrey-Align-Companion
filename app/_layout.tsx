@@ -94,6 +94,10 @@ function RootLayoutNav() {
         name="calling-detail"
         options={{ title: "Calling Request" }}
       />
+      <Stack.Screen
+        name="sunday-business"
+        options={{ title: "Sunday Business" }}
+      />
     </Stack>
   );
 }

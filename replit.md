@@ -8,6 +8,7 @@ The app is a **companion** to the main platform at surreyalign.org — it does N
 
 Current feature tiles:
 - **Callings & Releases** — Full lifecycle management: list with filters, create form, detail with role-adaptive views (LIVE)
+- **Sunday Business** — High Councilors conduct releases/sustainings in wards, track ward completion (LIVE)
 - **High Council Agenda** — View/manage High Council meeting agendas (coming soon)
 - **Stake Council Agenda** — View/manage Stake Council meeting agendas (coming soon)
 - **My Assignments** — Personal task dashboard with deadlines and progress (coming soon)
@@ -166,6 +167,8 @@ LDS terminology: "Individual(s) Prayerfully Considered" (not nominees), "Approva
 
 ## Recent Changes
 
+- 2026-02-19: Added Sunday Business feature: ward selector, grouped release/sustaining cards with script text, progress tracking, mark-as-conducted workflow
+- 2026-02-19: Added Sunday Business proxy endpoints (GET /sunday, GET /outstanding, GET /:id, POST /:id/complete-ward)
 - 2026-02-19: Added Callings module: list, create, and detail screens with role-adaptive views
 - 2026-02-19: Added proxy endpoints for all calling-request and reference data APIs
 - 2026-02-19: Added shared `lib/api.ts` helper for authenticated API calls

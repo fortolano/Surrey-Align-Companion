@@ -206,9 +206,9 @@ const cardStyles = StyleSheet.create({
   },
   scriptText: {
     flex: 1,
-    fontSize: 13,
-    color: Colors.brand.darkGray,
-    lineHeight: 20,
+    fontSize: 16,
+    color: Colors.brand.dark,
+    lineHeight: 24,
     fontFamily: 'Inter_400Regular',
     fontStyle: 'italic' as const,
   },

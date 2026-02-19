@@ -1,0 +1,166 @@
+Update the SurreyAlign companion mobile app to incorporate two additional server-side changes made after the last spec update. These are
+  additive — they build on top of the changes already implemented from docs/replit-mobile-app-update-spec.md. No breaking changes to existing
+  functionality.
+
+  ---
+  Change 1: Sunday Business URL Rename
+
+  All Sunday Business API paths have been renamed from /stake-business/* to /sunday-business/*. Update every API call:
+
+  | Old Path                                | New Path                                 |
+  |-----------------------------------------|------------------------------------------|
+  | GET /stake-business/sunday              | GET /sunday-business/sunday              |
+  | GET /stake-business/outstanding         | GET /sunday-business/outstanding         |
+  | GET /stake-business/{id}                | GET /sunday-business/{id}                |
+  | POST /stake-business/{id}/complete-ward | POST /sunday-business/{id}/complete-ward |
+
+  The response shapes are identical — only the URL paths changed. Also update the screen title for stake-level users: the user_context.label now
+   returns "Sunday Business" instead of "Stake Business". The app should already be using user_context.label for the screen title (as per the
+  original spec), so this should work automatically. If anything is hardcoded to "Stake Business", change it to use the server's label.
+
+  ---
+  Change 2: Sunday Business Gate (Step Blocking)
+
+  The calling lifecycle now has a gate that blocks certain steps until Sunday business is fully conducted. When a calling request is in progress
+   and the "Business Conducted in Sacrament Meeting" step hasn't been completed yet, the steps after it (Setting Apart, Training, Records
+  Updated) are blocked — they cannot be completed until all required wards have conducted the business.
+
+  2A. New Field in Detail Response: sunday_business_gate
+
+  Every GET /calling-requests/{id} response now includes a sunday_business_gate field inside calling_request:
+
+  {
+    "calling_request": {
+      "sunday_business_gate": {
+        "active": true,
+        "total_items": 2,
+        "completed_items": 1,
+        "message": "Waiting for Sunday business to be conducted (1/2 items complete)."
+      },
+      ...
+    }
+  }
+
+  When sunday_business_gate is null, no gate is active — render steps normally.
+
+  TypeScript interface:
+  interface SundayBusinessGate {
+    active: boolean;
+    total_items: number;
+    completed_items: number;
+    message: string;   // Human-readable status for display
+  }
+
+  // Add to CallingRequestDetail:
+  interface CallingRequestDetail {
+    // ... existing fields ...
+    sunday_business_gate: SundayBusinessGate | null;  // ← NEW
+  }
+
+  2B. New Field on Each Step: is_gated
+
+  Each step in the steps array now includes an is_gated boolean:
+
+  {
+    "steps": [
+      { "step_type": "calling_accepted", "status": "completed", "is_gated": false },
+      { "step_type": "sunday_announcement", "status": "pending", "is_gated": false },
+      { "step_type": "setting_apart", "status": "pending", "is_gated": true },
+      { "step_type": "training", "status": "pending", "is_gated": true },
+      { "step_type": "record_updated", "status": "pending", "is_gated": true }
+    ]
+  }
+
+  TypeScript update:
+  interface CallingRequestStep {
+    // ... existing fields ...
+    is_gated: boolean;  // ← NEW: true when step is blocked by Sunday Business gate
+  }
+
+  2C. New next_action Type: waiting_sunday_business
+
+  When the gate is active, next_action returns:
+  {
+    "type": "waiting_sunday_business",
+    "heading": "Waiting for Sunday Business",
+    "description": "Waiting for Sunday business to be conducted (1/2 items complete).",
+    "context": "60% of steps complete.",
+    "style": "info",
+    "is_terminal": false,
+    "is_waiting": true
+  }
+
+  Add this to the next_action type table (alongside waiting_setting_apart):
+
+  | type                    | Who sees it                           | What to show
+  |
+  |-------------------------|---------------------------------------|---------------------------------------------------------------------------
+  |
+  | waiting_sunday_business | All step managers when gate is active | Info banner with gate message. Optionally link to Sunday Business screen.
+  |
+
+  Since is_waiting: true, render it as an informational banner with no action button (same pattern as other waiting_* types). Optionally include
+   a "View Sunday Business →" link that navigates to the Sunday Business screen.
+
+  2D. Action-Required Label
+
+  The GET /calling-requests/action-required endpoint now returns "Waiting for Sunday business" as the action_label for gated requests. No code
+  changes needed — just render the label as-is (which you're already doing).
+
+  2E. Step Completion Error Handling
+
+  If the app attempts to complete a gated step via PATCH /calling-requests/{id}/steps/{stepId}, the server now returns a 422 error:
+
+  {
+    "success": false,
+    "message": "This step cannot be completed until Sunday business has been conducted in all required wards."
+  }
+
+  Handle this like any other 422 — show the error message to the user. This is a safety net; if you correctly disable gated steps in the UI,
+  users won't hit this path.
+
+  2F. How to Render Gated Steps
+
+  In the Steps tab/section of the calling request detail:
+
+  ✅ Calling Extended           Completed
+  ✅ Calling Accepted           Completed
+  ✅ Release Interview          Completed
+  ○  Business Conducted...      Pending
+  ┌─────────────────────────────────────────┐
+  │ ⏳ Waiting for Sunday business to be    │  ← gate banner (from sunday_business_gate.message)
+  │    conducted (1/2 items complete).      │
+  │    View Sunday Business →               │  ← optional link to Sunday Business screen
+  └─────────────────────────────────────────┘
+  🔒 Setting Apart              Blocked      ← is_gated: true → show lock icon, gray out
+  🔒 Training                   Blocked      ← is_gated: true → show lock icon, gray out
+  🔒 Records Updated            Blocked      ← is_gated: true → show lock icon, gray out
+
+  Rules:
+  - When step.is_gated === true: gray out the step row (reduced opacity), show a lock icon, hide any edit controls
+  - Show the gate banner ONCE above the first gated step, using sunday_business_gate.message
+  - When sunday_business_gate is null: render all steps normally (no gate, no banner, no lock icons)
+  - No client-side logic to determine which steps are gated — just read the is_gated flag from each step
+
+  ---
+  Change 3: Announcement Type Removed
+
+  The item_type field on Sunday Business items no longer includes "announcement". Only "release" and "sustaining" exist. If you have any
+  client-side handling for announcement items (badge colors, labels, filtering), remove it. The updated TypeScript:
+
+  item_type: 'release' | 'sustaining';  // was 'release' | 'sustaining' | 'announcement'
+
+  ---
+  Migration Checklist (append to existing)
+
+  | Old                               | New                                 | Where                           |
+  |-----------------------------------|-------------------------------------|---------------------------------|
+  | /stake-business/*                 | /sunday-business/*                  | All Sunday Business API paths   |
+  | "Stake Business" (hardcoded)      | Use user_context.label              | Sunday Business screen title    |
+  | No sunday_business_gate           | sunday_business_gate object or null | Calling request detail response |
+  | No is_gated on steps              | is_gated: boolean on each step      | Steps array in detail response  |
+  | No waiting_sunday_business type   | New next_action.type                | Detail response next_action     |
+  | item_type includes 'announcement' | Only 'release' | 'sustaining'       | Sunday Business items           |
+
+
+  ---

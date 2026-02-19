@@ -47,7 +47,7 @@ const TILES: TileData[] = [
   },
   {
     id: 'stake-business',
-    title: 'Stake Business',
+    title: 'Sunday Business',
     description: 'Conduct releases and sustainings in wards',
     icon: <MaterialCommunityIcons name="church" size={26} color="#016183" />,
     route: '/sunday-business',
@@ -185,8 +185,8 @@ export default function HomeScreen() {
       wards_outstanding: number[];
     }>;
   }>({
-    queryKey: ['/api/stake-business/sunday'],
-    queryFn: () => authFetch(token, '/api/stake-business/sunday'),
+    queryKey: ['/api/sunday-business/sunday'],
+    queryFn: () => authFetch(token, '/api/sunday-business/sunday'),
     enabled: !!token,
     staleTime: 60000,
   });

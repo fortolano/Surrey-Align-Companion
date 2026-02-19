@@ -104,7 +104,7 @@ function BundleCard({ bundle, selectedWardId, token, onItemsUpdated }: {
     if (!selectedWardId) return;
     setMarking(true);
     try {
-      const result: CompleteWardResponse = await authFetch(token, `/api/stake-business/${firstItem.id}/complete-ward`, {
+      const result: CompleteWardResponse = await authFetch(token, `/api/sunday-business/${firstItem.id}/complete-ward`, {
         method: 'POST',
         body: { ward_id: selectedWardId },
       });
@@ -350,8 +350,8 @@ export default function SundayBusinessScreen() {
   const [showWardPicker, setShowWardPicker] = useState(false);
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery<SundayBusinessResponse>({
-    queryKey: ['/api/stake-business/sunday'],
-    queryFn: () => authFetch(token, '/api/stake-business/sunday'),
+    queryKey: ['/api/sunday-business/sunday'],
+    queryFn: () => authFetch(token, '/api/sunday-business/sunday'),
     enabled: !!token,
     staleTime: 30000,
   });
@@ -391,7 +391,7 @@ export default function SundayBusinessScreen() {
   }, [items]);
 
   const handleItemsUpdated = useCallback((updatedItems: CompleteWardResponse['updated_items']) => {
-    qClient.setQueryData<SundayBusinessResponse>(['/api/stake-business/sunday'], (old) => {
+    qClient.setQueryData<SundayBusinessResponse>(['/api/sunday-business/sunday'], (old) => {
       if (!old) return old;
       const newItems = old.business_items.map(item => {
         const update = updatedItems.find(u => u.id === item.id);

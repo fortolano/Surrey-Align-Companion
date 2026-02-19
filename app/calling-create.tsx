@@ -169,7 +169,7 @@ function IndividualCard({ entry, index, wards, callings, onUpdate, onRemove, can
 }
 
 const icStyles = StyleSheet.create({
-  card: { backgroundColor: Colors.brand.sectionBg, borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: Colors.brand.inputBorder },
+  card: { backgroundColor: Colors.brand.white, borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: Colors.brand.inputBorder },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   headerText: { fontSize: 14, fontWeight: '600' as const, color: Colors.brand.primary, fontFamily: 'Inter_600SemiBold' },
   field: { marginBottom: 18 },
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
   backBtnText: { color: Colors.brand.white, fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   scrollContent: { padding: 20 },
   section: {
-    backgroundColor: Colors.brand.white, borderRadius: 14, padding: 20, marginBottom: 20,
+    backgroundColor: Colors.brand.sectionBg, borderRadius: 14, padding: 20, marginBottom: 20,
     shadowColor: 'rgba(15, 23, 42, 0.08)', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 8, elevation: 2,
   },
   sectionTitle: {

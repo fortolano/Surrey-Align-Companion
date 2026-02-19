@@ -193,7 +193,7 @@ const cardStyles = StyleSheet.create({
   scriptBlock: {
     flexDirection: 'row',
     backgroundColor: Colors.brand.sectionBg,
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 12,
     marginTop: 8,
     marginBottom: 12,
@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: Colors.brand.white,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.brand.inputBorder,
     paddingHorizontal: 14,
@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
   },
   wardList: {
     backgroundColor: Colors.brand.white,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.brand.inputBorder,
     marginTop: 6,
@@ -576,6 +576,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase' as const,
     letterSpacing: 0.5,
     flex: 1,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.brand.primary,
+    paddingLeft: 10,
   },
   groupCount: {
     backgroundColor: Colors.brand.accent,

@@ -361,6 +361,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginBottom: 12,
     fontFamily: 'Inter_600SemiBold',
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.brand.primary,
+    paddingLeft: 10,
   },
   tile: {
     flexDirection: 'row',

@@ -576,7 +576,7 @@ function NextActionBanner({ nextAction, onActionPress }: {
     ? (nextAction.type === 'completed' ? 'checkmark-circle' : nextAction.type === 'cancelled' ? 'close-circle' : 'alert-circle')
     : nextAction.is_waiting ? 'time-outline' : 'arrow-forward-circle';
 
-  const ACTION_LABELS: Record<string, string> = {
+  const ACTION_HINTS: Record<string, string> = {
     vote: 'Cast Recommendation',
     voted: '',
     submit: 'Submit for Review',
@@ -591,8 +591,8 @@ function NextActionBanner({ nextAction, onActionPress }: {
     next_step: 'Update Step',
     mark_complete: 'Mark Complete',
   };
-  const buttonLabel = ACTION_LABELS[nextAction.type] || '';
-  const showButton = !nextAction.is_terminal && !nextAction.is_waiting && !!buttonLabel;
+  const hintLabel = ACTION_HINTS[nextAction.type] || '';
+  const showHint = !nextAction.is_terminal && !nextAction.is_waiting && !!hintLabel;
   const showSundayBusinessLink = nextAction.type === 'waiting_sunday_business';
 
   return (
@@ -605,11 +605,11 @@ function NextActionBanner({ nextAction, onActionPress }: {
       {nextAction.context && (
         <Text style={[naBannerStyles.context, { color: colors.text }]}>{nextAction.context}</Text>
       )}
-      {showButton && (
-        <Pressable onPress={() => onActionPress(nextAction.type)} style={[naBannerStyles.actionBtn, { backgroundColor: colors.accent }]}>
-          <Text style={naBannerStyles.actionBtnText}>{buttonLabel}</Text>
-          <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
-        </Pressable>
+      {showHint && (
+        <View style={[naBannerStyles.hintRow, { backgroundColor: colors.accent + '15' }]}>
+          <Ionicons name="hand-right-outline" size={14} color={colors.accent} />
+          <Text style={[naBannerStyles.hintText, { color: colors.accent }]}>{hintLabel} below</Text>
+        </View>
       )}
       {showSundayBusinessLink && (
         <Pressable onPress={() => router.push('/sunday-business')} style={naBannerStyles.linkRow}>
@@ -627,8 +627,8 @@ const naBannerStyles = StyleSheet.create({
   heading: { fontSize: 15, fontWeight: '700' as const, fontFamily: 'Inter_700Bold' },
   description: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', marginBottom: 4 },
   context: { fontSize: 13, fontFamily: 'Inter_500Medium', opacity: 0.8, marginBottom: 4 },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 8, marginTop: 8 },
-  actionBtnText: { fontSize: 14, fontWeight: '600' as const, color: '#FFFFFF', fontFamily: 'Inter_600SemiBold' },
+  hintRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, marginTop: 8, alignSelf: 'flex-start' as const },
+  hintText: { fontSize: 13, fontWeight: '600' as const, fontFamily: 'Inter_600SemiBold' },
   linkRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 },
   linkText: { fontSize: 13, fontWeight: '600' as const, fontFamily: 'Inter_600SemiBold' },
 });

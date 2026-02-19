@@ -34,6 +34,7 @@ interface SundayBusinessItem {
   person_ward: { id: number; name: string } | null;
   script_text: string;
   released_at: string;
+  created_at: string;
   wards_completed: number[];
   wards_outstanding: number[];
   ward_names: Record<string, string>;
@@ -301,7 +302,7 @@ export default function SundayBusinessScreen() {
     return (
       <View style={[styles.container, styles.centered]}>
         <ActivityIndicator size="large" color={Colors.brand.primary} />
-        <Text style={styles.loadingText}>Loading Sunday business...</Text>
+        <Text style={styles.loadingText}>Loading stake business...</Text>
       </View>
     );
   }
@@ -310,7 +311,7 @@ export default function SundayBusinessScreen() {
     return (
       <View style={[styles.container, styles.centered]}>
         <Ionicons name="cloud-offline-outline" size={40} color={Colors.brand.error} />
-        <Text style={styles.errorText}>Unable to load Sunday business</Text>
+        <Text style={styles.errorText}>Unable to load stake business</Text>
         <Pressable onPress={() => refetch()} style={styles.retryBtn}>
           <Text style={styles.retryBtnText}>Retry</Text>
         </Pressable>
@@ -323,7 +324,7 @@ export default function SundayBusinessScreen() {
       <View style={[styles.container, styles.centered]}>
         <Ionicons name="checkmark-circle-outline" size={48} color={Colors.brand.success} />
         <Text style={styles.emptyTitle}>All Clear</Text>
-        <Text style={styles.emptySubtitle}>No pending Sunday business at this time.</Text>
+        <Text style={styles.emptySubtitle}>No pending stake business at this time.</Text>
       </View>
     );
   }

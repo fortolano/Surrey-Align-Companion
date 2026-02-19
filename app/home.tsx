@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -14,8 +14,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
+import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
+
+interface BadgeInfo {
+  label: string;
+  count: number;
+  color: string;
+  bgColor: string;
+}
 
 interface TileData {
   id: string;
@@ -36,8 +45,8 @@ const TILES: TileData[] = [
     color: '#E8F4F8',
   },
   {
-    id: 'sunday-business',
-    title: 'Sunday Business',
+    id: 'stake-business',
+    title: 'Stake Business',
     description: 'Conduct releases and sustainings in wards',
     icon: <MaterialCommunityIcons name="church" size={26} color="#016183" />,
     route: '/sunday-business',
@@ -104,13 +113,15 @@ const MENU_ITEMS: MenuItem[] = [
   { id: 'logout', label: 'Sign Out', icon: 'log-out', iconSet: 'feather', action: 'logout', destructive: true },
 ];
 
-function FeatureTile({ tile, index }: { tile: TileData; index: number }) {
+function FeatureTile({ tile, index, badges }: { tile: TileData; index: number; badges?: BadgeInfo[] }) {
   const handlePress = () => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     router.push(tile.route as any);
   };
+
+  const activeBadges = badges?.filter(b => b.count > 0) || [];
 
   return (
     <Animated.View entering={FadeInDown.duration(400).delay(100 + index * 80)}>
@@ -126,7 +137,20 @@ function FeatureTile({ tile, index }: { tile: TileData; index: number }) {
           {tile.icon}
         </View>
         <View style={styles.tileContent}>
-          <Text style={styles.tileTitle}>{tile.title}</Text>
+          <View style={styles.tileTitleRow}>
+            <Text style={styles.tileTitle}>{tile.title}</Text>
+            {activeBadges.length > 0 && (
+              <View style={styles.badgeRow}>
+                {activeBadges.map((badge) => (
+                  <View key={badge.label} style={[styles.badge, { backgroundColor: badge.bgColor }]}>
+                    <Text style={[styles.badgeText, { color: badge.color }]}>
+                      {badge.count} {badge.label}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
           <Text style={styles.tileDescription}>{tile.description}</Text>
         </View>
         <Ionicons name="chevron-forward" size={20} color={Colors.brand.midGray} />
@@ -137,13 +161,56 @@ function FeatureTile({ tile, index }: { tile: TileData; index: number }) {
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { user, logout } = useAuth();
+  const { user, logout, token } = useAuth();
   const [menuVisible, setMenuVisible] = useState(false);
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
 
   const firstName = user?.name?.split(' ')[0] || 'Leader';
+
+  const { data: stakeBusinessData } = useQuery<{
+    success: boolean;
+    business_items: Array<{
+      id: number;
+      created_at: string;
+      wards_completed: number[];
+      wards_outstanding: number[];
+    }>;
+  }>({
+    queryKey: ['/api/stake-business/sunday'],
+    queryFn: () => authFetch(token, '/api/stake-business/sunday'),
+    enabled: !!token,
+    staleTime: 60000,
+  });
+
+  const stakeBusinessBadges = useMemo<BadgeInfo[]>(() => {
+    const items = stakeBusinessData?.business_items || [];
+    if (items.length === 0) return [];
+
+    const now = Date.now();
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+
+    let newCount = 0;
+    let outstandingCount = 0;
+
+    for (const item of items) {
+      const hasOutstandingWards = item.wards_outstanding.length > 0;
+      const createdAt = new Date(item.created_at).getTime();
+      const ageMs = now - createdAt;
+
+      if (ageMs <= sevenDaysMs && hasOutstandingWards) {
+        newCount++;
+      } else if (ageMs > sevenDaysMs && hasOutstandingWards) {
+        outstandingCount++;
+      }
+    }
+
+    return [
+      { label: 'New', count: newCount, color: Colors.brand.primary, bgColor: '#E0F2F1' },
+      { label: 'Outstanding', count: outstandingCount, color: '#B45309', bgColor: '#FEF3C7' },
+    ];
+  }, [stakeBusinessData]);
 
   const handleMenuToggle = () => {
     if (Platform.OS !== 'web') {
@@ -221,7 +288,12 @@ export default function HomeScreen() {
       >
         <Text style={styles.sectionTitle}>Quick Access</Text>
         {TILES.map((tile, index) => (
-          <FeatureTile key={tile.id} tile={tile} index={index} />
+          <FeatureTile
+            key={tile.id}
+            tile={tile}
+            index={index}
+            badges={tile.id === 'stake-business' ? stakeBusinessBadges : undefined}
+          />
         ))}
       </ScrollView>
 
@@ -393,12 +465,32 @@ const styles = StyleSheet.create({
   tileContent: {
     flex: 1,
   },
+  tileTitleRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    flexWrap: 'wrap' as const,
+    gap: 6,
+    marginBottom: 2,
+  },
   tileTitle: {
     fontSize: 17,
     fontWeight: '600' as const,
     color: Colors.brand.black,
-    marginBottom: 2,
     fontFamily: 'Inter_600SemiBold',
+  },
+  badgeRow: {
+    flexDirection: 'row' as const,
+    gap: 4,
+  },
+  badge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    fontFamily: 'Inter_700Bold',
   },
   tileDescription: {
     fontSize: 14,

@@ -96,7 +96,7 @@ function RootLayoutNav() {
       />
       <Stack.Screen
         name="sunday-business"
-        options={{ title: "Sunday Business" }}
+        options={{ title: "Stake Business" }}
       />
     </Stack>
   );

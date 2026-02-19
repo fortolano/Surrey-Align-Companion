@@ -167,8 +167,10 @@ LDS terminology: "Individual(s) Prayerfully Considered" (not nominees), "Approva
 
 ## Recent Changes
 
-- 2026-02-19: Added Sunday Business feature: ward selector, grouped release/sustaining cards with script text, progress tracking, mark-as-conducted workflow
-- 2026-02-19: Added Sunday Business proxy endpoints (GET /sunday, GET /outstanding, GET /:id, POST /:id/complete-ward)
+- 2026-02-19: Renamed "Sunday Business" to "Stake Business" across tile, header, and screen title
+- 2026-02-19: Added New/Outstanding badge indicators to Stake Business home tile (New = <7 days, Outstanding = >7 days with incomplete wards)
+- 2026-02-19: Added Stake Business feature: ward selector, grouped release/sustaining cards with script text, progress tracking, mark-as-conducted workflow
+- 2026-02-19: Added Stake Business proxy endpoints (GET /sunday, GET /outstanding, GET /:id, POST /:id/complete-ward)
 - 2026-02-19: Added Callings module: list, create, and detail screens with role-adaptive views
 - 2026-02-19: Added proxy endpoints for all calling-request and reference data APIs
 - 2026-02-19: Added shared `lib/api.ts` helper for authenticated API calls

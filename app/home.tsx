@@ -176,7 +176,7 @@ export default function HomeScreen() {
 
   const firstName = user?.name?.split(' ')[0] || 'Leader';
 
-  const { data: stakeBusinessData, refetch: refetchStakeBusiness, isRefetching } = useQuery<{
+  const { data: stakeBusinessData, refetch: refetchStakeBusiness, isRefetching: isRefetchingBusiness } = useQuery<{
     success: boolean;
     business_items: Array<{
       id: number;
@@ -190,6 +190,25 @@ export default function HomeScreen() {
     enabled: !!token,
     staleTime: 60000,
   });
+
+  const { data: actionRequiredData, refetch: refetchActionRequired, isRefetching: isRefetchingActions } = useQuery<{
+    success: boolean;
+    action_items: Array<{
+      calling_request_id: number;
+      action_type: string;
+      action_label: string;
+      calling_name: string;
+      status_label: string;
+    }>;
+    total_count: number;
+  }>({
+    queryKey: ['/api/calling-requests/action-required'],
+    queryFn: () => authFetch(token, '/api/calling-requests/action-required'),
+    enabled: !!token,
+    staleTime: 60000,
+  });
+
+  const isRefetching = isRefetchingBusiness || isRefetchingActions;
 
   const stakeBusinessBadges = useMemo<BadgeInfo[]>(() => {
     const items = stakeBusinessData?.business_items || [];
@@ -218,6 +237,14 @@ export default function HomeScreen() {
       { label: 'Outstanding', count: outstandingCount, color: '#B45309', bgColor: '#FEF3C7' },
     ];
   }, [stakeBusinessData]);
+
+  const callingsBadges = useMemo<BadgeInfo[]>(() => {
+    const count = actionRequiredData?.total_count ?? 0;
+    if (count === 0) return [];
+    return [
+      { label: 'Action Needed', count, color: Colors.brand.primary, bgColor: '#E8F4F8' },
+    ];
+  }, [actionRequiredData]);
 
   const handleMenuToggle = () => {
     if (Platform.OS !== 'web') {
@@ -295,7 +322,7 @@ export default function HomeScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}
-            onRefresh={() => refetchStakeBusiness()}
+            onRefresh={() => { refetchStakeBusiness(); refetchActionRequired(); }}
             tintColor={Colors.brand.primary}
             colors={[Colors.brand.primary]}
           />
@@ -307,7 +334,7 @@ export default function HomeScreen() {
             key={tile.id}
             tile={tile}
             index={index}
-            badges={tile.id === 'stake-business' ? stakeBusinessBadges : undefined}
+            badges={tile.id === 'stake-business' ? stakeBusinessBadges : tile.id === 'callings' ? callingsBadges : undefined}
           />
         ))}
       </ScrollView>

@@ -129,31 +129,37 @@ function FeatureTile({ tile, index, badges }: { tile: TileData; index: number; b
         onPress={handlePress}
         style={({ pressed }) => [
           styles.tile,
+          activeBadges.length > 0 && styles.tileWithBadges,
           pressed && styles.tilePressed,
         ]}
         testID={`tile-${tile.id}`}
       >
-        <View style={[styles.tileIconContainer, { backgroundColor: tile.color }]}>
-          {tile.icon}
-        </View>
-        <View style={styles.tileContent}>
-          <View style={styles.tileTitleRow}>
-            <Text style={styles.tileTitle}>{tile.title}</Text>
-            {activeBadges.length > 0 && (
-              <View style={styles.badgeRow}>
-                {activeBadges.map((badge) => (
-                  <View key={badge.label} style={[styles.badge, { backgroundColor: badge.bgColor }]}>
-                    <Text style={[styles.badgeText, { color: badge.color }]}>
-                      {badge.count} {badge.label}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
+        <View style={styles.tileMainRow}>
+          <View style={[styles.tileIconContainer, { backgroundColor: tile.color }]}>
+            {tile.icon}
           </View>
-          <Text style={styles.tileDescription}>{tile.description}</Text>
+          <View style={styles.tileContent}>
+            <Text style={styles.tileTitle}>{tile.title}</Text>
+            <Text style={styles.tileDescription}>{tile.description}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={Colors.brand.midGray} />
         </View>
-        <Ionicons name="chevron-forward" size={20} color={Colors.brand.midGray} />
+        {activeBadges.length > 0 && (
+          <View style={styles.badgeStrip}>
+            {activeBadges.map((badge) => (
+              <View key={badge.label} style={[styles.badgeBanner, { backgroundColor: badge.bgColor }]}>
+                <Ionicons
+                  name={badge.label === 'New' ? 'alert-circle' : 'time'}
+                  size={15}
+                  color={badge.color}
+                />
+                <Text style={[styles.badgeBannerText, { color: badge.color }]}>
+                  {badge.count} {badge.label}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
       </Pressable>
     </Animated.View>
   );
@@ -438,8 +444,6 @@ const styles = StyleSheet.create({
     paddingLeft: 10,
   },
   tile: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: Colors.brand.white,
     borderRadius: 16,
     padding: 18,
@@ -449,6 +453,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 12,
     elevation: 3,
+  },
+  tileWithBadges: {
+    paddingBottom: 0,
+  },
+  tileMainRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
   },
   tilePressed: {
     transform: [{ scale: 0.98 }],
@@ -465,38 +476,41 @@ const styles = StyleSheet.create({
   tileContent: {
     flex: 1,
   },
-  tileTitleRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    flexWrap: 'wrap' as const,
-    gap: 6,
-    marginBottom: 2,
-  },
   tileTitle: {
     fontSize: 17,
     fontWeight: '600' as const,
     color: Colors.brand.black,
+    marginBottom: 2,
     fontFamily: 'Inter_600SemiBold',
-  },
-  badgeRow: {
-    flexDirection: 'row' as const,
-    gap: 4,
-  },
-  badge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '700' as const,
-    fontFamily: 'Inter_700Bold',
   },
   tileDescription: {
     fontSize: 14,
     color: Colors.brand.darkGray,
     lineHeight: 20,
     fontFamily: 'Inter_400Regular',
+  },
+  badgeStrip: {
+    flexDirection: 'row' as const,
+    gap: 8,
+    marginTop: 14,
+    paddingTop: 12,
+    paddingBottom: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.brand.lightGray,
+  },
+  badgeBanner: {
+    flex: 1,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  badgeBannerText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    fontFamily: 'Inter_700Bold',
   },
   menuOverlay: {
     flex: 1,

@@ -85,18 +85,20 @@ function TypeGroupCard({ itemType, items, selectedWardId }: {
   items: SundayBusinessItem[];
   selectedWardId: number | null;
 }) {
-  const count = items.length;
+  const pendingItems = selectedWardId
+    ? items.filter(i => !i.wards_completed.includes(selectedWardId))
+    : items;
+
+  const count = pendingItems.length;
   const title = itemType === 'release'
     ? (count === 1 ? 'Release' : 'Releases')
     : (count === 1 ? 'Sustaining' : 'Sustainings');
 
-  const allConducted = selectedWardId
-    ? items.every(i => i.wards_completed.includes(selectedWardId))
-    : false;
-
   const headerColor = itemType === 'release' ? '#92400e' : '#1e40af';
   const headerBg = itemType === 'release' ? '#fef3c7' : '#dbeafe';
   const accentColor = itemType === 'release' ? '#F59E0B' : '#3B82F6';
+
+  if (count === 0) return null;
 
   return (
     <View style={cardStyles.card}>
@@ -106,37 +108,19 @@ function TypeGroupCard({ itemType, items, selectedWardId }: {
           <Text style={[cardStyles.headerChipText, { color: headerColor }]}>{title.toUpperCase()}</Text>
         </View>
         <Text style={cardStyles.countLabel}>{count} {count === 1 ? 'item' : 'items'}</Text>
-        {allConducted && (
-          <View style={cardStyles.allDoneBadge}>
-            <Ionicons name="checkmark-circle" size={14} color={Colors.brand.success} />
-            <Text style={cardStyles.allDoneText}>Done</Text>
-          </View>
-        )}
       </View>
 
-      {items.map((item, idx) => {
-        const isConducted = selectedWardId ? item.wards_completed.includes(selectedWardId) : false;
-        return (
-          <View key={item.id} style={[cardStyles.itemRow, idx > 0 && cardStyles.itemRowBorder]}>
-            <View style={cardStyles.itemStatusCol}>
-              {isConducted ? (
-                <Ionicons name="checkmark-circle" size={18} color={Colors.brand.success} />
-              ) : (
-                <Ionicons name="ellipse-outline" size={18} color={Colors.brand.lightGray} />
-              )}
-            </View>
-            <View style={cardStyles.itemContent}>
-              <Text style={[cardStyles.personName, isConducted && cardStyles.personNameDone]}>
-                {item.person_name}
-              </Text>
-              <Text style={cardStyles.callingName}>{item.calling_name}</Text>
-              {item.organization_name && (
-                <Text style={cardStyles.orgName}>{item.organization_name}</Text>
-              )}
-            </View>
+      {pendingItems.map((item, idx) => (
+        <View key={item.id} style={[cardStyles.itemRow, idx > 0 && cardStyles.itemRowBorder]}>
+          <View style={cardStyles.itemContent}>
+            <Text style={cardStyles.personName}>{item.person_name}</Text>
+            <Text style={cardStyles.callingName}>{item.calling_name}</Text>
+            {item.organization_name && (
+              <Text style={cardStyles.orgName}>{item.organization_name}</Text>
+            )}
           </View>
-        );
-      })}
+        </View>
+      ))}
 
       <View style={cardStyles.scriptSection}>
         <View style={cardStyles.scriptHeader}>
@@ -145,7 +129,7 @@ function TypeGroupCard({ itemType, items, selectedWardId }: {
             {count === 1 ? 'Script' : 'Scripts'}
           </Text>
         </View>
-        {items.map((item, idx) => (
+        {pendingItems.map((item, idx) => (
           <View key={item.id} style={[cardStyles.scriptBlock, idx > 0 && { marginTop: 10 }]}>
             {count > 1 && (
               <Text style={cardStyles.scriptPersonLabel}>{item.person_name}:</Text>
@@ -227,9 +211,6 @@ const cardStyles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.brand.lightGray,
   },
-  itemStatusCol: {
-    paddingTop: 1,
-  },
   itemContent: {
     flex: 1,
   },
@@ -238,9 +219,6 @@ const cardStyles = StyleSheet.create({
     fontWeight: '600' as const,
     color: Colors.brand.dark,
     fontFamily: 'Inter_600SemiBold',
-  },
-  personNameDone: {
-    color: Colors.brand.midGray,
   },
   callingName: {
     fontSize: 13,

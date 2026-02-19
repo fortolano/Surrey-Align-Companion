@@ -5,8 +5,8 @@ const brand = {
   accent: "#E8F4F8",
   accentWarm: "#F0F7FA",
   white: "#FFFFFF",
-  offWhite: "#F8FAFB",
-  lightGray: "#EEF2F5",
+  offWhite: "#F5F6F8",
+  lightGray: "#E2E8F0",
   midGray: "#94A3B8",
   darkGray: "#475569",
   dark: "#1E293B",
@@ -15,6 +15,10 @@ const brand = {
   warning: "#F59E0B",
   error: "#EF4444",
   errorLight: "#FEF2F2",
+  inputBorder: "#CBD5E1",
+  inputBg: "#FFFFFF",
+  sectionBg: "#F1F5F9",
+  cardBg: "#FFFFFF",
 };
 
 export default {
@@ -29,6 +33,6 @@ export default {
     tabIconDefault: brand.midGray,
     tabIconSelected: brand.primary,
     border: brand.lightGray,
-    cardShadow: "rgba(1, 97, 131, 0.08)",
+    cardShadow: "rgba(15, 23, 42, 0.08)",
   },
 };

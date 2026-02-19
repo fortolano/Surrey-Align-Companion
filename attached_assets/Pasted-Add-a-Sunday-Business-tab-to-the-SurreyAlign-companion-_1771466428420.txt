@@ -1,0 +1,271 @@
+Add a "Sunday Business" tab to the SurreyAlign companion mobile app. This feature lets High Councilors see what stake business (releases and
+  sustainings) they need to conduct over the pulpit during Sunday sacrament meetings. They select which ward they're visiting, see the exact
+  script to read, then mark each item as conducted. The server tracks which wards are done vs outstanding. The complete API contract, screen
+  layout, and TypeScript interfaces are in the specification below.
+
+  ---
+  Specification: Sunday Business (Stake Business for Mobile App)
+
+  What This Feature Does
+
+  In The Church of Jesus Christ of Latter-day Saints, when someone receives a new stake-level calling (like Stake Relief Society President or
+  High Councilor), they must be sustained (presented for a confirming vote) in every ward and branch across the stake. Similarly, the outgoing
+  holder must be released. High Councilors visit different wards each Sunday and conduct this business over the pulpit.
+
+  The Stake Presidency queues up these items on the web app, then releases them to all High Councilors. The mobile app is where High Councilors
+   see what they need to conduct and report back that it's done.
+
+  API Base URL
+
+  https://surreyalign.org/api/external/v1/
+
+  Authentication: Bearer token (same as the rest of the app).
+
+  ---
+  Navigation
+
+  Add a "Sunday Business" tab or card within the existing "Callings" section, or as a top-level tab. When tapped, it loads the Sunday business
+  view.
+
+  ---
+  Screen: Sunday Business
+
+  API on load: GET /stake-business/sunday
+
+  This returns all released (active) business items with their ward completion status.
+
+  Layout — Ward Selection + Business Items
+
+  ┌─────────────────────────────────────────┐
+  │ Sunday Business                         │
+  │                                         │
+  │ Which ward are you visiting today?      │
+  │ [Select Ward... ▼]                      │
+  │                                         │
+  ├─ RELEASES ──────────────────────────────┤
+  │ ┌─────────────────────────────────────┐ │
+  │ │ John Smith                         │ │
+  │ │ Released as Stake High Councilor   │ │
+  │ │                                    │ │
+  │ │ "John Smith has been released as   │ │
+  │ │  Stake High Councilor. Those who   │ │
+  │ │  would like to express thanks for  │ │
+  │ │  his or her service may show it    │ │
+  │ │  by the uplifted hand."            │ │
+  │ │                                    │ │
+  │ │ 5/8 wards ████████░░░░             │ │
+  │ │         [Mark as Conducted]        │ │
+  │ └─────────────────────────────────────┘ │
+  │                                         │
+  ├─ SUSTAININGS ───────────────────────────┤
+  │ ┌─────────────────────────────────────┐ │
+  │ │ Michael Lee                        │ │
+  │ │ Called as Stake High Councilor     │ │
+  │ │                                    │ │
+  │ │ "Michael Lee has been called as    │ │
+  │ │  Stake High Councilor. Those in    │ │
+  │ │  favor of sustaining him or her    │ │
+  │ │  may show it by the uplifted      │ │
+  │ │  hand. [Pause briefly.] Those     │ │
+  │ │  opposed, if any, may also show   │ │
+  │ │  it. [Pause briefly.]"            │ │
+  │ │                                    │ │
+  │ │ 5/8 wards ████████░░░░             │ │
+  │ │         [Mark as Conducted]        │ │
+  │ └─────────────────────────────────────┘ │
+  │                                         │
+  ├─ OUTSTANDING ───────────────────────────┤
+  │ These items still need to be conducted  │
+  │ in some wards:                          │
+  │ ┌─────────────────────────────────────┐ │
+  │ │ ✓ Brookswood                       │ │
+  │ │ ✓ Richmond 1st                     │ │
+  │ │ ✓ Richmond 2nd                     │ │
+  │ │ ○ Surrey 1st  ← outstanding       │ │
+  │ │ ✓ Surrey 2nd                       │ │
+  │ │ ✓ Surrey 3rd                       │ │
+  │ │ ○ Surrey 4th  ← outstanding       │ │
+  │ │ ✓ White Rock                       │ │
+  │ └─────────────────────────────────────┘ │
+  └─────────────────────────────────────────┘
+
+  Workflow
+
+  1. On screen load: Call GET /stake-business/sunday. This returns all active items + the full list of wards.
+  2. Ward selector at top: Dropdown populated from the wards array in the response. The HC selects which ward they're visiting today. This
+  selection determines:
+    - Which items show the "Mark as Conducted" button (only items not yet done for that ward)
+    - Items already conducted for the selected ward show a ✓ checkmark instead
+  3. Items grouped by type: Display release items first under a "RELEASES" header, then sustaining items under "SUSTAININGS", then announcement
+   items under "ANNOUNCEMENTS" (if any).
+  4. Each item card shows:
+    - Person's name (bold)
+    - Calling name
+    - The script_text — this is the exact wording to read over the pulpit, displayed in a styled quote block
+    - Progress bar: {wards_completed.length}/{total_wards} wards
+    - "Mark as Conducted" button — only if the selected ward is in wards_outstanding
+    - If the selected ward is in wards_completed — show "✓ Conducted" badge instead
+  5. On "Mark as Conducted" tap: Call POST /stake-business/{item_id}/complete-ward with { "ward_id": selectedWardId }.
+    - On success: update the item card in place (move ward from outstanding to completed, update progress bar)
+    - The response includes calling_step_updated: true/false — if true, show a toast: "The calling lifecycle step has been updated."
+  6. Outstanding section at bottom: Show a per-ward checklist for all items. For each ward: ✓ if all items are conducted there, ○ if any items
+  are still outstanding. This gives the HC a quick overview of which wards are fully up to date.
+
+  ---
+  API Endpoints
+
+  ┌────────┬────────────────────────────────────┬────────────────────────────────────────────────┐
+  │ Method │              Endpoint              │                    Purpose                     │
+  ├────────┼────────────────────────────────────┼────────────────────────────────────────────────┤
+  │ GET    │ /stake-business/sunday             │ All released items with ward completion status │
+  ├────────┼────────────────────────────────────┼────────────────────────────────────────────────┤
+  │ GET    │ /stake-business/outstanding        │ Summary of outstanding items                   │
+  ├────────┼────────────────────────────────────┼────────────────────────────────────────────────┤
+  │ GET    │ /stake-business/{id}               │ Detail of a single item                        │
+  ├────────┼────────────────────────────────────┼────────────────────────────────────────────────┤
+  │ POST   │ /stake-business/{id}/complete-ward │ Mark item as conducted in a ward               │
+  └────────┴────────────────────────────────────┴────────────────────────────────────────────────┘
+
+  ---
+  API Response Shapes
+
+  GET /stake-business/sunday
+
+  interface SundayBusinessResponse {
+    success: boolean;
+    business_items: SundayBusinessItem[];
+    wards: { id: number; name: string }[];
+  }
+
+  interface SundayBusinessItem {
+    id: number;
+    item_type: 'release' | 'sustaining' | 'announcement';
+    item_type_label: string;  // "Release", "Sustaining", "Announcement"
+    person_name: string;
+    calling_name: string;
+    organization_name: string | null;
+    person_ward: { id: number; name: string } | null;  // person's own ward
+    script_text: string;  // exact wording to read over the pulpit
+    released_at: string;  // ISO 8601
+    wards_completed: number[];    // array of ward IDs already done
+    wards_outstanding: number[];  // array of ward IDs still needed
+    ward_names: Record<string, string>;  // { "3": "Richmond 1st", "5": "Brookswood", ... }
+    completion_progress: number;  // 0-100 percentage
+  }
+
+  POST /stake-business/{id}/complete-ward
+
+  Request:
+  { "ward_id": 9 }
+
+  Response:
+  interface CompleteWardResponse {
+    success: boolean;
+    completion: {
+      ward_id: number;
+      ward_name: string;
+      conducted_at: string;
+      conducted_by: string;
+    };
+    item_status: 'released' | 'completed';  // 'completed' if ALL wards now done
+    wards_completed: number[];
+    wards_outstanding: number[];
+    calling_step_updated: boolean;  // true if calling lifecycle "Sustained in Sacrament Meeting" step was auto-completed
+  }
+
+  GET /stake-business/{id} (item detail)
+
+  interface StakeBusinessDetailResponse {
+    success: boolean;
+    business_item: {
+      id: number;
+      item_type: string;
+      item_type_label: string;
+      person_name: string;
+      calling_name: string;
+      organization_name: string | null;
+      person_ward: { id: number; name: string } | null;
+      script_text: string;
+      status: 'queued' | 'released' | 'completed';
+      status_label: string;
+      queued_at: string;
+      released_at: string | null;
+      completed_at: string | null;
+      notes: string | null;
+      calling_request_id: number | null;
+      wards_completed: number[];
+      wards_outstanding: number[];
+      ward_names: Record<string, string>;
+      completions: {
+        ward_id: number;
+        ward_name: string;
+        conducted_by: string;
+        conducted_at: string;
+      }[];
+    };
+  }
+
+  ---
+  Business Rules
+
+  1. Only released items appear in the mobile app. Queued items are managed by the Stake Presidency on the web app. The mobile app never shows
+  queued items.
+  2. All 8 wards/branches must have the business conducted. Stake business is announced in every unit across the stake. The progress bar shows
+  how many wards have completed out of the total.
+  3. When the individual's own ward is done, the calling lifecycle auto-advances. The server handles this — when the HC marks the person's own
+  ward as complete, the server auto-completes the "Sustained in Sacrament Meeting" step on the linked calling request. The mobile app just
+  shows a toast confirming this happened (calling_step_updated: true).
+  4. Items disappear when fully completed. Once all wards have conducted the business, the item moves to status: completed and no longer
+  appears in the Sunday view (which only shows status: released).
+  5. One completion per ward per item. The server returns 422 if the same ward is marked twice for the same item. The mobile app should disable
+   the "Mark as Conducted" button for wards already in wards_completed.
+  6. No business rule filtering needed client-side. The server returns only the items the user should see. The mobile app renders what it
+  receives.
+
+  ---
+  UI Design Notes
+
+  - Script text is the hero element. The HC is standing at the pulpit reading this text. Make it large, clear, and easy to read. Use a styled
+  quote block with slightly larger font. Consider a "reading mode" that expands the script full-width.
+  - Ward selector is sticky. Once the HC selects their ward, it should persist across items. Consider a sticky header or a bottom sheet
+  selector.
+  - "Mark as Conducted" confirmation. Use a two-tap pattern: first tap shows "Confirm?", second tap submits. This prevents accidental marking
+  (the HC might be holding their phone while at the pulpit).
+  - Group releases before sustainings. The Church convention is to read releases first, then sustainings. Items from the API are already sorted
+   this way (item_type ordering).
+  - Color coding: Releases = neutral/gray badge. Sustainings = green badge. Announcements = blue badge.
+  - Empty state: "No Sunday business at this time. Check back after the Stake Presidency releases new items."
+
+  ---
+  Terminology (CRITICAL)
+
+  ┌──────────────────────────┬───────────────────────────┬───────────────────────────────┐
+  │         Concept          │        ✅ Use This        │         ❌ Never Use          │
+  ├──────────────────────────┼───────────────────────────┼───────────────────────────────┤
+  │ The overall feature      │ Sunday Business           │ Tasks, Actions                │
+  ├──────────────────────────┼───────────────────────────┼───────────────────────────────┤
+  │ Items being announced    │ Stake Business            │ Agenda Items                  │
+  ├──────────────────────────┼───────────────────────────┼───────────────────────────────┤
+  │ Releasing a person       │ Release                   │ Fire, Remove, Terminate       │
+  ├──────────────────────────┼───────────────────────────┼───────────────────────────────┤
+  │ Confirming a calling     │ Sustaining                │ Voting, Confirming, Approving │
+  ├──────────────────────────┼───────────────────────────┼───────────────────────────────┤
+  │ The HC reading at pulpit │ Conducting stake business │ Presenting, Announcing        │
+  ├──────────────────────────┼───────────────────────────┼───────────────────────────────┤
+  │ The Church script        │ Wording                   │ Script, Template              │
+  ├──────────────────────────┼───────────────────────────┼───────────────────────────────┤
+  │ Ward completion          │ Conducted                 │ Completed, Done               │
+  ├──────────────────────────┼───────────────────────────┼───────────────────────────────┤
+  │ Outstanding wards        │ Outstanding               │ Pending, Remaining            │
+  └──────────────────────────┴───────────────────────────┴───────────────────────────────┘
+
+  ---
+  Push Notifications (Optional Enhancement)
+
+  When the Stake Presidency releases new business items, the server sends an InAppNotification to all HC members. If the mobile app supports
+  push notifications:
+
+  - Trigger: Items released to HC
+  - Title: "New Sunday business released"
+  - Body: "Stake business has been released for Sunday sacrament meetings."
+  - Action: Opens the Sunday Business screen

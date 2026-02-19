@@ -90,7 +90,7 @@ const pfStyles = StyleSheet.create({
   label: { fontSize: 15, fontWeight: '600' as const, color: Colors.brand.dark, marginBottom: 6, fontFamily: 'Inter_600SemiBold' },
   trigger: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: Colors.brand.inputBg, borderRadius: 10, borderWidth: 1, borderColor: Colors.brand.inputBorder,
+    backgroundColor: Colors.brand.inputBg, borderRadius: 12, borderWidth: 1, borderColor: Colors.brand.inputBorder,
     paddingHorizontal: 14, paddingVertical: 14,
   },
   disabled: { opacity: 0.5 },
@@ -169,13 +169,13 @@ function IndividualCard({ entry, index, wards, callings, onUpdate, onRemove, can
 }
 
 const icStyles = StyleSheet.create({
-  card: { backgroundColor: Colors.brand.sectionBg, borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: Colors.brand.inputBorder },
+  card: { backgroundColor: Colors.brand.sectionBg, borderRadius: 14, padding: 16, marginBottom: 12 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   headerText: { fontSize: 14, fontWeight: '600' as const, color: Colors.brand.primary, fontFamily: 'Inter_600SemiBold' },
   field: { marginBottom: 18 },
   label: { fontSize: 15, fontWeight: '600' as const, color: Colors.brand.dark, marginBottom: 6, fontFamily: 'Inter_600SemiBold' },
   input: {
-    backgroundColor: Colors.brand.white, borderRadius: 10, borderWidth: 1, borderColor: Colors.brand.inputBorder,
+    backgroundColor: Colors.brand.white, borderRadius: 12, borderWidth: 1, borderColor: Colors.brand.inputBorder,
     paddingHorizontal: 14, paddingVertical: 14, fontSize: 15, color: Colors.brand.dark, fontFamily: 'Inter_400Regular',
   },
   multiline: { minHeight: 70, paddingTop: 12 },
@@ -384,7 +384,7 @@ export default function CallingCreateScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>1. Request Details</Text>
+          <Text style={styles.sectionTitle}>Request Details</Text>
           <View style={styles.fieldsInner}>
             <PickerField
               label="Request Type"
@@ -422,7 +422,7 @@ export default function CallingCreateScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>2. Calling</Text>
+          <Text style={styles.sectionTitle}>Calling</Text>
           <View style={styles.fieldsInner}>
             <PickerField
               label="Calling"
@@ -455,7 +455,7 @@ export default function CallingCreateScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>3. Individual(s) Prayerfully Considered</Text>
+          <Text style={styles.sectionTitle}>Individual(s) Prayerfully Considered</Text>
           {nominees.map((entry, idx) => (
             <IndividualCard
               key={idx}
@@ -477,7 +477,7 @@ export default function CallingCreateScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>4. Context & Background (Optional)</Text>
+          <Text style={styles.sectionTitle}>Context & Background (Optional)</Text>
           <View style={styles.fieldsInner}>
             <TextInput
               style={styles.contextInput}
@@ -536,17 +536,17 @@ const styles = StyleSheet.create({
     shadowColor: 'rgba(15, 23, 42, 0.08)', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 8, elevation: 2,
   },
   fieldsInner: {
-    backgroundColor: Colors.brand.sectionBg, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: Colors.brand.inputBorder,
+    backgroundColor: Colors.brand.sectionBg, borderRadius: 14, padding: 16,
   },
   sectionTitle: {
-    fontSize: 15, fontWeight: '700' as const, color: Colors.brand.dark, marginBottom: 18,
-    fontFamily: 'Inter_700Bold',
+    fontSize: 15, fontWeight: '700' as const, color: Colors.brand.dark, marginBottom: 16,
+    fontFamily: 'Inter_700Bold', borderLeftWidth: 3, borderLeftColor: Colors.brand.primary, paddingLeft: 10,
   },
   hintText: { fontSize: 11, color: Colors.brand.midGray, marginTop: 4, fontFamily: 'Inter_400Regular', fontStyle: 'italic' as const },
   addButton: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
   addButtonText: { fontSize: 14, color: Colors.brand.primary, fontFamily: 'Inter_600SemiBold' },
   contextInput: {
-    backgroundColor: Colors.brand.inputBg, borderRadius: 10, borderWidth: 1, borderColor: Colors.brand.inputBorder,
+    backgroundColor: Colors.brand.inputBg, borderRadius: 12, borderWidth: 1, borderColor: Colors.brand.inputBorder,
     paddingHorizontal: 14, paddingVertical: 14, fontSize: 15, color: Colors.brand.dark, fontFamily: 'Inter_400Regular',
     minHeight: 100,
   },

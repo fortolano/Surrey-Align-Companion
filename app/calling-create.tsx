@@ -169,7 +169,7 @@ function IndividualCard({ entry, index, wards, callings, onUpdate, onRemove, can
 }
 
 const icStyles = StyleSheet.create({
-  card: { backgroundColor: Colors.brand.white, borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: Colors.brand.inputBorder },
+  card: { backgroundColor: Colors.brand.sectionBg, borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: Colors.brand.inputBorder },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   headerText: { fontSize: 14, fontWeight: '600' as const, color: Colors.brand.primary, fontFamily: 'Inter_600SemiBold' },
   field: { marginBottom: 18 },
@@ -385,68 +385,72 @@ export default function CallingCreateScreen() {
       >
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>1. Request Details</Text>
-          <PickerField
-            label="Request Type"
-            value="calling"
-            options={[{ value: 'calling', label: 'Calling' }]}
-            onChange={() => {}}
-            disabled
-          />
-          {ctx && ctx.allowed_scopes.length > 1 ? (
+          <View style={styles.fieldsInner}>
             <PickerField
-              label="Scope"
-              value={scope}
-              options={ctx.allowed_scopes.map(s => ({ value: s, label: s === 'stake' ? 'Stake' : 'Ward' }))}
-              onChange={v => { setScope(v); setWardId(''); }}
-              placeholder="Select Scope"
+              label="Request Type"
+              value="calling"
+              options={[{ value: 'calling', label: 'Calling' }]}
+              onChange={() => {}}
+              disabled
             />
-          ) : (
-            <View style={pfStyles.container}>
-              <Text style={pfStyles.label}>Scope</Text>
-              <View style={[pfStyles.trigger, pfStyles.disabled]}>
-                <Text style={pfStyles.triggerText}>{scope === 'stake' ? 'Stake' : 'Ward'}</Text>
+            {ctx && ctx.allowed_scopes.length > 1 ? (
+              <PickerField
+                label="Scope"
+                value={scope}
+                options={ctx.allowed_scopes.map(s => ({ value: s, label: s === 'stake' ? 'Stake' : 'Ward' }))}
+                onChange={v => { setScope(v); setWardId(''); }}
+                placeholder="Select Scope"
+              />
+            ) : (
+              <View style={pfStyles.container}>
+                <Text style={pfStyles.label}>Scope</Text>
+                <View style={[pfStyles.trigger, pfStyles.disabled]}>
+                  <Text style={pfStyles.triggerText}>{scope === 'stake' ? 'Stake' : 'Ward'}</Text>
+                </View>
               </View>
-            </View>
-          )}
-          {scope === 'ward' && (
-            <PickerField
-              label="Ward"
-              value={wardId}
-              options={wardOptions}
-              onChange={setWardId}
-              placeholder="Select Ward"
-            />
-          )}
+            )}
+            {scope === 'ward' && (
+              <PickerField
+                label="Ward"
+                value={wardId}
+                options={wardOptions}
+                onChange={setWardId}
+                placeholder="Select Ward"
+              />
+            )}
+          </View>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>2. Calling</Text>
-          <PickerField
-            label="Calling"
-            value={callingId}
-            options={callingOptions}
-            onChange={setCallingId}
-            placeholder={scope ? 'Select Calling' : 'Select scope first'}
-            disabled={!scope}
-          />
-          <PickerField
-            label="Organization"
-            value={orgId}
-            options={orgOptions}
-            onChange={setOrgId}
-            placeholder="Select Organization"
-            disabled={orgs.length === 0}
-          />
-          <View style={pfStyles.container}>
-            <Text style={pfStyles.label}>Current Holder</Text>
-            <View style={[pfStyles.trigger, pfStyles.disabled]}>
-              <Text style={[pfStyles.triggerText, !currentHolderName && pfStyles.placeholder]}>
-                {currentHolderName || (callingId ? 'Calling is currently vacant' : 'Select a calling first')}
-              </Text>
+          <View style={styles.fieldsInner}>
+            <PickerField
+              label="Calling"
+              value={callingId}
+              options={callingOptions}
+              onChange={setCallingId}
+              placeholder={scope ? 'Select Calling' : 'Select scope first'}
+              disabled={!scope}
+            />
+            <PickerField
+              label="Organization"
+              value={orgId}
+              options={orgOptions}
+              onChange={setOrgId}
+              placeholder="Select Organization"
+              disabled={orgs.length === 0}
+            />
+            <View style={pfStyles.container}>
+              <Text style={pfStyles.label}>Current Holder</Text>
+              <View style={[pfStyles.trigger, pfStyles.disabled]}>
+                <Text style={[pfStyles.triggerText, !currentHolderName && pfStyles.placeholder]}>
+                  {currentHolderName || (callingId ? 'Calling is currently vacant' : 'Select a calling first')}
+                </Text>
+              </View>
+              {currentHolderName ? (
+                <Text style={styles.hintText}>Auto-detected</Text>
+              ) : null}
             </View>
-            {currentHolderName ? (
-              <Text style={styles.hintText}>Auto-detected</Text>
-            ) : null}
           </View>
         </View>
 
@@ -474,16 +478,18 @@ export default function CallingCreateScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>4. Context & Background (Optional)</Text>
-          <TextInput
-            style={styles.contextInput}
-            value={contextNotes}
-            onChangeText={setContextNotes}
-            placeholder="Any additional context or background..."
-            placeholderTextColor={Colors.brand.midGray}
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-          />
+          <View style={styles.fieldsInner}>
+            <TextInput
+              style={styles.contextInput}
+              value={contextNotes}
+              onChangeText={setContextNotes}
+              placeholder="Any additional context or background..."
+              placeholderTextColor={Colors.brand.midGray}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+          </View>
         </View>
 
         <View style={styles.buttonRow}>
@@ -526,8 +532,11 @@ const styles = StyleSheet.create({
   backBtnText: { color: Colors.brand.white, fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   scrollContent: { padding: 20 },
   section: {
-    backgroundColor: Colors.brand.sectionBg, borderRadius: 14, padding: 20, marginBottom: 20,
+    backgroundColor: Colors.brand.white, borderRadius: 14, padding: 20, marginBottom: 20,
     shadowColor: 'rgba(15, 23, 42, 0.08)', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 8, elevation: 2,
+  },
+  fieldsInner: {
+    backgroundColor: Colors.brand.sectionBg, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: Colors.brand.inputBorder,
   },
   sectionTitle: {
     fontSize: 15, fontWeight: '700' as const, color: Colors.brand.dark, marginBottom: 18,

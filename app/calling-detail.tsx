@@ -109,13 +109,16 @@ const tlStyles = StyleSheet.create({
   currentBadge: { fontSize: 10, color: Colors.brand.primary, fontWeight: '600' as const, marginTop: 2, fontFamily: 'Inter_600SemiBold' },
 });
 
-function StepsSection({ steps, canManage, requestId, token, onRefresh }: {
+function StepsSection({ steps, canManage, requestId, token, onRefresh, sundayBusinessGate }: {
   steps: any[]; canManage: boolean; requestId: number; token: string | null; onRefresh: () => void;
+  sundayBusinessGate: { active: boolean; total_items: number; completed_items: number; message: string } | null;
 }) {
   const [updatingStep, setUpdatingStep] = useState<number | null>(null);
   const completed = steps.filter(s => s.status === 'completed').length;
   const total = steps.filter(s => s.status !== 'skipped').length;
   const progress = total > 0 ? (completed / total) * 100 : 0;
+
+  const firstGatedIndex = steps.findIndex(s => s.is_gated);
 
   const updateStep = async (stepId: number, newStatus: string) => {
     setUpdatingStep(stepId);
@@ -133,7 +136,8 @@ function StepsSection({ steps, canManage, requestId, token, onRefresh }: {
     }
   };
 
-  const stepIcon = (status: string) => {
+  const stepIcon = (status: string, isGated: boolean) => {
+    if (isGated) return <Ionicons name="lock-closed" size={20} color={Colors.brand.midGray} />;
     switch (status) {
       case 'completed': return <Ionicons name="checkmark-circle" size={20} color={Colors.brand.success} />;
       case 'in_progress': return <MaterialCommunityIcons name="progress-clock" size={20} color={Colors.brand.warning} />;
@@ -150,43 +154,61 @@ function StepsSection({ steps, canManage, requestId, token, onRefresh }: {
         </View>
         <Text style={ssStyles.progressText}>{completed}/{total}</Text>
       </View>
-      {steps.map(step => (
-        <View key={step.id} style={ssStyles.stepRow}>
-          {stepIcon(step.status)}
-          <View style={ssStyles.stepInfo}>
-            <Text style={[ssStyles.stepLabel, step.status === 'skipped' && ssStyles.stepSkipped]}>
-              {step.step_type_label || step.step_type}
-            </Text>
-            {step.assigned_to && <Text style={ssStyles.stepMeta}>{step.assigned_to.name}</Text>}
-            {step.scheduled_date && <Text style={ssStyles.stepMeta}>{new Date(step.scheduled_date).toLocaleDateString()}</Text>}
+      {steps.map((step, idx) => (
+        <React.Fragment key={step.id}>
+          {sundayBusinessGate?.active && idx === firstGatedIndex && firstGatedIndex >= 0 && (
+            <Pressable
+              onPress={() => router.push('/sunday-business')}
+              style={ssStyles.gateBanner}
+            >
+              <Ionicons name="time-outline" size={18} color="#155E75" />
+              <View style={ssStyles.gateBannerContent}>
+                <Text style={ssStyles.gateBannerText}>{sundayBusinessGate.message}</Text>
+                <View style={ssStyles.gateLinkRow}>
+                  <Text style={ssStyles.gateLinkText}>View Sunday Business</Text>
+                  <Ionicons name="arrow-forward" size={14} color={Colors.brand.primary} />
+                </View>
+              </View>
+            </Pressable>
+          )}
+          <View style={[ssStyles.stepRow, step.is_gated && ssStyles.stepRowGated]}>
+            {stepIcon(step.status, step.is_gated)}
+            <View style={ssStyles.stepInfo}>
+              <Text style={[ssStyles.stepLabel, step.status === 'skipped' && ssStyles.stepSkipped, step.is_gated && ssStyles.stepLabelGated]}>
+                {step.step_type_label || step.step_type}
+              </Text>
+              {step.is_gated && <Text style={ssStyles.stepGatedMeta}>Blocked</Text>}
+              {!step.is_gated && step.assigned_to && <Text style={ssStyles.stepMeta}>{step.assigned_to.name}</Text>}
+              {!step.is_gated && step.scheduled_date && <Text style={ssStyles.stepMeta}>{new Date(step.scheduled_date).toLocaleDateString()}</Text>}
+            </View>
+            {canManage && !step.is_gated && step.status === 'pending' && (
+              <Pressable
+                onPress={() => updateStep(step.id, 'completed')}
+                style={ssStyles.completeBtn}
+                disabled={updatingStep === step.id}
+              >
+                {updatingStep === step.id ? (
+                  <ActivityIndicator size="small" color={Colors.brand.primary} />
+                ) : (
+                  <Ionicons name="checkmark" size={18} color={Colors.brand.primary} />
+                )}
+              </Pressable>
+            )}
+            {canManage && !step.is_gated && step.status === 'in_progress' && (
+              <Pressable
+                onPress={() => updateStep(step.id, 'completed')}
+                style={ssStyles.completeBtn}
+                disabled={updatingStep === step.id}
+              >
+                {updatingStep === step.id ? (
+                  <ActivityIndicator size="small" color={Colors.brand.success} />
+                ) : (
+                  <Ionicons name="checkmark-done" size={18} color={Colors.brand.success} />
+                )}
+              </Pressable>
+            )}
           </View>
-          {canManage && step.status === 'pending' && (
-            <Pressable
-              onPress={() => updateStep(step.id, 'completed')}
-              style={ssStyles.completeBtn}
-              disabled={updatingStep === step.id}
-            >
-              {updatingStep === step.id ? (
-                <ActivityIndicator size="small" color={Colors.brand.primary} />
-              ) : (
-                <Ionicons name="checkmark" size={18} color={Colors.brand.primary} />
-              )}
-            </Pressable>
-          )}
-          {canManage && step.status === 'in_progress' && (
-            <Pressable
-              onPress={() => updateStep(step.id, 'completed')}
-              style={ssStyles.completeBtn}
-              disabled={updatingStep === step.id}
-            >
-              {updatingStep === step.id ? (
-                <ActivityIndicator size="small" color={Colors.brand.success} />
-              ) : (
-                <Ionicons name="checkmark-done" size={18} color={Colors.brand.success} />
-              )}
-            </Pressable>
-          )}
-        </View>
+        </React.Fragment>
       ))}
     </View>
   );
@@ -202,7 +224,18 @@ const ssStyles = StyleSheet.create({
   stepLabel: { fontSize: 14, color: Colors.brand.dark, fontFamily: 'Inter_500Medium' },
   stepSkipped: { color: Colors.brand.midGray, textDecorationLine: 'line-through' as const },
   stepMeta: { fontSize: 12, color: Colors.brand.midGray, marginTop: 2, fontFamily: 'Inter_400Regular' },
+  stepRowGated: { opacity: 0.5 },
+  stepLabelGated: { color: Colors.brand.midGray },
+  stepGatedMeta: { fontSize: 11, color: Colors.brand.midGray, marginTop: 2, fontFamily: 'Inter_500Medium', fontStyle: 'italic' as const },
   completeBtn: { padding: 6 },
+  gateBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#E0F7FA',
+    borderRadius: 10, padding: 14, marginVertical: 8, borderLeftWidth: 3, borderLeftColor: '#0891B2',
+  },
+  gateBannerContent: { flex: 1 },
+  gateBannerText: { fontSize: 13, color: '#155E75', fontFamily: 'Inter_500Medium', lineHeight: 18 },
+  gateLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+  gateLinkText: { fontSize: 13, color: Colors.brand.primary, fontFamily: 'Inter_600SemiBold' },
 });
 
 function VotingSection({ detail, permissions, requestId, token, userId, onRefresh }: {
@@ -560,6 +593,7 @@ function NextActionBanner({ nextAction, onActionPress }: {
   };
   const buttonLabel = ACTION_LABELS[nextAction.type] || '';
   const showButton = !nextAction.is_terminal && !nextAction.is_waiting && !!buttonLabel;
+  const showSundayBusinessLink = nextAction.type === 'waiting_sunday_business';
 
   return (
     <Animated.View entering={FadeInDown.duration(300).delay(80)} style={[naBannerStyles.container, { backgroundColor: colors.bg, borderLeftColor: colors.accent }]}>
@@ -577,6 +611,12 @@ function NextActionBanner({ nextAction, onActionPress }: {
           <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
         </Pressable>
       )}
+      {showSundayBusinessLink && (
+        <Pressable onPress={() => router.push('/sunday-business')} style={naBannerStyles.linkRow}>
+          <Text style={[naBannerStyles.linkText, { color: colors.accent }]}>View Sunday Business</Text>
+          <Ionicons name="arrow-forward" size={14} color={colors.accent} />
+        </Pressable>
+      )}
     </Animated.View>
   );
 }
@@ -589,6 +629,8 @@ const naBannerStyles = StyleSheet.create({
   context: { fontSize: 13, fontFamily: 'Inter_500Medium', opacity: 0.8, marginBottom: 4 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 8, marginTop: 8 },
   actionBtnText: { fontSize: 14, fontWeight: '600' as const, color: '#FFFFFF', fontFamily: 'Inter_600SemiBold' },
+  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 },
+  linkText: { fontSize: 13, fontWeight: '600' as const, fontFamily: 'Inter_600SemiBold' },
 });
 
 export default function CallingDetailScreen() {
@@ -853,6 +895,7 @@ export default function CallingDetailScreen() {
                 requestId={requestId}
                 token={token}
                 onRefresh={handleRefresh}
+                sundayBusinessGate={detail.sunday_business_gate || null}
               />
             )}
           </View>

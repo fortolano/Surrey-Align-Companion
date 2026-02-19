@@ -80,57 +80,19 @@ interface CompleteWardResponse {
   calling_step_updated: boolean;
 }
 
-function TypeGroupCard({ itemType, items, selectedWardId, token, onItemsUpdated }: {
+function TypeGroupCard({ itemType, items, selectedWardId }: {
   itemType: 'release' | 'sustaining';
   items: SundayBusinessItem[];
   selectedWardId: number | null;
-  token: string | null;
-  onItemsUpdated: (updated: CompleteWardResponse['updated_items']) => void;
 }) {
-  const [marking, setMarking] = useState(false);
   const count = items.length;
   const title = itemType === 'release'
     ? (count === 1 ? 'Release' : 'Releases')
     : (count === 1 ? 'Sustaining' : 'Sustainings');
 
-  const outstandingItems = selectedWardId
-    ? items.filter(i => i.wards_outstanding.includes(selectedWardId))
-    : [];
-  const conductedItems = selectedWardId
-    ? items.filter(i => i.wards_completed.includes(selectedWardId))
-    : [];
-  const allConducted = selectedWardId ? outstandingItems.length === 0 && conductedItems.length > 0 : false;
-
-  const markAllConducted = async () => {
-    if (!selectedWardId || outstandingItems.length === 0) return;
-    setMarking(true);
-    try {
-      const processedBundles = new Set<string>();
-      let anyStepUpdated = false;
-
-      for (const item of outstandingItems) {
-        const bundleKey = item.bundle_id ?? `standalone_${item.id}`;
-        if (processedBundles.has(bundleKey)) continue;
-        processedBundles.add(bundleKey);
-
-        const result: CompleteWardResponse = await authFetch(token, `/api/sunday-business/${item.id}/complete-ward`, {
-          method: 'POST',
-          body: { ward_id: selectedWardId },
-        });
-        if (result.calling_step_updated) anyStepUpdated = true;
-        if (result.updated_items) onItemsUpdated(result.updated_items);
-      }
-
-      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      if (anyStepUpdated) {
-        Alert.alert('Updated', 'Calling lifecycle steps have been updated.');
-      }
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to mark as conducted.');
-    } finally {
-      setMarking(false);
-    }
-  };
+  const allConducted = selectedWardId
+    ? items.every(i => i.wards_completed.includes(selectedWardId))
+    : false;
 
   const headerColor = itemType === 'release' ? '#92400e' : '#1e40af';
   const headerBg = itemType === 'release' ? '#fef3c7' : '#dbeafe';
@@ -195,27 +157,6 @@ function TypeGroupCard({ itemType, items, selectedWardId, token, onItemsUpdated 
           </View>
         ))}
       </View>
-
-      {selectedWardId && outstandingItems.length > 0 && (
-        <Pressable
-          onPress={markAllConducted}
-          style={cardStyles.conductBtn}
-          disabled={marking}
-        >
-          {marking ? (
-            <ActivityIndicator size="small" color={Colors.brand.white} />
-          ) : (
-            <>
-              <Ionicons name="checkmark" size={16} color={Colors.brand.white} />
-              <Text style={cardStyles.conductBtnText}>
-                {outstandingItems.length === 1
-                  ? `Mark ${itemType === 'release' ? 'Release' : 'Sustaining'} as Conducted`
-                  : `Mark All ${outstandingItems.length} ${title} as Conducted`}
-              </Text>
-            </>
-          )}
-        </Pressable>
-      )}
     </View>
   );
 }
@@ -357,22 +298,6 @@ const cardStyles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     fontStyle: 'italic' as const,
   },
-  conductBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: Colors.brand.primary,
-    borderRadius: 8,
-    paddingVertical: 12,
-    marginTop: 14,
-  },
-  conductBtnText: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: Colors.brand.white,
-    fontFamily: 'Inter_600SemiBold',
-  },
 });
 
 export default function SundayBusinessScreen() {
@@ -383,6 +308,7 @@ export default function SundayBusinessScreen() {
 
   const [selectedWardId, setSelectedWardId] = useState<number | null>(null);
   const [showWardPicker, setShowWardPicker] = useState(false);
+  const [markingAll, setMarkingAll] = useState(false);
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery<SundayBusinessResponse>({
     queryKey: ['/api/sunday-business/sunday'],
@@ -414,23 +340,58 @@ export default function SundayBusinessScreen() {
   const releaseItems = useMemo(() => wardItems.filter(i => i.item_type === 'release'), [wardItems]);
   const sustainingItems = useMemo(() => wardItems.filter(i => i.item_type === 'sustaining'), [wardItems]);
 
-  const handleItemsUpdated = useCallback((updatedItems: CompleteWardResponse['updated_items']) => {
-    qClient.setQueryData<SundayBusinessResponse>(['/api/sunday-business/sunday'], (old) => {
-      if (!old) return old;
-      const newItems = old.business_items.map(item => {
-        const update = updatedItems.find(u => u.id === item.id);
-        if (update) {
-          return {
-            ...item,
-            wards_completed: update.wards_completed,
-            wards_outstanding: update.wards_outstanding,
-          };
+  const outstandingWardItems = useMemo(() => {
+    if (!selectedWardId) return [];
+    return wardItems.filter(i => i.wards_outstanding.includes(selectedWardId));
+  }, [wardItems, selectedWardId]);
+
+  const allWardItemsConducted = useMemo(() => {
+    if (!selectedWardId || wardItems.length === 0) return false;
+    return wardItems.every(i => i.wards_completed.includes(selectedWardId));
+  }, [wardItems, selectedWardId]);
+
+  const markAllConducted = useCallback(async () => {
+    if (!selectedWardId || outstandingWardItems.length === 0) return;
+    setMarkingAll(true);
+    try {
+      const processedBundles = new Set<string>();
+      let anyStepUpdated = false;
+
+      for (const item of outstandingWardItems) {
+        const bundleKey = item.bundle_id ?? `standalone_${item.id}`;
+        if (processedBundles.has(bundleKey)) continue;
+        processedBundles.add(bundleKey);
+
+        const result: CompleteWardResponse = await authFetch(token, `/api/sunday-business/${item.id}/complete-ward`, {
+          method: 'POST',
+          body: { ward_id: selectedWardId },
+        });
+        if (result.calling_step_updated) anyStepUpdated = true;
+        if (result.updated_items) {
+          qClient.setQueryData<SundayBusinessResponse>(['/api/sunday-business/sunday'], (old) => {
+            if (!old) return old;
+            const newItems = old.business_items.map(bi => {
+              const update = result.updated_items.find(u => u.id === bi.id);
+              if (update) {
+                return { ...bi, wards_completed: update.wards_completed, wards_outstanding: update.wards_outstanding };
+              }
+              return bi;
+            });
+            return { ...old, business_items: newItems };
+          });
         }
-        return item;
-      });
-      return { ...old, business_items: newItems };
-    });
-  }, [qClient]);
+      }
+
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (anyStepUpdated) {
+        Alert.alert('Updated', 'Calling lifecycle steps have been updated.');
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to mark as conducted.');
+    } finally {
+      setMarkingAll(false);
+    }
+  }, [selectedWardId, outstandingWardItems, token, qClient]);
 
   const relevantWards = useMemo(() => {
     if (allItems.length === 0 || wards.length === 0) return [];
@@ -577,8 +538,6 @@ export default function SundayBusinessScreen() {
                 itemType="release"
                 items={releaseItems}
                 selectedWardId={selectedWardId}
-                token={token}
-                onItemsUpdated={handleItemsUpdated}
               />
             </Animated.View>
           )}
@@ -589,11 +548,37 @@ export default function SundayBusinessScreen() {
                 itemType="sustaining"
                 items={sustainingItems}
                 selectedWardId={selectedWardId}
-                token={token}
-                onItemsUpdated={handleItemsUpdated}
               />
             </Animated.View>
           )}
+
+          {allWardItemsConducted ? (
+            <Animated.View entering={FadeInDown.duration(300).delay(300)} style={styles.allDoneCard}>
+              <Ionicons name="checkmark-circle" size={24} color={Colors.brand.success} />
+              <Text style={styles.allDoneCardText}>All business conducted for {selectedWard?.name}</Text>
+            </Animated.View>
+          ) : outstandingWardItems.length > 0 ? (
+            <Animated.View entering={FadeInDown.duration(300).delay(300)}>
+              <Pressable
+                onPress={markAllConducted}
+                style={styles.masterConductBtn}
+                disabled={markingAll}
+              >
+                {markingAll ? (
+                  <ActivityIndicator size="small" color={Colors.brand.white} />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle-outline" size={22} color={Colors.brand.white} />
+                    <Text style={styles.masterConductBtnText}>
+                      {outstandingWardItems.length === 1
+                        ? `Mark ${outstandingWardItems[0].item_type === 'release' ? 'Release' : 'Sustaining'} as Conducted`
+                        : `Mark All ${outstandingWardItems.length} Items as Conducted`}
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            </Animated.View>
+          ) : null}
         </>
       )}
 
@@ -605,8 +590,6 @@ export default function SundayBusinessScreen() {
                 itemType="release"
                 items={releaseItems}
                 selectedWardId={selectedWardId}
-                token={token}
-                onItemsUpdated={handleItemsUpdated}
               />
             </Animated.View>
           )}
@@ -617,11 +600,37 @@ export default function SundayBusinessScreen() {
                 itemType="sustaining"
                 items={sustainingItems}
                 selectedWardId={selectedWardId}
-                token={token}
-                onItemsUpdated={handleItemsUpdated}
               />
             </Animated.View>
           )}
+
+          {allWardItemsConducted ? (
+            <Animated.View entering={FadeInDown.duration(300).delay(300)} style={styles.allDoneCard}>
+              <Ionicons name="checkmark-circle" size={24} color={Colors.brand.success} />
+              <Text style={styles.allDoneCardText}>All business conducted</Text>
+            </Animated.View>
+          ) : outstandingWardItems.length > 0 ? (
+            <Animated.View entering={FadeInDown.duration(300).delay(300)}>
+              <Pressable
+                onPress={markAllConducted}
+                style={styles.masterConductBtn}
+                disabled={markingAll}
+              >
+                {markingAll ? (
+                  <ActivityIndicator size="small" color={Colors.brand.white} />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle-outline" size={22} color={Colors.brand.white} />
+                    <Text style={styles.masterConductBtnText}>
+                      {outstandingWardItems.length === 1
+                        ? `Mark ${outstandingWardItems[0].item_type === 'release' ? 'Release' : 'Sustaining'} as Conducted`
+                        : `Mark All ${outstandingWardItems.length} Items as Conducted`}
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            </Animated.View>
+          ) : null}
         </>
       )}
 
@@ -861,6 +870,49 @@ const styles = StyleSheet.create({
   wardCheckCount: {
     fontSize: 12,
     color: Colors.brand.midGray,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  masterConductBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: Colors.brand.primary,
+    borderRadius: 14,
+    paddingVertical: 18,
+    marginHorizontal: 16,
+    marginTop: 6,
+    marginBottom: 8,
+    shadowColor: Colors.brand.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  masterConductBtnText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.brand.white,
+    fontFamily: 'Inter_700Bold',
+  },
+  allDoneCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: '#f0fdf4',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#86efac',
+    paddingVertical: 16,
+    marginHorizontal: 16,
+    marginTop: 6,
+    marginBottom: 8,
+  },
+  allDoneCardText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#065f46',
     fontFamily: 'Inter_600SemiBold',
   },
 });

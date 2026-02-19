@@ -33,19 +33,6 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   cancelled: { bg: '#f3f4f6', text: '#6b7280' },
 };
 
-const STEP_LABELS: Record<string, string> = {
-  assign_interviewer: 'Assign Who Will Interview',
-  interview_scheduled: 'Interview Scheduled',
-  calling_extended: 'Calling Extended',
-  calling_accepted: 'Calling Accepted',
-  calling_declined: 'Calling Declined',
-  release_interview: 'Release Interview',
-  sunday_announcement: 'Sustained in Sacrament Meeting',
-  setting_apart: 'Setting Apart',
-  training: 'Orientation & Training',
-  record_updated: 'Records Updated',
-};
-
 function ActionButton({ label, icon, onPress, variant = 'primary', loading = false }: {
   label: string; icon: string; onPress: () => void; variant?: 'primary' | 'danger' | 'outline';
   loading?: boolean;
@@ -168,7 +155,7 @@ function StepsSection({ steps, canManage, requestId, token, onRefresh }: {
           {stepIcon(step.status)}
           <View style={ssStyles.stepInfo}>
             <Text style={[ssStyles.stepLabel, step.status === 'skipped' && ssStyles.stepSkipped]}>
-              {STEP_LABELS[step.step_type] || step.step_type_label || step.step_type}
+              {step.step_type_label || step.step_type}
             </Text>
             {step.assigned_to && <Text style={ssStyles.stepMeta}>{step.assigned_to.name}</Text>}
             {step.scheduled_date && <Text style={ssStyles.stepMeta}>{new Date(step.scheduled_date).toLocaleDateString()}</Text>}
@@ -538,6 +525,72 @@ const dsStyles = StyleSheet.create({
   decisionBtnText: { fontSize: 14, fontWeight: '600' as const, color: Colors.brand.white, fontFamily: 'Inter_600SemiBold' },
 });
 
+function NextActionBanner({ nextAction, onActionPress }: {
+  nextAction: { type: string; heading: string; description: string; context: string | null; style: string; is_terminal: boolean; is_waiting: boolean };
+  onActionPress: (type: string) => void;
+}) {
+  const STYLE_COLORS: Record<string, { bg: string; accent: string; text: string }> = {
+    primary: { bg: '#E8F4F8', accent: '#016183', text: '#016183' },
+    success: { bg: '#d1fae5', accent: '#10B981', text: '#065f46' },
+    warning: { bg: '#fef3c7', accent: '#F59E0B', text: '#92400e' },
+    info: { bg: '#E0F7FA', accent: '#0891B2', text: '#155E75' },
+    muted: { bg: '#f3f4f6', accent: '#94A3B8', text: '#6b7280' },
+    danger: { bg: '#FEF2F2', accent: '#EF4444', text: '#991B1B' },
+  };
+  const colors = STYLE_COLORS[nextAction.style] || STYLE_COLORS.primary;
+
+  const icon = nextAction.is_terminal
+    ? (nextAction.type === 'completed' ? 'checkmark-circle' : nextAction.type === 'cancelled' ? 'close-circle' : 'alert-circle')
+    : nextAction.is_waiting ? 'time-outline' : 'arrow-forward-circle';
+
+  const ACTION_LABELS: Record<string, string> = {
+    vote: 'Cast Recommendation',
+    voted: '',
+    submit: 'Submit for Review',
+    begin_review: 'Begin Review',
+    decide: 'Record Decision',
+    decide_or_vote: 'Take Action',
+    decide_after_voting: 'Record Decision',
+    provide_recommendation: 'Provide Recommendation',
+    respond_feedback: 'Respond to Feedback',
+    select_nominee: 'Select Individual',
+    assign_interviewer: 'Assign Interviewer',
+    next_step: 'Update Step',
+    mark_complete: 'Mark Complete',
+  };
+  const buttonLabel = ACTION_LABELS[nextAction.type] || '';
+  const showButton = !nextAction.is_terminal && !nextAction.is_waiting && !!buttonLabel;
+
+  return (
+    <Animated.View entering={FadeInDown.duration(300).delay(80)} style={[naBannerStyles.container, { backgroundColor: colors.bg, borderLeftColor: colors.accent }]}>
+      <View style={naBannerStyles.headerRow}>
+        <Ionicons name={icon as any} size={20} color={colors.accent} />
+        <Text style={[naBannerStyles.heading, { color: colors.text }]}>{nextAction.heading}</Text>
+      </View>
+      <Text style={[naBannerStyles.description, { color: colors.text }]}>{nextAction.description}</Text>
+      {nextAction.context && (
+        <Text style={[naBannerStyles.context, { color: colors.text }]}>{nextAction.context}</Text>
+      )}
+      {showButton && (
+        <Pressable onPress={() => onActionPress(nextAction.type)} style={[naBannerStyles.actionBtn, { backgroundColor: colors.accent }]}>
+          <Text style={naBannerStyles.actionBtnText}>{buttonLabel}</Text>
+          <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+        </Pressable>
+      )}
+    </Animated.View>
+  );
+}
+
+const naBannerStyles = StyleSheet.create({
+  container: { marginHorizontal: 16, marginTop: 12, borderRadius: 14, padding: 16, borderLeftWidth: 4 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  heading: { fontSize: 15, fontWeight: '700' as const, fontFamily: 'Inter_700Bold' },
+  description: { fontSize: 14, lineHeight: 20, fontFamily: 'Inter_400Regular', marginBottom: 4 },
+  context: { fontSize: 13, fontFamily: 'Inter_500Medium', opacity: 0.8, marginBottom: 4 },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 8, marginTop: 8 },
+  actionBtnText: { fontSize: 14, fontWeight: '600' as const, color: '#FFFFFF', fontFamily: 'Inter_600SemiBold' },
+});
+
 export default function CallingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
@@ -552,6 +605,15 @@ export default function CallingDetailScreen() {
   const { data, isLoading, isError, refetch, isRefetching } = useQuery<{
     calling_request: any;
     permissions: any;
+    next_action: {
+      type: string;
+      heading: string;
+      description: string;
+      context: string | null;
+      style: 'primary' | 'success' | 'warning' | 'info' | 'muted' | 'danger';
+      is_terminal: boolean;
+      is_waiting: boolean;
+    } | null;
     view_level: string;
     is_requestor_only: boolean;
   }>({
@@ -602,6 +664,7 @@ export default function CallingDetailScreen() {
 
   const detail = data.calling_request;
   const perms = data.permissions;
+  const nextAction = data.next_action;
   const viewLevel = data.view_level;
   const isRequestorOnly = data.is_requestor_only;
   const statusColors = STATUS_COLORS[detail.status] || STATUS_COLORS.draft;
@@ -650,6 +713,19 @@ export default function CallingDetailScreen() {
           <Text style={styles.holderText}>Current: {detail.current_holder.name}</Text>
         )}
       </Animated.View>
+
+      {nextAction && (
+        <NextActionBanner
+          nextAction={nextAction}
+          onActionPress={(type) => {
+            if (['vote', 'voted'].includes(type)) setActiveTab('approvals');
+            else if (['decide', 'decide_after_voting', 'decide_or_vote', 'provide_recommendation', 'respond_feedback'].includes(type)) setActiveTab('discussion');
+            else if (['next_step', 'assign_interviewer', 'mark_complete', 'waiting_setting_apart'].includes(type)) setActiveTab('steps');
+            else if (type === 'submit') performAction('submit', 'Submit');
+            else if (type === 'begin_review') performAction('move-to-discussion', 'Begin Review');
+          }}
+        />
+      )}
 
       {(perms.can_move_to_discussion || perms.can_move_to_voting || perms.can_complete || perms.can_cancel) && (
         <Animated.View entering={FadeInDown.duration(300).delay(100)} style={styles.actionsRow}>

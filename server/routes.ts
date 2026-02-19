@@ -70,6 +70,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   p(app, "/api/calling-requests", "calling-requests");
   g(app, "/api/calling-requests/submission-context", "calling-requests/submission-context");
   g(app, "/api/calling-requests/pending-action-count", "calling-requests/pending-action-count");
+  g(app, "/api/calling-requests/action-required", "calling-requests/action-required");
   g(app, "/api/calling-requests/:id", (req) => `calling-requests/${req.params.id}`);
   p(app, "/api/calling-requests/:id/submit", (req) => `calling-requests/${req.params.id}/submit`, false);
   p(app, "/api/calling-requests/:id/move-to-discussion", (req) => `calling-requests/${req.params.id}/move-to-discussion`, false);

@@ -89,6 +89,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   g(app, "/api/calling-requests/:id/interviewer-candidates", (req) => `calling-requests/${req.params.id}/interviewer-candidates`);
   g(app, "/api/calling-requests/:id/feedback-candidates", (req) => `calling-requests/${req.params.id}/feedback-candidates`);
 
+  g(app, "/api/stake-business/sunday", "stake-business/sunday");
+  g(app, "/api/stake-business/outstanding", "stake-business/outstanding");
+  g(app, "/api/stake-business/:id", (req) => `stake-business/${req.params.id}`);
+  p(app, "/api/stake-business/:id/complete-ward", (req) => `stake-business/${req.params.id}/complete-ward`);
+
   const httpServer = createServer(app);
   return httpServer;
 }

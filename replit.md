@@ -158,6 +158,7 @@ The Callings module manages the full calling lifecycle from mobile. Three screen
    - Requestor: overview, individuals with recommendations, status timeline, progress
    - Monitor: overview, individuals without recommendations
    - Governance (full/presidency/ward_authority/voter): tabbed interface with Discussion, Approvals (HC voting), Required Steps
+   - **NextAction banner**: Server-driven `next_action` object renders as a contextual banner showing what the user should do next, with action buttons that navigate to the correct tab/section
 
 Proxy endpoints in `server/routes.ts` cover all CRUD, reference data, and lifecycle action endpoints.
 
@@ -165,8 +166,25 @@ Shared API helper in `lib/api.ts` for authenticated fetches with token.
 
 LDS terminology: "Individual(s) Prayerfully Considered" (not nominees), "Approvals" (not voting), "Under Prayerful Review" (requestor view), "Under Consideration" (governance view), "Calling" (not position).
 
+### Stake/Ward Business Module
+
+The Stake Business screen (`app/sunday-business.tsx`) handles releases and sustainings:
+
+- **Role-based UI**: Screen title and behavior driven by `user_context.role` from the API:
+  - `high_councilor`: Shows "Sunday Business", ward selector for visiting, sees stake-scoped items
+  - `ward_leader`: Shows "Ward Business", auto-selects their ward, sees ward-scoped items
+  - `stake_admin`: Shows "Stake Business", full access to all items and wards
+- **Bundle grouping**: Items with matching `bundle_id` render as a single card (e.g., release + sustaining together)
+- **Ward scoping**: Ward-scoped items (`scope: "ward"`) only need one ward; stake-scoped items need all 8
+- **Bundle-aware completion**: Marking one bundle item as conducted completes all items in the bundle; uses `updated_items` from response to update local state
+
 ## Recent Changes
 
+- 2026-02-19: Added server-driven NextAction banner to calling detail screen (type-aware action buttons, style mapping)
+- 2026-02-19: Added GET /calling-requests/action-required proxy endpoint
+- 2026-02-19: Added "Action Needed" badge on Callings home tile using action-required count
+- 2026-02-19: Rewrote Stake Business for bundle grouping, ward scoping, and role-based UI via user_context
+- 2026-02-19: Updated step labels to use server-provided values (removed hardcoded STEP_LABELS)
 - 2026-02-19: Renamed "Sunday Business" to "Stake Business" across tile, header, and screen title
 - 2026-02-19: Added New/Outstanding badge indicators to Stake Business home tile (New = <7 days, Outstanding = >7 days with incomplete wards)
 - 2026-02-19: Added Stake Business feature: ward selector, grouped release/sustaining cards with script text, progress tracking, mark-as-conducted workflow

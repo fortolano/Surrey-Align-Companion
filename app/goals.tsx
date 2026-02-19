@@ -187,6 +187,7 @@ export default function GoalsScreen() {
       const params = new URLSearchParams();
       if (activeScope !== 'all') params.set('scope', activeScope);
       params.set('status', 'active');
+      params.set('period_id', '7');
       const url = `${base}api/goals?${params.toString()}`;
       const res = await fetch(url, {
         headers: {
@@ -195,18 +196,7 @@ export default function GoalsScreen() {
         },
       });
       if (!res.ok) throw new Error('Failed to load goals');
-      const result = await res.json();
-      if (result.goals && result.goals.length === 0 && !result.period?.is_current) {
-        const fallbackUrl = `${base}api/goals?${params.toString()}&period_id=7`;
-        const fallbackRes = await fetch(fallbackUrl, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json',
-          },
-        });
-        if (fallbackRes.ok) return fallbackRes.json();
-      }
-      return result;
+      return res.json();
     },
     enabled: !!token,
     staleTime: 60000,

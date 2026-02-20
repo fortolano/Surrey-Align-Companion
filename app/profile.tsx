@@ -14,6 +14,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/lib/auth-context';
 import Colors from '@/constants/colors';
+import { contentContainer, cardShadow } from '@/constants/styles';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -187,13 +188,11 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     backgroundColor: Colors.brand.white,
-    borderRadius: 16,
+    borderRadius: 14,
     overflow: 'hidden',
-    shadowColor: Colors.light.cardShadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: Colors.brand.lightGray,
+    ...cardShadow(),
   },
   infoRow: {
     flexDirection: 'row',

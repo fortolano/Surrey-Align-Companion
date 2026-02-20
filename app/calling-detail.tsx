@@ -20,6 +20,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
+import { contentContainer, cardShadow } from '@/constants/styles';
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   draft: { bg: '#f3f4f6', text: '#6b7280' },
@@ -93,7 +94,7 @@ function TimelineView({ timeline }: { timeline: any[] }) {
 }
 
 const tlStyles = StyleSheet.create({
-  container: { backgroundColor: Colors.brand.white, borderRadius: 14, padding: 16, marginBottom: 14, shadowColor: 'rgba(15, 23, 42, 0.1)', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 1, shadowRadius: 10, elevation: 3 },
+  container: { backgroundColor: Colors.brand.white, borderRadius: 14, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: Colors.brand.lightGray, ...cardShadow() },
   title: { fontSize: 15, fontWeight: '700' as const, color: Colors.brand.dark, marginBottom: 16, fontFamily: 'Inter_700Bold', borderLeftWidth: 3, borderLeftColor: Colors.brand.primary, paddingLeft: 10 },
   row: { flexDirection: 'row', minHeight: 40 },
   dotCol: { alignItems: 'center', width: 24, marginRight: 12 },
@@ -972,7 +973,7 @@ const styles = StyleSheet.create({
   retryBtnText: { color: Colors.brand.white, fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   headerCard: {
     backgroundColor: Colors.brand.white, marginHorizontal: 16, marginTop: 16, borderRadius: 14,
-    padding: 20, shadowColor: 'rgba(15, 23, 42, 0.1)', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 1, shadowRadius: 10, elevation: 3,
+    padding: 18, borderWidth: 1, borderColor: Colors.brand.lightGray, ...cardShadow(),
   },
   headerTitle: { fontSize: 22, fontWeight: '700' as const, color: Colors.brand.dark, fontFamily: 'Inter_700Bold', marginBottom: 8 },
   statusBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, gap: 6, marginBottom: 10 },
@@ -984,8 +985,8 @@ const styles = StyleSheet.create({
   holderText: { fontSize: 13, color: Colors.brand.midGray, fontFamily: 'Inter_400Regular', marginTop: 4 },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginTop: 12 },
   sectionCard: {
-    backgroundColor: Colors.brand.white, marginHorizontal: 16, marginTop: 14, borderRadius: 14,
-    padding: 20, shadowColor: 'rgba(15, 23, 42, 0.1)', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 1, shadowRadius: 10, elevation: 3,
+    backgroundColor: Colors.brand.white, marginHorizontal: 16, marginTop: 12, borderRadius: 14,
+    padding: 18, borderWidth: 1, borderColor: Colors.brand.lightGray, ...cardShadow(),
   },
   sectionTitle: { fontSize: 15, fontWeight: '700' as const, color: Colors.brand.dark, marginBottom: 14, fontFamily: 'Inter_700Bold', borderLeftWidth: 3, borderLeftColor: Colors.brand.primary, paddingLeft: 10 },
   individualRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.brand.lightGray },
@@ -1008,8 +1009,8 @@ const styles = StyleSheet.create({
   tabTextActive: { color: Colors.brand.primary, fontFamily: 'Inter_700Bold' },
   monitorNote: { fontSize: 13, color: Colors.brand.midGray, fontStyle: 'italic' as const, textAlign: 'center', lineHeight: 19, fontFamily: 'Inter_400Regular' },
   metaCard: {
-    backgroundColor: Colors.brand.white, marginHorizontal: 16, marginTop: 14, borderRadius: 14,
-    padding: 20, shadowColor: 'rgba(15, 23, 42, 0.1)', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 1, shadowRadius: 10, elevation: 3,
+    backgroundColor: Colors.brand.white, marginHorizontal: 16, marginTop: 12, borderRadius: 14,
+    padding: 18, borderWidth: 1, borderColor: Colors.brand.lightGray, ...cardShadow(),
   },
   metaLine: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.brand.lightGray },
   metaLabel: { fontSize: 13, color: Colors.brand.midGray, fontFamily: 'Inter_500Medium' },

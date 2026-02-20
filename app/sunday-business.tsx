@@ -18,6 +18,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
+import { contentContainer, cardShadow, buttonShadow } from '@/constants/styles';
 
 interface Ward {
   id: number;
@@ -150,13 +151,11 @@ const cardStyles = StyleSheet.create({
     backgroundColor: Colors.brand.white,
     borderRadius: 14,
     padding: 18,
-    marginBottom: 14,
+    marginBottom: 12,
     marginHorizontal: 16,
-    shadowColor: 'rgba(15, 23, 42, 0.1)',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 1,
-    shadowRadius: 10,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: Colors.brand.lightGray,
+    ...cardShadow(),
   },
   header: {
     flexDirection: 'row',
@@ -817,11 +816,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 4,
     marginHorizontal: 16,
-    shadowColor: 'rgba(15, 23, 42, 0.1)',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 1,
-    shadowRadius: 10,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: Colors.brand.lightGray,
+    ...cardShadow(),
   },
   wardCheckRow: {
     flexDirection: 'row',
@@ -857,15 +854,11 @@ const styles = StyleSheet.create({
     gap: 10,
     backgroundColor: Colors.brand.primary,
     borderRadius: 14,
-    paddingVertical: 18,
+    paddingVertical: 16,
     marginHorizontal: 16,
     marginTop: 6,
     marginBottom: 8,
-    shadowColor: Colors.brand.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    ...buttonShadow(),
   },
   masterConductBtnText: {
     fontSize: 16,

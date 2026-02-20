@@ -19,6 +19,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
+import { contentContainer, cardShadow } from '@/constants/styles';
 
 interface ListIndividual {
   id: number;
@@ -369,6 +370,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.brand.lightGray,
     marginBottom: 4,
+    ...contentContainer,
   },
   pendingBanner: {
     flexDirection: 'row',
@@ -492,17 +494,16 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingTop: 12,
+    ...contentContainer,
   },
   card: {
     backgroundColor: Colors.brand.white,
     borderRadius: 14,
-    padding: 18,
-    marginBottom: 14,
-    shadowColor: 'rgba(15, 23, 42, 0.1)',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 1,
-    shadowRadius: 10,
-    elevation: 3,
+    padding: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: Colors.brand.lightGray,
+    ...cardShadow(),
   },
   cardPressed: {
     opacity: 0.7,

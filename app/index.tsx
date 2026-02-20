@@ -16,6 +16,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useAuth } from '@/lib/auth-context';
 import Colors from '@/constants/colors';
+import { contentContainer, cardShadow } from '@/constants/styles';
 
 export default function LoginScreen() {
   const { isAuthenticated, isLoading, login } = useAuth();
@@ -188,6 +189,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 24,
     justifyContent: 'center',
+    ...contentContainer,
   },
   logoSection: {
     alignItems: 'center',
@@ -219,11 +221,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.brand.white,
     borderRadius: 20,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 8,
+    ...cardShadow('rgba(0,0,0,0.12)'),
   },
   welcomeText: {
     fontSize: 22,

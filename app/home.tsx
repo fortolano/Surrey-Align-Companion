@@ -19,6 +19,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
+import { contentContainer, cardShadow, elevatedShadow } from '@/constants/styles';
 
 interface BadgeInfo {
   label: string;
@@ -41,7 +42,7 @@ const TILES: TileData[] = [
     id: 'callings',
     title: 'Callings & Releases',
     description: 'Browse current callings by ward and organization',
-    icon: <Ionicons name="people-outline" size={26} color="#016183" />,
+    icon: <Ionicons name="people-outline" size={24} color="#016183" />,
     route: '/callings',
     color: '#E8F4F8',
   },
@@ -49,7 +50,7 @@ const TILES: TileData[] = [
     id: 'stake-business',
     title: 'Sunday Business',
     description: 'Conduct releases and sustainings in wards',
-    icon: <MaterialCommunityIcons name="church" size={26} color="#016183" />,
+    icon: <MaterialCommunityIcons name="church" size={24} color="#016183" />,
     route: '/sunday-business',
     color: '#F0F4E8',
   },
@@ -57,7 +58,7 @@ const TILES: TileData[] = [
     id: 'hc-agenda',
     title: 'High Council Agenda',
     description: 'View and manage High Council meeting agendas',
-    icon: <MaterialCommunityIcons name="clipboard-text-outline" size={26} color="#016183" />,
+    icon: <MaterialCommunityIcons name="clipboard-text-outline" size={24} color="#016183" />,
     route: '/high-council-agenda',
     color: '#E8F0F8',
   },
@@ -65,7 +66,7 @@ const TILES: TileData[] = [
     id: 'sc-agenda',
     title: 'Stake Council Agenda',
     description: 'View and manage Stake Council meeting agendas',
-    icon: <Ionicons name="document-text-outline" size={26} color="#016183" />,
+    icon: <Ionicons name="document-text-outline" size={24} color="#016183" />,
     route: '/stake-council-agenda',
     color: '#E8F8F0',
   },
@@ -73,7 +74,7 @@ const TILES: TileData[] = [
     id: 'assignments',
     title: 'My Assignments',
     description: 'Track your tasks, deadlines, and stewardship areas',
-    icon: <Feather name="check-square" size={24} color="#016183" />,
+    icon: <Feather name="check-square" size={22} color="#016183" />,
     route: '/assignments',
     color: '#F0E8F8',
   },
@@ -81,7 +82,7 @@ const TILES: TileData[] = [
     id: 'goals',
     title: 'Goals & Execution',
     description: 'Track stake and ward goals with progress indicators',
-    icon: <MaterialCommunityIcons name="target" size={26} color="#016183" />,
+    icon: <MaterialCommunityIcons name="target" size={24} color="#016183" />,
     route: '/goals',
     color: '#E8F8EE',
   },
@@ -89,7 +90,7 @@ const TILES: TileData[] = [
     id: 'pulse',
     title: 'ALIGN Pulse',
     description: 'Submit your monthly leadership progress check-in',
-    icon: <MaterialCommunityIcons name="pulse" size={26} color="#016183" />,
+    icon: <MaterialCommunityIcons name="pulse" size={24} color="#016183" />,
     route: '/align-pulse',
     color: '#F8F0E8',
   },
@@ -143,7 +144,7 @@ function FeatureTile({ tile, index, badges }: { tile: TileData; index: number; b
             <Text style={styles.tileTitle}>{tile.title}</Text>
             <Text style={styles.tileDescription}>{tile.description}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={Colors.brand.midGray} />
+          <Ionicons name="chevron-forward" size={18} color={Colors.brand.midGray} />
         </View>
         {activeBadges.length > 0 && (
           <View style={styles.badgeStrip}>
@@ -151,7 +152,7 @@ function FeatureTile({ tile, index, badges }: { tile: TileData; index: number; b
               <View key={badge.label} style={[styles.badgeBanner, { backgroundColor: badge.bgColor }]}>
                 <Ionicons
                   name={badge.label === 'New' ? 'alert-circle' : 'time'}
-                  size={15}
+                  size={14}
                   color={badge.color}
                 />
                 <Text style={[styles.badgeBannerText, { color: badge.color }]}>
@@ -288,28 +289,34 @@ export default function HomeScreen() {
         entering={FadeIn.duration(400)}
         style={[styles.header, { paddingTop: insets.top + webTopInset + 16 }]}
       >
-        <View style={styles.headerContent}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.greeting}>Welcome back,</Text>
-            <Text style={styles.userName}>{firstName}</Text>
+        <View style={[styles.headerInner, contentContainer]}>
+          <View style={styles.headerContent}>
+            <View style={styles.headerLeft}>
+              <Text style={styles.greeting}>Welcome back,</Text>
+              <Text style={styles.userName}>{firstName}</Text>
+            </View>
+            <Pressable
+              onPress={handleMenuToggle}
+              style={({ pressed }) => [
+                styles.profileButton,
+                pressed && { opacity: 0.7 },
+              ]}
+              testID="menu-button"
+            >
+              <View style={styles.profileAvatar}>
+                <Text style={styles.profileAvatarText}>
+                  {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U'}
+                </Text>
+              </View>
+            </Pressable>
           </View>
-          <Pressable
-            onPress={handleMenuToggle}
-            style={({ pressed }) => [
-              styles.profileButton,
-              pressed && { opacity: 0.7 },
-            ]}
-            testID="menu-button"
-          >
-            <Ionicons name="person-circle-outline" size={32} color={Colors.brand.white} />
-          </Pressable>
+          {user?.calling && (
+            <View style={styles.roleChip}>
+              <Text style={styles.roleText}>{user.calling}</Text>
+              {user.ward && <Text style={styles.wardText}>{user.ward}</Text>}
+            </View>
+          )}
         </View>
-        {user?.calling && (
-          <View style={styles.roleChip}>
-            <Text style={styles.roleText}>{user.calling}</Text>
-            {user.ward && <Text style={styles.wardText}>{user.ward}</Text>}
-          </View>
-        )}
       </Animated.View>
 
       <ScrollView
@@ -328,15 +335,17 @@ export default function HomeScreen() {
           />
         }
       >
-        <Text style={styles.sectionTitle}>Quick Access</Text>
-        {TILES.map((tile, index) => (
-          <FeatureTile
-            key={tile.id}
-            tile={tile}
-            index={index}
-            badges={tile.id === 'stake-business' ? stakeBusinessBadges : tile.id === 'callings' ? callingsBadges : undefined}
-          />
-        ))}
+        <View style={contentContainer}>
+          <Text style={styles.sectionTitle}>Quick Access</Text>
+          {TILES.map((tile, index) => (
+            <FeatureTile
+              key={tile.id}
+              tile={tile}
+              index={index}
+              badges={tile.id === 'stake-business' ? stakeBusinessBadges : tile.id === 'callings' ? callingsBadges : undefined}
+            />
+          ))}
+        </View>
       </ScrollView>
 
       <Modal
@@ -408,11 +417,13 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: Colors.brand.primary,
-    paddingHorizontal: 24,
     paddingBottom: 24,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
     zIndex: 10,
+  },
+  headerInner: {
+    paddingHorizontal: 24,
   },
   headerContent: {
     flexDirection: 'row',
@@ -423,15 +434,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   greeting: {
-    fontSize: 15,
+    fontSize: 14,
     color: 'rgba(255,255,255,0.7)',
     fontFamily: 'Inter_400Regular',
   },
   userName: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700' as const,
     color: Colors.brand.white,
     fontFamily: 'Inter_700Bold',
+    marginTop: 2,
   },
   profileButton: {
     width: 44,
@@ -439,15 +451,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  profileAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.4)',
+  },
+  profileAvatarText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: Colors.brand.white,
+    fontFamily: 'Inter_700Bold',
+  },
   roleChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 10,
     gap: 8,
   },
   roleText: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.85)',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.9)',
     backgroundColor: 'rgba(255,255,255,0.15)',
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -456,7 +484,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
   },
   wardText: {
-    fontSize: 13,
+    fontSize: 12,
     color: 'rgba(255,255,255,0.6)',
     fontFamily: 'Inter_400Regular',
   },
@@ -465,30 +493,26 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingTop: 20,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600' as const,
     color: Colors.brand.midGray,
     textTransform: 'uppercase' as const,
     letterSpacing: 0.8,
     marginBottom: 12,
     fontFamily: 'Inter_600SemiBold',
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.brand.primary,
-    paddingLeft: 10,
+    paddingLeft: 4,
   },
   tile: {
     backgroundColor: Colors.brand.white,
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 14,
-    shadowColor: 'rgba(15, 23, 42, 0.1)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 3,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: Colors.brand.lightGray,
+    ...cardShadow(),
   },
   tileWithBadges: {
     paddingBottom: 0,
@@ -502,9 +526,9 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   tileIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
@@ -513,23 +537,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tileTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '600' as const,
     color: Colors.brand.black,
     marginBottom: 2,
     fontFamily: 'Inter_600SemiBold',
   },
   tileDescription: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.brand.darkGray,
-    lineHeight: 20,
+    lineHeight: 18,
     fontFamily: 'Inter_400Regular',
   },
   badgeStrip: {
     flexDirection: 'row' as const,
     gap: 8,
-    marginTop: 14,
-    paddingTop: 12,
+    marginTop: 12,
+    paddingTop: 10,
     paddingBottom: 14,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.brand.lightGray,
@@ -539,12 +563,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    gap: 6,
-    paddingVertical: 8,
-    borderRadius: 10,
+    gap: 5,
+    paddingVertical: 7,
+    borderRadius: 8,
   },
   badgeBannerText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700' as const,
     fontFamily: 'Inter_700Bold',
   },
@@ -557,12 +581,10 @@ const styles = StyleSheet.create({
     width: 220,
     backgroundColor: Colors.brand.white,
     borderRadius: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 10,
+    borderWidth: 1,
+    borderColor: Colors.brand.lightGray,
     overflow: 'hidden',
+    ...elevatedShadow(),
   },
   menuItem: {
     flexDirection: 'row',

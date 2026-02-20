@@ -189,6 +189,11 @@ function configureExpoAndLanding(app: express.Application) {
     }
 
     if (req.path === "/" && hasWebBuild) {
+      const pwaHtml = getPwaIndexHtml();
+      if (pwaHtml) {
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        return res.status(200).send(pwaHtml);
+      }
       return res.sendFile(path.join(distPath, "index.html"));
     }
 
@@ -207,16 +212,47 @@ function configureExpoAndLanding(app: express.Application) {
   if (hasWebBuild) {
     app.use(express.static(distPath));
   }
+  app.use(express.static(path.resolve(process.cwd(), "public")));
   app.use("/assets", express.static(path.resolve(process.cwd(), "assets")));
   app.use(express.static(path.resolve(process.cwd(), "static-build")));
 
   log("Expo routing: Checking expo-platform header on / and /manifest");
 }
 
-function setupWebAppFallback(app: express.Application) {
+function getPwaIndexHtml(): string | null {
   const distPath = path.resolve(process.cwd(), "dist");
   const indexPath = path.join(distPath, "index.html");
-  if (!fs.existsSync(indexPath)) return;
+  if (!fs.existsSync(indexPath)) return null;
+
+  let html = fs.readFileSync(indexPath, "utf-8");
+
+  const pwaHead = `
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#016183" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="SurreyALIGN" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="SurreyALIGN" />`;
+
+  const swScript = `
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js').catch(function() {});
+        });
+      }
+    </script>`;
+
+  html = html.replace("</head>", pwaHead + "\n  </head>");
+  html = html.replace("</body>", swScript + "\n  </body>");
+  return html;
+}
+
+function setupWebAppFallback(app: express.Application) {
+  const pwaHtml = getPwaIndexHtml();
+  if (!pwaHtml) return;
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith("/api") || req.path.startsWith("/assets") || req.path.startsWith("/_expo")) {
@@ -225,7 +261,8 @@ function setupWebAppFallback(app: express.Application) {
     const platform = req.header("expo-platform");
     if (platform) return next();
     if (req.method !== "GET") return next();
-    res.sendFile(indexPath);
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.status(200).send(pwaHtml);
   });
 }
 

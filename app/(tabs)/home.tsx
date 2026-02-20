@@ -7,6 +7,7 @@ import {
   RefreshControl,
   Pressable,
   Platform,
+  Dimensions,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,94 +18,38 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
-import { contentContainer, cardShadow } from '@/constants/styles';
 
 interface BadgeInfo {
   label: string;
   count: number;
   color: string;
-  bgColor: string;
 }
 
-interface TileData {
+interface GridTile {
   id: string;
   title: string;
-  description: string;
-  icon: React.ReactNode;
+  iconName: string;
+  iconSet: 'ionicons' | 'material' | 'feather';
   route: string;
-  color: string;
+  gradient: [string, string];
   isTab?: boolean;
+  badge?: number;
 }
 
-const TAB_ROUTES = new Set(['/callings', '/sunday-business', '/goals']);
+const SCREEN_W = Dimensions.get('window').width;
+const GRID_GAP = 12;
+const GRID_PAD = 20;
+const TILE_W = (SCREEN_W - GRID_PAD * 2 - GRID_GAP) / 2;
 
-const TILES: TileData[] = [
-  {
-    id: 'callings',
-    title: 'Callings & Releases',
-    description: 'Browse current callings by ward and organization',
-    icon: <Ionicons name="people-outline" size={24} color="#016183" />,
-    route: '/callings',
-    color: '#E8F4F8',
-    isTab: true,
-  },
-  {
-    id: 'stake-business',
-    title: 'Sunday Business',
-    description: 'Conduct releases and sustainings in wards',
-    icon: <MaterialCommunityIcons name="church" size={24} color="#016183" />,
-    route: '/sunday-business',
-    color: '#F0F4E8',
-    isTab: true,
-  },
-  {
-    id: 'goals',
-    title: 'Goals & Execution',
-    description: 'Track stake and ward goals with progress indicators',
-    icon: <MaterialCommunityIcons name="target" size={24} color="#016183" />,
-    route: '/goals',
-    color: '#E8F8EE',
-    isTab: true,
-  },
-  {
-    id: 'hc-agenda',
-    title: 'High Council Agenda',
-    description: 'View and manage High Council meeting agendas',
-    icon: <MaterialCommunityIcons name="clipboard-text-outline" size={24} color="#016183" />,
-    route: '/high-council-agenda',
-    color: '#E8F0F8',
-  },
-  {
-    id: 'sc-agenda',
-    title: 'Stake Council Agenda',
-    description: 'View and manage Stake Council meeting agendas',
-    icon: <Ionicons name="document-text-outline" size={24} color="#016183" />,
-    route: '/stake-council-agenda',
-    color: '#E8F8F0',
-  },
-  {
-    id: 'assignments',
-    title: 'My Assignments',
-    description: 'Track your tasks, deadlines, and stewardship areas',
-    icon: <Feather name="check-square" size={22} color="#016183" />,
-    route: '/assignments',
-    color: '#F0E8F8',
-  },
-  {
-    id: 'pulse',
-    title: 'ALIGN Pulse',
-    description: 'Submit your monthly leadership progress check-in',
-    icon: <MaterialCommunityIcons name="pulse" size={24} color="#016183" />,
-    route: '/align-pulse',
-    color: '#F8F0E8',
-  },
-];
+function TileIcon({ iconName, iconSet, size, color }: { iconName: string; iconSet: string; size: number; color: string }) {
+  if (iconSet === 'material') return <MaterialCommunityIcons name={iconName as any} size={size} color={color} />;
+  if (iconSet === 'feather') return <Feather name={iconName as any} size={size} color={color} />;
+  return <Ionicons name={iconName as any} size={size} color={color} />;
+}
 
-function FeatureTile({ tile, index, badges }: { tile: TileData; index: number; badges?: BadgeInfo[] }) {
+function GridItem({ tile, index }: { tile: GridTile; index: number }) {
   const handlePress = () => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (tile.isTab) {
       router.navigate(tile.route as any);
     } else {
@@ -112,43 +57,24 @@ function FeatureTile({ tile, index, badges }: { tile: TileData; index: number; b
     }
   };
 
-  const activeBadges = badges?.filter(b => b.count > 0) || [];
-
   return (
-    <Animated.View entering={FadeInDown.duration(400).delay(100 + index * 60)}>
+    <Animated.View entering={FadeInDown.duration(350).delay(80 + index * 50)} style={styles.gridItemOuter}>
       <Pressable
         onPress={handlePress}
         style={({ pressed }) => [
-          styles.tile,
-          activeBadges.length > 0 && styles.tileWithBadges,
-          pressed && styles.tilePressed,
+          styles.gridItem,
+          { backgroundColor: tile.gradient[0] },
+          pressed && styles.gridItemPressed,
         ]}
         testID={`tile-${tile.id}`}
       >
-        <View style={styles.tileMainRow}>
-          <View style={[styles.tileIconContainer, { backgroundColor: tile.color }]}>
-            {tile.icon}
-          </View>
-          <View style={styles.tileContent}>
-            <Text style={styles.tileTitle}>{tile.title}</Text>
-            <Text style={styles.tileDescription}>{tile.description}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={Colors.brand.midGray} />
+        <View style={[styles.gridIconWrap, { backgroundColor: tile.gradient[1] }]}>
+          <TileIcon iconName={tile.iconName} iconSet={tile.iconSet} size={22} color="#fff" />
         </View>
-        {activeBadges.length > 0 && (
-          <View style={styles.badgeStrip}>
-            {activeBadges.map((badge) => (
-              <View key={badge.label} style={[styles.badgeBanner, { backgroundColor: badge.bgColor }]}>
-                <Ionicons
-                  name={badge.label === 'New' ? 'alert-circle' : 'time'}
-                  size={14}
-                  color={badge.color}
-                />
-                <Text style={[styles.badgeBannerText, { color: badge.color }]}>
-                  {badge.count} {badge.label}
-                </Text>
-              </View>
-            ))}
+        <Text style={styles.gridTitle} numberOfLines={2}>{tile.title}</Text>
+        {(tile.badge ?? 0) > 0 && (
+          <View style={styles.gridBadge}>
+            <Text style={styles.gridBadgeText}>{tile.badge}</Text>
           </View>
         )}
       </Pressable>
@@ -159,19 +85,13 @@ function FeatureTile({ tile, index, badges }: { tile: TileData; index: number; b
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
-
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
-
   const firstName = user?.name?.split(' ')[0] || 'Leader';
+  const initials = user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
 
   const { data: stakeBusinessData, refetch: refetchStakeBusiness, isRefetching: isRefetchingBusiness } = useQuery<{
     success: boolean;
-    business_items: Array<{
-      id: number;
-      created_at: string;
-      wards_completed: number[];
-      wards_outstanding: number[];
-    }>;
+    business_items: Array<{ id: number; created_at: string; wards_completed: number[]; wards_outstanding: number[] }>;
   }>({
     queryKey: ['/api/sunday-business/sunday'],
     queryFn: () => authFetch(token, '/api/sunday-business/sunday'),
@@ -181,13 +101,7 @@ export default function HomeScreen() {
 
   const { data: actionRequiredData, refetch: refetchActionRequired, isRefetching: isRefetchingActions } = useQuery<{
     success: boolean;
-    action_items: Array<{
-      calling_request_id: number;
-      action_type: string;
-      action_label: string;
-      calling_name: string;
-      status_label: string;
-    }>;
+    action_items: Array<{ calling_request_id: number; action_type: string; action_label: string; calling_name: string; status_label: string }>;
     total_count: number;
   }>({
     queryKey: ['/api/calling-requests/action-required'],
@@ -198,52 +112,49 @@ export default function HomeScreen() {
 
   const isRefetching = isRefetchingBusiness || isRefetchingActions;
 
-  const stakeBusinessBadges = useMemo<BadgeInfo[]>(() => {
+  const businessBadgeCount = useMemo(() => {
     const items = stakeBusinessData?.business_items || [];
-    if (items.length === 0) return [];
-
-    const now = Date.now();
-    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-
-    let newCount = 0;
-    let outstandingCount = 0;
-
-    for (const item of items) {
-      const hasOutstandingWards = item.wards_outstanding.length > 0;
-      const createdAt = new Date(item.created_at).getTime();
-      const ageMs = now - createdAt;
-
-      if (ageMs <= sevenDaysMs && hasOutstandingWards) {
-        newCount++;
-      } else if (ageMs > sevenDaysMs && hasOutstandingWards) {
-        outstandingCount++;
-      }
-    }
-
-    return [
-      { label: 'New', count: newCount, color: Colors.brand.primary, bgColor: '#E0F2F1' },
-      { label: 'Outstanding', count: outstandingCount, color: '#B45309', bgColor: '#FEF3C7' },
-    ];
+    return items.filter(i => i.wards_outstanding.length > 0).length;
   }, [stakeBusinessData]);
 
-  const callingsBadges = useMemo<BadgeInfo[]>(() => {
-    const count = actionRequiredData?.total_count ?? 0;
-    if (count === 0) return [];
-    return [
-      { label: 'Action Needed', count, color: Colors.brand.primary, bgColor: '#E8F4F8' },
-    ];
-  }, [actionRequiredData]);
+  const callingsBadgeCount = actionRequiredData?.total_count ?? 0;
 
-  const initials = user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
+  const GRID_TILES: GridTile[] = useMemo(() => [
+    {
+      id: 'callings', title: 'Callings', iconName: 'people-outline', iconSet: 'ionicons',
+      route: '/callings', gradient: ['#EFF6FF', '#3B82F6'], isTab: true, badge: callingsBadgeCount,
+    },
+    {
+      id: 'stake-business', title: 'Sunday Business', iconName: 'church', iconSet: 'material',
+      route: '/sunday-business', gradient: ['#FEF3C7', '#F59E0B'], isTab: true, badge: businessBadgeCount,
+    },
+    {
+      id: 'goals', title: 'Goals', iconName: 'target', iconSet: 'material',
+      route: '/goals', gradient: ['#ECFDF5', '#10B981'], isTab: true,
+    },
+    {
+      id: 'hc-agenda', title: 'HC Agenda', iconName: 'clipboard-text-outline', iconSet: 'material',
+      route: '/high-council-agenda', gradient: ['#EDE9FE', '#8B5CF6'],
+    },
+    {
+      id: 'sc-agenda', title: 'SC Agenda', iconName: 'document-text-outline', iconSet: 'ionicons',
+      route: '/stake-council-agenda', gradient: ['#E0F2FE', '#0EA5E9'],
+    },
+    {
+      id: 'assignments', title: 'Assignments', iconName: 'check-square', iconSet: 'feather',
+      route: '/assignments', gradient: ['#FCE7F3', '#EC4899'],
+    },
+    {
+      id: 'pulse', title: 'ALIGN Pulse', iconName: 'pulse', iconSet: 'material',
+      route: '/align-pulse', gradient: ['#FFF7ED', '#F97316'],
+    },
+  ], [callingsBadgeCount, businessBadgeCount]);
 
   return (
     <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingTop: insets.top + webTopInset + 16 },
-        ]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + webTopInset + 12 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -254,7 +165,7 @@ export default function HomeScreen() {
           />
         }
       >
-        <Animated.View entering={FadeIn.duration(400)} style={styles.greetingSection}>
+        <Animated.View entering={FadeIn.duration(350)} style={styles.greetingSection}>
           <View style={styles.greetingRow}>
             <View style={styles.greetingLeft}>
               <Text style={styles.greetingSmall}>Welcome back,</Text>
@@ -262,7 +173,7 @@ export default function HomeScreen() {
             </View>
             <Pressable
               onPress={() => router.navigate('/(tabs)/profile' as any)}
-              style={({ pressed }) => [styles.avatarBtn, pressed && { opacity: 0.7 }]}
+              style={({ pressed }) => [styles.avatarBtn, pressed && { transform: [{ scale: 0.92 }] }]}
             >
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>{initials}</Text>
@@ -272,21 +183,22 @@ export default function HomeScreen() {
           {user?.calling && (
             <View style={styles.roleRow}>
               <View style={styles.roleChip}>
+                <Ionicons name="shield-checkmark-outline" size={13} color={Colors.brand.primary} />
                 <Text style={styles.roleText}>{user.calling}</Text>
               </View>
-              {user.ward && <Text style={styles.wardText}>{user.ward}</Text>}
+              {user.ward && (
+                <View style={styles.wardChip}>
+                  <Ionicons name="location-outline" size={12} color={Colors.brand.midGray} />
+                  <Text style={styles.wardText}>{user.ward}</Text>
+                </View>
+              )}
             </View>
           )}
         </Animated.View>
 
-        <View style={contentContainer}>
-          {TILES.map((tile, index) => (
-            <FeatureTile
-              key={tile.id}
-              tile={tile}
-              index={index}
-              badges={tile.id === 'stake-business' ? stakeBusinessBadges : tile.id === 'callings' ? callingsBadges : undefined}
-            />
+        <View style={styles.grid}>
+          {GRID_TILES.map((tile, index) => (
+            <GridItem key={tile.id} tile={tile} index={index} />
           ))}
         </View>
       </ScrollView>
@@ -303,11 +215,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: GRID_PAD,
     paddingBottom: 100,
   },
   greetingSection: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   greetingRow: {
     flexDirection: 'row',
@@ -321,24 +233,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.brand.midGray,
     fontFamily: 'Inter_400Regular',
-    marginBottom: 2,
   },
   greetingName: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '700' as const,
     color: Colors.brand.black,
     fontFamily: 'Inter_700Bold',
+    marginTop: 1,
   },
   avatarBtn: {
-    marginLeft: 12,
+    marginLeft: 16,
   },
   avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: Colors.brand.primary,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: Colors.brand.accent,
   },
   avatarText: {
     fontSize: 16,
@@ -349,10 +263,14 @@ const styles = StyleSheet.create({
   roleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 10,
     gap: 8,
+    flexWrap: 'wrap',
   },
   roleChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     backgroundColor: Colors.brand.accent,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -364,76 +282,71 @@ const styles = StyleSheet.create({
     color: Colors.brand.primary,
     fontFamily: 'Inter_600SemiBold',
   },
+  wardChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: Colors.brand.sectionBg,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
   wardText: {
     fontSize: 12,
-    color: Colors.brand.midGray,
+    color: Colors.brand.darkGray,
     fontFamily: 'Inter_400Regular',
   },
-  tile: {
-    backgroundColor: Colors.brand.white,
-    borderRadius: 14,
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: GRID_GAP,
+  },
+  gridItemOuter: {
+    width: TILE_W,
+  },
+  gridItem: {
+    borderRadius: 18,
     padding: 16,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: Colors.brand.lightGray,
-    ...cardShadow(),
+    paddingTop: 18,
+    paddingBottom: 14,
+    minHeight: TILE_W * 0.82,
+    justifyContent: 'space-between',
   },
-  tileWithBadges: {
-    paddingBottom: 0,
-  },
-  tileMainRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-  },
-  tilePressed: {
-    transform: [{ scale: 0.97 }],
+  gridItemPressed: {
+    transform: [{ scale: 0.95 }],
     opacity: 0.85,
   },
-  tileIconContainer: {
-    width: 48,
-    height: 48,
+  gridIconWrap: {
+    width: 40,
+    height: 40,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginBottom: 14,
   },
-  tileContent: {
-    flex: 1,
-  },
-  tileTitle: {
-    fontSize: 16,
+  gridTitle: {
+    fontSize: 14,
     fontWeight: '600' as const,
     color: Colors.brand.black,
-    marginBottom: 2,
     fontFamily: 'Inter_600SemiBold',
-  },
-  tileDescription: {
-    fontSize: 13,
-    color: Colors.brand.darkGray,
     lineHeight: 18,
-    fontFamily: 'Inter_400Regular',
   },
-  badgeStrip: {
-    flexDirection: 'row' as const,
-    gap: 8,
-    marginTop: 12,
-    paddingTop: 10,
-    paddingBottom: 14,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.brand.lightGray,
+  gridBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: '#EF4444',
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 5,
   },
-  badgeBanner: {
-    flex: 1,
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    gap: 5,
-    paddingVertical: 7,
-    borderRadius: 8,
-  },
-  badgeBannerText: {
-    fontSize: 12,
+  gridBadgeText: {
+    fontSize: 11,
     fontWeight: '700' as const,
+    color: '#fff',
     fontFamily: 'Inter_700Bold',
   },
 });

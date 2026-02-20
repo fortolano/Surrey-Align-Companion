@@ -37,7 +37,7 @@ export default function LoginScreen() {
   }
 
   if (isAuthenticated) {
-    return <Redirect href="/home" />;
+    return <Redirect href="/(tabs)/home" />;
   }
 
   const handleLogin = async () => {

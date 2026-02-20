@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -7,8 +7,6 @@ import {
   RefreshControl,
   Pressable,
   Platform,
-  Modal,
-  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,7 +17,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
-import { contentContainer, cardShadow, elevatedShadow } from '@/constants/styles';
+import { contentContainer, cardShadow } from '@/constants/styles';
 
 interface BadgeInfo {
   label: string;
@@ -35,7 +33,10 @@ interface TileData {
   icon: React.ReactNode;
   route: string;
   color: string;
+  isTab?: boolean;
 }
+
+const TAB_ROUTES = new Set(['/callings', '/sunday-business', '/goals']);
 
 const TILES: TileData[] = [
   {
@@ -45,6 +46,7 @@ const TILES: TileData[] = [
     icon: <Ionicons name="people-outline" size={24} color="#016183" />,
     route: '/callings',
     color: '#E8F4F8',
+    isTab: true,
   },
   {
     id: 'stake-business',
@@ -53,6 +55,16 @@ const TILES: TileData[] = [
     icon: <MaterialCommunityIcons name="church" size={24} color="#016183" />,
     route: '/sunday-business',
     color: '#F0F4E8',
+    isTab: true,
+  },
+  {
+    id: 'goals',
+    title: 'Goals & Execution',
+    description: 'Track stake and ward goals with progress indicators',
+    icon: <MaterialCommunityIcons name="target" size={24} color="#016183" />,
+    route: '/goals',
+    color: '#E8F8EE',
+    isTab: true,
   },
   {
     id: 'hc-agenda',
@@ -79,14 +91,6 @@ const TILES: TileData[] = [
     color: '#F0E8F8',
   },
   {
-    id: 'goals',
-    title: 'Goals & Execution',
-    description: 'Track stake and ward goals with progress indicators',
-    icon: <MaterialCommunityIcons name="target" size={24} color="#016183" />,
-    route: '/goals',
-    color: '#E8F8EE',
-  },
-  {
     id: 'pulse',
     title: 'ALIGN Pulse',
     description: 'Submit your monthly leadership progress check-in',
@@ -96,37 +100,22 @@ const TILES: TileData[] = [
   },
 ];
 
-interface MenuItem {
-  id: string;
-  label: string;
-  icon: string;
-  iconSet: 'ionicons' | 'feather';
-  route?: string;
-  action?: 'logout';
-  destructive?: boolean;
-}
-
-const MENU_ITEMS: MenuItem[] = [
-  { id: 'profile', label: 'Profile', icon: 'person-outline', iconSet: 'ionicons', route: '/profile' },
-  { id: 'align', label: 'ALIGN', icon: 'compass-outline', iconSet: 'ionicons', route: '/align-info' },
-  { id: 'settings', label: 'Settings', icon: 'settings-outline', iconSet: 'ionicons', route: '/settings' },
-  { id: 'about', label: 'About this App', icon: 'information-circle-outline', iconSet: 'ionicons', route: '/about-app' },
-  { id: 'tos', label: 'Terms of Service', icon: 'document-text-outline', iconSet: 'ionicons', route: '/terms' },
-  { id: 'logout', label: 'Sign Out', icon: 'log-out', iconSet: 'feather', action: 'logout', destructive: true },
-];
-
 function FeatureTile({ tile, index, badges }: { tile: TileData; index: number; badges?: BadgeInfo[] }) {
   const handlePress = () => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    router.push(tile.route as any);
+    if (tile.isTab) {
+      router.navigate(tile.route as any);
+    } else {
+      router.push(tile.route as any);
+    }
   };
 
   const activeBadges = badges?.filter(b => b.count > 0) || [];
 
   return (
-    <Animated.View entering={FadeInDown.duration(400).delay(100 + index * 80)}>
+    <Animated.View entering={FadeInDown.duration(400).delay(100 + index * 60)}>
       <Pressable
         onPress={handlePress}
         style={({ pressed }) => [
@@ -169,11 +158,9 @@ function FeatureTile({ tile, index, badges }: { tile: TileData; index: number; b
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { user, logout, token } = useAuth();
-  const [menuVisible, setMenuVisible] = useState(false);
+  const { user, token } = useAuth();
 
-  const webTopInset = Platform.OS === 'web' ? 24 : 0;
-  const webBottomInset = Platform.OS === 'web' ? 34 : 0;
+  const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
   const firstName = user?.name?.split(' ')[0] || 'Leader';
 
@@ -247,42 +234,6 @@ export default function HomeScreen() {
     ];
   }, [actionRequiredData]);
 
-  const handleMenuToggle = () => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    setMenuVisible(!menuVisible);
-  };
-
-  const handleMenuSelect = (item: MenuItem) => {
-    setMenuVisible(false);
-    if (item.action === 'logout') {
-      if (Platform.OS === 'web') {
-        logout().then(() => router.replace('/'));
-        return;
-      }
-      Alert.alert(
-        'Sign Out',
-        'Are you sure you want to sign out?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Sign Out',
-            style: 'destructive',
-            onPress: async () => {
-              await logout();
-              router.replace('/');
-            },
-          },
-        ],
-      );
-    } else if (item.route) {
-      setTimeout(() => {
-        router.push(item.route as any);
-      }, 100);
-    }
-  };
-
   return (
     <View style={styles.container}>
       <Animated.View
@@ -290,25 +241,7 @@ export default function HomeScreen() {
         style={[styles.header, { paddingTop: insets.top + webTopInset + 12 }]}
       >
         <View style={[styles.headerInner, contentContainer]}>
-          <View style={styles.headerContent}>
-            <View style={styles.headerLeft}>
-              <Text style={styles.greeting}>Welcome, <Text style={styles.userName}>{firstName}</Text></Text>
-            </View>
-            <Pressable
-              onPress={handleMenuToggle}
-              style={({ pressed }) => [
-                styles.profileButton,
-                pressed && { opacity: 0.7 },
-              ]}
-              testID="menu-button"
-            >
-              <View style={styles.profileAvatar}>
-                <Text style={styles.profileAvatarText}>
-                  {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U'}
-                </Text>
-              </View>
-            </Pressable>
-          </View>
+          <Text style={styles.greeting}>Welcome, <Text style={styles.userName}>{firstName}</Text></Text>
           {user?.calling && (
             <View style={styles.roleChip}>
               <Text style={styles.roleText}>{user.calling}</Text>
@@ -320,10 +253,7 @@ export default function HomeScreen() {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: insets.bottom + webBottomInset + 24 },
-        ]}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -346,65 +276,6 @@ export default function HomeScreen() {
           ))}
         </View>
       </ScrollView>
-
-      <Modal
-        visible={menuVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setMenuVisible(false)}
-      >
-        <Pressable
-          style={styles.menuOverlay}
-          onPress={() => setMenuVisible(false)}
-        >
-          <View
-            style={[
-              styles.menuContainer,
-              {
-                top: insets.top + webTopInset + 48,
-                right: 16,
-              },
-            ]}
-          >
-            {MENU_ITEMS.map((item, index) => (
-              <React.Fragment key={item.id}>
-                {item.destructive && <View style={styles.menuDivider} />}
-                <Pressable
-                  onPress={() => handleMenuSelect(item)}
-                  style={({ pressed }) => [
-                    styles.menuItem,
-                    pressed && styles.menuItemPressed,
-                    index === 0 && styles.menuItemFirst,
-                    index === MENU_ITEMS.length - 1 && styles.menuItemLast,
-                  ]}
-                >
-                  {item.iconSet === 'feather' ? (
-                    <Feather
-                      name={item.icon as any}
-                      size={18}
-                      color={item.destructive ? Colors.brand.error : Colors.brand.dark}
-                    />
-                  ) : (
-                    <Ionicons
-                      name={item.icon as any}
-                      size={18}
-                      color={item.destructive ? Colors.brand.error : Colors.brand.dark}
-                    />
-                  )}
-                  <Text
-                    style={[
-                      styles.menuLabel,
-                      item.destructive && styles.menuLabelDestructive,
-                    ]}
-                  >
-                    {item.label}
-                  </Text>
-                </Pressable>
-              </React.Fragment>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
     </View>
   );
 }
@@ -424,42 +295,12 @@ const styles = StyleSheet.create({
   headerInner: {
     paddingHorizontal: 24,
   },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerLeft: {
-    flex: 1,
-  },
   greeting: {
     fontSize: 17,
     color: 'rgba(255,255,255,0.85)',
     fontFamily: 'Inter_400Regular',
   },
   userName: {
-    fontWeight: '700' as const,
-    color: Colors.brand.white,
-    fontFamily: 'Inter_700Bold',
-  },
-  profileButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  profileAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.4)',
-  },
-  profileAvatarText: {
-    fontSize: 14,
     fontWeight: '700' as const,
     color: Colors.brand.white,
     fontFamily: 'Inter_700Bold',
@@ -491,6 +332,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 20,
+    paddingBottom: 100,
   },
   sectionTitle: {
     fontSize: 13,
@@ -519,8 +361,8 @@ const styles = StyleSheet.create({
     alignItems: 'center' as const,
   },
   tilePressed: {
-    transform: [{ scale: 0.98 }],
-    opacity: 0.9,
+    transform: [{ scale: 0.97 }],
+    opacity: 0.85,
   },
   tileIconContainer: {
     width: 48,
@@ -568,49 +410,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700' as const,
     fontFamily: 'Inter_700Bold',
-  },
-  menuOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  menuContainer: {
-    position: 'absolute',
-    width: 220,
-    backgroundColor: Colors.brand.white,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.brand.lightGray,
-    overflow: 'hidden',
-    ...elevatedShadow(),
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-  },
-  menuItemPressed: {
-    backgroundColor: Colors.brand.offWhite,
-  },
-  menuItemFirst: {
-    borderTopLeftRadius: 14,
-    borderTopRightRadius: 14,
-  },
-  menuItemLast: {
-    borderBottomLeftRadius: 14,
-    borderBottomRightRadius: 14,
-  },
-  menuLabel: {
-    fontSize: 15,
-    color: Colors.brand.dark,
-    fontFamily: 'Inter_500Medium',
-  },
-  menuLabelDestructive: {
-    color: Colors.brand.error,
-  },
-  menuDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: Colors.brand.lightGray,
   },
 });

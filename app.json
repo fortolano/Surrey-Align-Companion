@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "SurreyAlign",
+    "name": "SurreyALIGN",
     "slug": "surreyalign",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -15,10 +15,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.surreyalign"
+      "bundleIdentifier": "com.surreyalign.app"
     },
     "android": {
-      "package": "com.surreyalign",
+      "package": "com.surreyalign.app",
       "adaptiveIcon": {
         "backgroundColor": "#016183",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

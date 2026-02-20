@@ -210,18 +210,23 @@ function configureExpoAndLanding(app: express.Application) {
   app.use("/assets", express.static(path.resolve(process.cwd(), "assets")));
   app.use(express.static(path.resolve(process.cwd(), "static-build")));
 
-  if (hasWebBuild) {
-    app.use((req: Request, res: Response, next: NextFunction) => {
-      if (req.path.startsWith("/api") || req.path.startsWith("/assets")) {
-        return next();
-      }
-      const platform = req.header("expo-platform");
-      if (platform) return next();
-      res.sendFile(path.join(distPath, "index.html"));
-    });
-  }
-
   log("Expo routing: Checking expo-platform header on / and /manifest");
+}
+
+function setupWebAppFallback(app: express.Application) {
+  const distPath = path.resolve(process.cwd(), "dist");
+  const indexPath = path.join(distPath, "index.html");
+  if (!fs.existsSync(indexPath)) return;
+
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.path.startsWith("/api") || req.path.startsWith("/assets") || req.path.startsWith("/_expo")) {
+      return next();
+    }
+    const platform = req.header("expo-platform");
+    if (platform) return next();
+    if (req.method !== "GET") return next();
+    res.sendFile(indexPath);
+  });
 }
 
 function setupErrorHandler(app: express.Application) {
@@ -254,6 +259,7 @@ function setupErrorHandler(app: express.Application) {
 
   const server = await registerRoutes(app);
 
+  setupWebAppFallback(app);
   setupErrorHandler(app);
 
   const port = parseInt(process.env.PORT || "5000", 10);

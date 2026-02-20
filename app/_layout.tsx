@@ -7,6 +7,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "@/lib/query-client";
 import { AuthProvider } from "@/lib/auth-context";
+import { ToastProvider } from "@/components/Toast";
 import {
   useFonts,
   Inter_400Regular,
@@ -34,18 +35,7 @@ function RootLayoutNav() {
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="home" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          presentation: "modal",
-        }}
-      />
-      <Stack.Screen
-        name="callings"
-        options={{ title: "Callings & Releases" }}
-      />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
         name="high-council-agenda"
         options={{ title: "High Council Agenda" }}
@@ -79,10 +69,6 @@ function RootLayoutNav() {
         options={{ title: "Terms of Service" }}
       />
       <Stack.Screen
-        name="goals"
-        options={{ title: "Goals" }}
-      />
-      <Stack.Screen
         name="goal-detail"
         options={{ title: "Goal Detail" }}
       />
@@ -93,10 +79,6 @@ function RootLayoutNav() {
       <Stack.Screen
         name="calling-detail"
         options={{ title: "Calling Request" }}
-      />
-      <Stack.Screen
-        name="sunday-business"
-        options={{ title: "Stake Business" }}
       />
     </Stack>
   );
@@ -126,7 +108,9 @@ export default function RootLayout() {
         <GestureHandlerRootView>
           <KeyboardProvider>
             <AuthProvider>
-              <RootLayoutNav />
+              <ToastProvider>
+                <RootLayoutNav />
+              </ToastProvider>
             </AuthProvider>
           </KeyboardProvider>
         </GestureHandlerRootView>

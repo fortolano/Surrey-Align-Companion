@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import Colors from '@/constants/colors';
+import { cardShadow } from '@/constants/styles';
 
 export default function AboutAppScreen() {
   const insets = useSafeAreaInsets();
@@ -111,14 +112,12 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: Colors.brand.white,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 14,
-    shadowColor: 'rgba(1, 97, 131, 0.06)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 2,
+    borderRadius: 14,
+    padding: 18,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.brand.lightGray,
+    ...cardShadow(),
   },
   cardTitle: {
     fontSize: 17,

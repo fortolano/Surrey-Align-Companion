@@ -1,4 +1,4 @@
-const CACHE_NAME = 'surreyalign-v2';
+const CACHE_NAME = 'surreyalign-v3';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

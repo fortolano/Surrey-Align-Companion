@@ -125,6 +125,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.actionsSection}>
+          <Text style={styles.versionText}>v1.1.0 - Native Grid Build</Text>
           <Pressable
             onPress={() => {
               if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -268,6 +269,13 @@ const styles = StyleSheet.create({
   actionsSection: {
     paddingHorizontal: 20,
     marginTop: 32,
+  },
+  versionText: {
+    fontSize: 11,
+    color: Colors.brand.midGray,
+    textAlign: 'center',
+    marginBottom: 8,
+    fontFamily: 'Inter_400Regular',
   },
   logoutButton: {
     flexDirection: 'row',

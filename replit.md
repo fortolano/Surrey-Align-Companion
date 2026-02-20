@@ -32,8 +32,8 @@ Preferred communication style: Simple, everyday language.
 - **State Management**: React Context for authentication (`lib/auth-context.tsx`) and TanStack React Query for server state management (`lib/query-client.ts`).
 - **Authentication**: Users log in with their surreyalign.org credentials. Tokens and user data are persisted using `expo-secure-store` (native) and `@react-native-async-storage/async-storage` (web). The `AuthProvider` manages the full authentication lifecycle.
 - **Feature Specifications**:
-    - **Callings Module**: Includes a filterable list screen, a multi-section creation form with server-driven cascading dropdowns, and a detail screen with role-adaptive views (`Requestor`, `Monitor`, `Governance`). The detail screen features a dynamic `NextAction` banner and a `Sunday Business Gate` to manage gated steps.
-    - **Sunday Business Module**: Provides a role-based UI (`high_councilor`, `ward_leader`, `stake_admin`) for managing releases and sustainings. It supports bundle grouping for related items, ward scoping, and bundle-aware completion.
+    - **Callings Module**: Includes a filterable list screen, a multi-section creation form with server-driven cascading dropdowns (including `requires_release` toggle for nominees with a current calling), and a detail screen with role-adaptive views (`Requestor`, `Monitor`, `Governance`). The detail screen features a non-interactive `NextAction` hint banner (pointing users to action buttons below), a release-required indicator on nominees, and a `Sunday Business Gate` to manage gated steps (including the `sunday_announcement` step which is now system-managed and auto-completes).
+    - **Sunday Business Module**: Provides a role-based UI (`high_councilor`, `ward_leader`, `stake_admin`) for managing releases and sustainings. It supports bundle grouping for related items (up to 3 items per bundle: outgoing release, nominee release, and sustaining), ward scoping, and bundle-aware completion. Only outstanding items are shown; already-conducted items are filtered out.
 
 ### Backend - Express Server (API Proxy)
 

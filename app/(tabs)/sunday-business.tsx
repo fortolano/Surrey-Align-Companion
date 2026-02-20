@@ -7,7 +7,6 @@ import {
   Pressable,
   ActivityIndicator,
   Platform,
-  Alert,
   RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +16,7 @@ import * as Haptics from 'expo-haptics';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
+import { useToast } from '@/components/Toast';
 import Colors from '@/constants/colors';
 import { contentContainer, cardShadow, buttonShadow } from '@/constants/styles';
 
@@ -281,6 +281,7 @@ export default function SundayBusinessScreen() {
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
   const qClient = useQueryClient();
+  const toast = useToast();
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
 
   const [selectedWardId, setSelectedWardId] = useState<number | null>(null);
@@ -361,10 +362,12 @@ export default function SundayBusinessScreen() {
 
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (anyStepUpdated) {
-        Alert.alert('Updated', 'Calling lifecycle steps have been updated.');
+        toast.success('Updated', 'Calling lifecycle steps have been updated.');
+      } else {
+        toast.success('Done', 'Items marked as conducted.');
       }
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to mark as conducted.');
+      toast.error('Error', err.message || 'Failed to mark as conducted.');
     } finally {
       setMarkingAll(false);
     }

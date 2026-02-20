@@ -18,6 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
+import { ListCardSkeleton } from '@/components/Skeleton';
 import Colors from '@/constants/colors';
 import { contentContainer, cardShadow } from '@/constants/styles';
 
@@ -195,9 +196,10 @@ export default function CallingsScreen() {
 
   if (isLoading) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={Colors.brand.primary} />
-        <Text style={styles.loadingText}>Loading calling requests...</Text>
+      <View style={styles.container}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+          <ListCardSkeleton count={5} />
+        </View>
       </View>
     );
   }

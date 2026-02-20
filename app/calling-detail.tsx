@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   TextInput,
   Platform,
-  Alert,
   RefreshControl,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -19,6 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
+import { useToast } from '@/components/Toast';
 import Colors from '@/constants/colors';
 import { contentContainer, cardShadow } from '@/constants/styles';
 
@@ -114,6 +114,7 @@ function StepsSection({ steps, canManage, requestId, token, onRefresh, sundayBus
   steps: any[]; canManage: boolean; requestId: number; token: string | null; onRefresh: () => void;
   sundayBusinessGate: { active: boolean; total_items: number; completed_items: number; message: string } | null;
 }) {
+  const toast = useToast();
   const [updatingStep, setUpdatingStep] = useState<number | null>(null);
   const completed = steps.filter(s => s.status === 'completed').length;
   const total = steps.filter(s => s.status !== 'skipped').length;
@@ -131,7 +132,7 @@ function StepsSection({ steps, canManage, requestId, token, onRefresh, sundayBus
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onRefresh();
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to update step.');
+      toast.error('Error', err.message || 'Failed to update step.');
     } finally {
       setUpdatingStep(null);
     }
@@ -242,6 +243,7 @@ const ssStyles = StyleSheet.create({
 function VotingSection({ detail, permissions, requestId, token, userId, onRefresh }: {
   detail: any; permissions: any; requestId: number; token: string | null; userId: number; onRefresh: () => void;
 }) {
+  const toast = useToast();
   const [vote, setVote] = useState<'approve' | 'disapprove' | ''>('');
   const [nomineeId, setNomineeId] = useState<number | null>(null);
   const [comment, setComment] = useState('');
@@ -253,8 +255,8 @@ function VotingSection({ detail, permissions, requestId, token, userId, onRefres
   const individuals = detail.individuals || [];
 
   const submitVote = async () => {
-    if (!vote) { Alert.alert('Required', 'Please select your recommendation.'); return; }
-    if (individuals.length > 1 && !nomineeId) { Alert.alert('Required', 'Please select which individual.'); return; }
+    if (!vote) { toast.warning('Required', 'Please select your recommendation.'); return; }
+    if (individuals.length > 1 && !nomineeId) { toast.warning('Required', 'Please select which individual.'); return; }
     setSubmitting(true);
     try {
       await authFetch(token, `/api/calling-requests/${requestId}/vote`, {
@@ -264,7 +266,7 @@ function VotingSection({ detail, permissions, requestId, token, userId, onRefres
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onRefresh();
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to submit.');
+      toast.error('Error', err.message || 'Failed to submit.');
     } finally {
       setSubmitting(false);
     }
@@ -399,6 +401,7 @@ const vsStyles = StyleSheet.create({
 function DiscussionSection({ detail, permissions, requestId, token, onRefresh }: {
   detail: any; permissions: any; requestId: number; token: string | null; onRefresh: () => void;
 }) {
+  const toast = useToast();
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
   const [decideVote, setDecideVote] = useState<'approved' | 'not_approved' | ''>('');
@@ -419,14 +422,14 @@ function DiscussionSection({ detail, permissions, requestId, token, onRefresh }:
       setCommentText('');
       onRefresh();
     } catch (err: any) {
-      Alert.alert('Error', err.message);
+      toast.error('Error', err.message);
     } finally {
       setSubmittingComment(false);
     }
   };
 
   const submitDecision = async () => {
-    if (!decideVote) { Alert.alert('Required', 'Please select a decision.'); return; }
+    if (!decideVote) { toast.warning('Required', 'Please select a decision.'); return; }
     setSubmittingDecision(true);
     try {
       await authFetch(token, `/api/calling-requests/${requestId}/decide`, {
@@ -436,7 +439,7 @@ function DiscussionSection({ detail, permissions, requestId, token, onRefresh }:
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onRefresh();
     } catch (err: any) {
-      Alert.alert('Error', err.message);
+      toast.error('Error', err.message);
     } finally {
       setSubmittingDecision(false);
     }
@@ -641,6 +644,7 @@ export default function CallingDetailScreen() {
   const qClient = useQueryClient();
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
   const requestId = Number(id);
+  const toast = useToast();
 
   const [activeTab, setActiveTab] = useState<'discussion' | 'approvals' | 'steps'>('discussion');
   const [actionLoading, setActionLoading] = useState('');
@@ -678,7 +682,7 @@ export default function CallingDetailScreen() {
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       handleRefresh();
     } catch (err: any) {
-      Alert.alert('Error', err.message || `Failed to ${label.toLowerCase()}.`);
+      toast.error('Error', err.message || `Failed to ${label.toLowerCase()}.`);
     } finally {
       setActionLoading('');
     }
@@ -782,12 +786,7 @@ export default function CallingDetailScreen() {
             <ActionButton label="Mark Complete" icon="checkmark-circle-outline" onPress={() => performAction('complete', 'Mark Complete')} loading={actionLoading === 'complete'} />
           )}
           {perms.can_cancel && (
-            <ActionButton label="Cancel Request" icon="close-circle-outline" onPress={() => {
-              Alert.alert('Cancel Request', 'Are you sure you want to cancel this calling request?', [
-                { text: 'No', style: 'cancel' },
-                { text: 'Yes, Cancel', style: 'destructive', onPress: () => performAction('cancel', 'Cancel') },
-              ]);
-            }} variant="danger" loading={actionLoading === 'cancel'} />
+            <ActionButton label="Cancel Request" icon="close-circle-outline" onPress={() => performAction('cancel', 'Cancel')} variant="danger" loading={actionLoading === 'cancel'} />
           )}
         </Animated.View>
       )}
@@ -822,7 +821,7 @@ export default function CallingDetailScreen() {
                     });
                     handleRefresh();
                   } catch (err: any) {
-                    Alert.alert('Error', err.message);
+                    toast.error('Error', err.message);
                   }
                 }}
                 style={styles.selectBtn}

@@ -17,6 +17,7 @@ import * as Haptics from 'expo-haptics';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { getApiUrl } from '@/lib/query-client';
+import { ListCardSkeleton } from '@/components/Skeleton';
 import Colors from '@/constants/colors';
 import { contentContainer, cardShadow } from '@/constants/styles';
 
@@ -215,9 +216,10 @@ export default function GoalsScreen() {
 
   if (isLoading) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={Colors.brand.primary} />
-        <Text style={styles.loadingText}>Loading goals...</Text>
+      <View style={styles.container}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+          <ListCardSkeleton count={4} />
+        </View>
       </View>
     );
   }

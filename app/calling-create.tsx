@@ -8,7 +8,6 @@ import {
   TextInput,
   ActivityIndicator,
   Platform,
-  Alert,
   KeyboardAvoidingView,
   Switch,
 } from 'react-native';
@@ -19,6 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
+import { useToast } from '@/components/Toast';
 import Colors from '@/constants/colors';
 import { contentContainer, cardShadow } from '@/constants/styles';
 
@@ -208,6 +208,7 @@ export default function CallingCreateScreen() {
   const { token, user } = useAuth();
   const qClient = useQueryClient();
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
+  const toast = useToast();
 
   const [scope, setScope] = useState<string>('');
   const [wardId, setWardId] = useState<string>('');
@@ -328,11 +329,11 @@ export default function CallingCreateScreen() {
   const handleSubmit = async (asDraft: boolean) => {
     const validNominees = nominees.filter(n => n.name.trim());
     if (validNominees.length === 0) {
-      Alert.alert('Required', 'Please add at least one individual.');
+      toast.warning('Required', 'Please add at least one individual.');
       return;
     }
     if (!callingId) {
-      Alert.alert('Required', 'Please select a calling.');
+      toast.warning('Required', 'Please select a calling.');
       return;
     }
     setSubmitting(true);
@@ -373,7 +374,7 @@ export default function CallingCreateScreen() {
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to create request.');
+      toast.error('Error', err.message || 'Failed to create request.');
     } finally {
       setSubmitting(false);
     }

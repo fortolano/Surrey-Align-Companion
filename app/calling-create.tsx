@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
   KeyboardAvoidingView,
+  Switch,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,11 +35,12 @@ interface NomineeEntry {
   name: string;
   ward_id: string;
   current_calling_id: string;
+  requires_release: boolean;
   recommendation: string;
 }
 
 function emptyNominee(): NomineeEntry {
-  return { name: '', ward_id: '', current_calling_id: '', recommendation: '' };
+  return { name: '', ward_id: '', current_calling_id: '', requires_release: true, recommendation: '' };
 }
 
 function PickerField({ label, value, options, onChange, placeholder, disabled }: {
@@ -108,12 +110,13 @@ const pfStyles = StyleSheet.create({
   optionTextActive: { color: Colors.brand.primary, fontFamily: 'Inter_600SemiBold' },
 });
 
-function IndividualCard({ entry, index, wards, callings, onUpdate, onRemove, canRemove }: {
+function IndividualCard({ entry, index, wards, callings, onUpdate, onToggleRelease, onRemove, canRemove }: {
   entry: NomineeEntry;
   index: number;
   wards: { value: string; label: string }[];
   callings: { value: string; label: string }[];
   onUpdate: (field: keyof NomineeEntry, value: string) => void;
+  onToggleRelease: (value: boolean) => void;
   onRemove: () => void;
   canRemove: boolean;
 }) {
@@ -151,6 +154,20 @@ function IndividualCard({ entry, index, wards, callings, onUpdate, onRemove, can
         onChange={v => onUpdate('current_calling_id', v)}
         placeholder="Select Calling"
       />
+      {!!entry.current_calling_id && (
+        <View style={icStyles.releaseRow}>
+          <View style={icStyles.releaseInfo}>
+            <Text style={icStyles.releaseLabel}>Needs release from current calling</Text>
+            <Text style={icStyles.releaseHint}>This person will be released from their current calling as part of this process</Text>
+          </View>
+          <Switch
+            value={entry.requires_release}
+            onValueChange={onToggleRelease}
+            trackColor={{ false: Colors.brand.lightGray, true: Colors.brand.primary + '80' }}
+            thumbColor={entry.requires_release ? Colors.brand.primary : '#f4f3f4'}
+          />
+        </View>
+      )}
       <View style={icStyles.field}>
         <Text style={icStyles.label}>Recommendation</Text>
         <TextInput
@@ -179,6 +196,10 @@ const icStyles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 14, fontSize: 15, color: Colors.brand.dark, fontFamily: 'Inter_400Regular',
   },
   multiline: { minHeight: 70, paddingTop: 12 },
+  releaseRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18, backgroundColor: '#FEF3C7', borderRadius: 10, padding: 12 },
+  releaseInfo: { flex: 1 },
+  releaseLabel: { fontSize: 14, fontWeight: '600' as const, color: '#92400e', fontFamily: 'Inter_600SemiBold' },
+  releaseHint: { fontSize: 12, color: '#92400e', fontFamily: 'Inter_400Regular', marginTop: 2, opacity: 0.8 },
 });
 
 export default function CallingCreateScreen() {
@@ -287,7 +308,12 @@ export default function CallingCreateScreen() {
   const individualWardOptions = wardsForForm.map(w => ({ value: String(w.id), label: w.name }));
 
   const updateNominee = useCallback((idx: number, field: keyof NomineeEntry, value: string) => {
-    setNominees(prev => prev.map((n, i) => i === idx ? { ...n, [field]: value } : n));
+    setNominees(prev => prev.map((n, i) => {
+      if (i !== idx) return n;
+      const updated = { ...n, [field]: value };
+      if (field === 'current_calling_id') updated.requires_release = !!value;
+      return updated;
+    }));
   }, []);
 
   const removeNominee = useCallback((idx: number) => {
@@ -319,6 +345,7 @@ export default function CallingCreateScreen() {
           user_id: null,
           ward_id: n.ward_id ? Number(n.ward_id) : null,
           current_calling_id: n.current_calling_id ? Number(n.current_calling_id) : null,
+          requires_release: n.current_calling_id ? n.requires_release : undefined,
           recommendation: n.recommendation.trim() || null,
         })),
       };
@@ -464,6 +491,7 @@ export default function CallingCreateScreen() {
               wards={individualWardOptions}
               callings={individualCallingOptions}
               onUpdate={(field, value) => updateNominee(idx, field, value)}
+              onToggleRelease={(val) => setNominees(prev => prev.map((n, i) => i === idx ? { ...n, requires_release: val } : n))}
               onRemove={() => removeNominee(idx)}
               canRemove={nominees.length > 1}
             />

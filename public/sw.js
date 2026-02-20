@@ -1,4 +1,4 @@
-const CACHE_NAME = 'surreyalign-v3';
+const CACHE_NAME = 'surreyalign-v99';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -8,15 +8,15 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((names) =>
       Promise.all(
-        names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n))
+        names.map((n) => caches.delete(n))
       )
     ).then(() => clients.claim())
   );
 });
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
-  if (event.request.url.includes('/api/')) return;
+  // Network-first strategy to ensure latest version is always seen when online
+  if (event.request.method !== 'GET' || event.request.url.includes('/api/')) return;
 
   event.respondWith(
     fetch(event.request)

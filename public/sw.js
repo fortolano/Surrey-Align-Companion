@@ -1,11 +1,17 @@
-const CACHE_NAME = 'surreyalign-v1';
+const CACHE_NAME = 'surreyalign-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(clients.claim());
+  event.waitUntil(
+    caches.keys().then((names) =>
+      Promise.all(
+        names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n))
+      )
+    ).then(() => clients.claim())
+  );
 });
 
 self.addEventListener('fetch', (event) => {

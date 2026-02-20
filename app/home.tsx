@@ -172,7 +172,7 @@ export default function HomeScreen() {
   const { user, logout, token } = useAuth();
   const [menuVisible, setMenuVisible] = useState(false);
 
-  const webTopInset = Platform.OS === 'web' ? 67 : 0;
+  const webTopInset = Platform.OS === 'web' ? 24 : 0;
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
 
   const firstName = user?.name?.split(' ')[0] || 'Leader';
@@ -287,13 +287,12 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <Animated.View
         entering={FadeIn.duration(400)}
-        style={[styles.header, { paddingTop: insets.top + webTopInset + 16 }]}
+        style={[styles.header, { paddingTop: insets.top + webTopInset + 12 }]}
       >
         <View style={[styles.headerInner, contentContainer]}>
           <View style={styles.headerContent}>
             <View style={styles.headerLeft}>
-              <Text style={styles.greeting}>Welcome back,</Text>
-              <Text style={styles.userName}>{firstName}</Text>
+              <Text style={styles.greeting}>Welcome, <Text style={styles.userName}>{firstName}</Text></Text>
             </View>
             <Pressable
               onPress={handleMenuToggle}
@@ -362,7 +361,7 @@ export default function HomeScreen() {
             style={[
               styles.menuContainer,
               {
-                top: insets.top + webTopInset + 60,
+                top: insets.top + webTopInset + 48,
                 right: 16,
               },
             ]}
@@ -417,9 +416,9 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: Colors.brand.primary,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingBottom: 14,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
     zIndex: 10,
   },
   headerInner: {
@@ -434,16 +433,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   greeting: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
+    fontSize: 17,
+    color: 'rgba(255,255,255,0.85)',
     fontFamily: 'Inter_400Regular',
   },
   userName: {
-    fontSize: 22,
     fontWeight: '700' as const,
     color: Colors.brand.white,
     fontFamily: 'Inter_700Bold',
-    marginTop: 2,
   },
   profileButton: {
     width: 44,
@@ -470,7 +467,7 @@ const styles = StyleSheet.create({
   roleChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 6,
     gap: 8,
   },
   roleText: {

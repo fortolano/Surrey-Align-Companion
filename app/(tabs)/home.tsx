@@ -234,26 +234,16 @@ export default function HomeScreen() {
     ];
   }, [actionRequiredData]);
 
+  const initials = user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
+
   return (
     <View style={styles.container}>
-      <Animated.View
-        entering={FadeIn.duration(400)}
-        style={[styles.header, { paddingTop: insets.top + webTopInset + 12 }]}
-      >
-        <View style={[styles.headerInner, contentContainer]}>
-          <Text style={styles.greeting}>Welcome, <Text style={styles.userName}>{firstName}</Text></Text>
-          {user?.calling && (
-            <View style={styles.roleChip}>
-              <Text style={styles.roleText}>{user.calling}</Text>
-              {user.ward && <Text style={styles.wardText}>{user.ward}</Text>}
-            </View>
-          )}
-        </View>
-      </Animated.View>
-
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + webTopInset + 16 },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -264,8 +254,32 @@ export default function HomeScreen() {
           />
         }
       >
+        <Animated.View entering={FadeIn.duration(400)} style={styles.greetingSection}>
+          <View style={styles.greetingRow}>
+            <View style={styles.greetingLeft}>
+              <Text style={styles.greetingSmall}>Welcome back,</Text>
+              <Text style={styles.greetingName}>{firstName}</Text>
+            </View>
+            <Pressable
+              onPress={() => router.navigate('/(tabs)/profile' as any)}
+              style={({ pressed }) => [styles.avatarBtn, pressed && { opacity: 0.7 }]}
+            >
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initials}</Text>
+              </View>
+            </Pressable>
+          </View>
+          {user?.calling && (
+            <View style={styles.roleRow}>
+              <View style={styles.roleChip}>
+                <Text style={styles.roleText}>{user.calling}</Text>
+              </View>
+              {user.ward && <Text style={styles.wardText}>{user.ward}</Text>}
+            </View>
+          )}
+        </Animated.View>
+
         <View style={contentContainer}>
-          <Text style={styles.sectionTitle}>Quick Access</Text>
           {TILES.map((tile, index) => (
             <FeatureTile
               key={tile.id}
@@ -285,64 +299,75 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.light.background,
   },
-  header: {
-    backgroundColor: Colors.brand.primary,
-    paddingBottom: 14,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    zIndex: 10,
-  },
-  headerInner: {
-    paddingHorizontal: 24,
-  },
-  greeting: {
-    fontSize: 17,
-    color: 'rgba(255,255,255,0.85)',
-    fontFamily: 'Inter_400Regular',
-  },
-  userName: {
-    fontWeight: '700' as const,
-    color: Colors.brand.white,
-    fontFamily: 'Inter_700Bold',
-  },
-  roleChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 6,
-    gap: 8,
-  },
-  roleText: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.9)',
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    overflow: 'hidden',
-    fontFamily: 'Inter_500Medium',
-  },
-  wardText: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.6)',
-    fontFamily: 'Inter_400Regular',
-  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 20,
     paddingBottom: 100,
   },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '600' as const,
+  greetingSection: {
+    marginBottom: 20,
+  },
+  greetingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  greetingLeft: {
+    flex: 1,
+  },
+  greetingSmall: {
+    fontSize: 14,
     color: Colors.brand.midGray,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.8,
-    marginBottom: 12,
+    fontFamily: 'Inter_400Regular',
+    marginBottom: 2,
+  },
+  greetingName: {
+    fontSize: 26,
+    fontWeight: '700' as const,
+    color: Colors.brand.black,
+    fontFamily: 'Inter_700Bold',
+  },
+  avatarBtn: {
+    marginLeft: 12,
+  },
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: Colors.brand.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.brand.white,
+    fontFamily: 'Inter_700Bold',
+  },
+  roleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 8,
+  },
+  roleChip: {
+    backgroundColor: Colors.brand.accent,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  roleText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.brand.primary,
     fontFamily: 'Inter_600SemiBold',
-    paddingLeft: 4,
+  },
+  wardText: {
+    fontSize: 12,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_400Regular',
   },
   tile: {
     backgroundColor: Colors.brand.white,

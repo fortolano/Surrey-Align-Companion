@@ -800,7 +800,14 @@ export default function CallingDetailScreen() {
                 {ind.name}
                 {ind.is_selected ? ' \u2713' : ''}
               </Text>
-              {ind.recommendation && !isRequestorOnly && viewLevel !== 'monitor' ? null : null}
+              {ind.requires_release_from_current && ind.current_calling && (
+                <View style={styles.releaseIndicator}>
+                  <Ionicons name="alert-circle" size={14} color="#DC2626" />
+                  <Text style={styles.releaseIndicatorText}>
+                    Release required from {ind.current_calling.name}
+                  </Text>
+                </View>
+              )}
               {(isRequestorOnly || isGovernance) && ind.recommendation && (
                 <Text style={styles.individualRec}>{ind.recommendation}</Text>
               )}
@@ -985,6 +992,8 @@ const styles = StyleSheet.create({
   individualInfo: { flex: 1 },
   individualName: { fontSize: 15, fontWeight: '600' as const, color: Colors.brand.dark, fontFamily: 'Inter_600SemiBold' },
   individualRec: { fontSize: 13, color: Colors.brand.darkGray, marginTop: 4, fontFamily: 'Inter_400Regular' },
+  releaseIndicator: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4, backgroundColor: '#FEF2F2', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start' as const },
+  releaseIndicatorText: { fontSize: 12, color: '#DC2626', fontFamily: 'Inter_500Medium' },
   selectBtn: { backgroundColor: Colors.brand.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
   selectBtnText: { fontSize: 12, color: Colors.brand.white, fontFamily: 'Inter_600SemiBold' },
   contextText: { fontSize: 14, color: Colors.brand.darkGray, lineHeight: 20, fontFamily: 'Inter_400Regular' },

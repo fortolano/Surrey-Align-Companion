@@ -1,0 +1,147 @@
+ Update the SurreyAlign companion mobile app to reflect three additional server-side changes. These build on top of the existing spec in
+  docs/replit-mobile-app-update-spec.md (which has been updated to reflect these changes). No breaking changes to existing functionality.
+
+  ---
+  Change 1: sunday_announcement Step Is Now System-Managed (Locked)
+
+  Previously, only the steps AFTER "Business Conducted in Sacrament Meeting" (Setting Apart, Training, Records Updated) were locked by the
+  Sunday Business gate. Now the sunday_announcement step ITSELF is also locked when Sunday Business items exist.
+
+  Why: This step auto-completes when all wards have conducted the business via the Sunday Business tool. Users should never manually complete it
+   — doing so would bypass the actual sacrament meeting business.
+
+  What changed in the API:
+  - The is_gated flag is now true on the sunday_announcement step when business items exist (not just on post-business steps)
+  - Attempting to complete sunday_announcement via PATCH /calling-requests/{id}/steps/{stepId} returns a 422 error:
+  { "success": false, "message": "This step completes automatically when all Sunday business has been conducted. Use the Sunday Business tool to
+   track ward progress." }
+
+  Updated step rendering:
+  ✅ Calling Accepted           Completed
+  ✅ Release Interview          Completed
+  ┌─────────────────────────────────────────┐
+  │ ⏳ Waiting for Sunday business to be    │  ← gate banner (from sunday_business_gate.message)
+  │    conducted (1/2 items complete).      │
+  │    View Sunday Business →               │  ← link to Sunday Business screen
+  └─────────────────────────────────────────┘
+  🔒 Business Conducted...      Blocked      ← is_gated: true (auto-completes via tool)
+  🔒 Setting Apart              Blocked      ← is_gated: true
+  🔒 Training                   Blocked      ← is_gated: true
+  🔒 Records Updated            Blocked      ← is_gated: true
+
+  Implementation: No new client-side logic needed. The app already reads is_gated from each step. The sunday_announcement step now returns
+  is_gated: true when business items exist, so it will automatically be grayed out with the lock icon by the existing rendering logic. Just make
+   sure:
+  1. The gate banner appears before sunday_announcement (it's now the first gated step, not setting_apart)
+  2. The 422 error from attempting to complete this step is handled gracefully (show the error message)
+
+  ---
+  Change 2: Nominee Current Calling & Release Flag
+
+  Individuals (nominees) in the API now include two new fields showing their current calling and whether they need to be released from it.
+
+  Updated individuals array in detail response:
+  {
+    "individuals": [
+      {
+        "id": 5,
+        "name": "David Smith — Surrey 1st, Elders Quorum President",
+        "user_id": 42,
+        "current_calling": { "id": 17, "name": "Elders Quorum President" },
+        "requires_release_from_current": true,
+        "recommendation": "Strong candidate...",
+        "is_selected": true,
+        "sort_order": 0
+      }
+    ]
+  }
+
+  | Field                         | Type              | Description                                                         |
+  |-------------------------------|-------------------|---------------------------------------------------------------------|
+  | current_calling               | {id, name} | null | The nominee's current calling, or null                              |
+  | requires_release_from_current | boolean           | Whether this person needs to be released from their current calling |
+
+  How to display:
+  - In the nominee/individual list on the detail screen, when requires_release_from_current === true, show a visual indicator next to their
+  name:
+  David Smith — Surrey 1st, Elders Quorum President
+  🔴 Release required from Elders Quorum President
+  - Use a small badge, colored text, or icon row — something clearly visible but not overwhelming
+  - When current_calling is null or requires_release_from_current is false, show nothing extra
+
+  Create endpoint update:
+  When creating a calling request via POST /calling-requests, nominees now accept an optional requires_release boolean:
+  {
+    "nominees": [
+      {
+        "name": "David Smith",
+        "user_id": 42,
+        "ward_id": 3,
+        "current_calling_id": 17,
+        "requires_release": true,
+        "recommendation": "Strong candidate..."
+      }
+    ]
+  }
+  If the create form in the app asks for a nominee's current calling, add a toggle/checkbox: "This person will need to be released from their
+  current calling" — shown only when a current calling is selected, defaulting to checked.
+
+  TypeScript:
+  interface CallingRequestIndividual {
+    id: number;
+    name: string;
+    user_id: number | null;
+    current_calling: { id: number; name: string } | null;  // ← NEW
+    requires_release_from_current: boolean;                  // ← NEW
+    recommendation: string | null;
+    is_selected: boolean;
+    sort_order: number;
+  }
+
+  ---
+  Change 3: Sunday Business Creates Release for Nominee's Current Calling
+
+  When a calling request reaches the Sunday Business stage (business items are auto-created), the server now generates up to THREE bundled items
+   instead of two:
+
+  1. Release of the outgoing holder from the target calling (existing)
+  2. Sustaining of the nominee for the new calling (existing)
+  3. Release of the nominee from their current calling (NEW — only when requires_release_from_current is true)
+
+  All three items share the same bundle_id and are marked as conducted together with a single tap. No mobile app changes needed for this — the
+  existing bundle rendering logic already groups by bundle_id and shows all items in the group. The bundle card will simply show three items
+  instead of two:
+
+  ┌─────────────────────────────────────────┐
+  │ Stake Young Men First Counselor         │
+  │                                         │
+  │ RELEASE                                 │
+  │ "Kurtis Beaumont has been released as   │
+  │  Stake Young Men First Counselor..."    │
+  │                                         │
+  │ RELEASE                                 │  ← NEW: nominee's current calling
+  │ "Joe Martinez has been released as      │
+  │  Elders Quorum President..."            │
+  │                                         │
+  │ SUSTAINING                              │
+  │ "Joe Martinez has been called as Stake  │
+  │  Young Men First Counselor..."          │
+  │                                         │
+  │ 3/8 wards ██████░░░░░░  38%            │
+  │         [Mark as Conducted]             │
+  └─────────────────────────────────────────┘
+
+  The existing bundle grouping and one-tap completion logic handles this automatically. Just verify that your bundle card layout gracefully
+  handles 3 items (it should, since it iterates over the array).
+
+  ---
+  Migration Checklist (append to existing)
+
+  | Old                                      | New                                      | Where                                  |
+  |------------------------------------------|------------------------------------------|----------------------------------------|
+  | No current_calling on individuals        | current_calling: {id, name} | null       | individual detail in calling requests  |
+  | No requires_release_from_current         | requires_release_from_current: boolean   | individual detail in calling requests  |
+  | No requires_release in create            | requires_release: boolean (optional)     | POST /calling-requests nominees input  |
+  | sunday_announcement manually completable | is_gated: true when business items exist | step is system-managed, auto-completes |
+  | Gate banner before setting_apart         | Gate banner before sunday_announcement   | first gated step changed               |
+

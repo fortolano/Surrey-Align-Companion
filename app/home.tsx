@@ -286,7 +286,7 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <Animated.View
         entering={FadeIn.duration(400)}
-        style={[styles.header, { paddingTop: insets.top + webTopInset + 16 }]}
+        style={[styles.header, { paddingTop: insets.top + webTopInset + 10 }]}
       >
         <View style={styles.headerContent}>
           <View style={styles.headerLeft}>
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: Colors.brand.primary,
     paddingHorizontal: 24,
-    paddingBottom: 24,
+    paddingBottom: 16,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
     zIndex: 10,
@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
   },
   userName: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700' as const,
     color: Colors.brand.white,
     fontFamily: 'Inter_700Bold',

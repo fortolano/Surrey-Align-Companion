@@ -257,66 +257,76 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <Modal
-        visible={menuVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setMenuVisible(false)}
-      >
-        <Pressable
-          style={menuStyles.overlay}
-          onPress={() => setMenuVisible(false)}
+      {menuVisible && (
+        <Modal
+          visible={menuVisible}
+          transparent
+          animationType="none"
+          onRequestClose={() => setMenuVisible(false)}
         >
-          <View style={[menuStyles.sheet, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-            <View style={menuStyles.handle} />
-
-            <View style={menuStyles.profileRow}>
-              <View style={menuStyles.profileAvatar}>
-                <Text style={menuStyles.profileAvatarText}>{initials}</Text>
+          <Pressable
+            style={menuStyles.overlay}
+            onPress={() => setMenuVisible(false)}
+          >
+            <Pressable
+              onPress={(e) => e.stopPropagation()}
+              style={({ pressed }) => []}
+            >
+              <Animated.View
+                entering={FadeIn.duration(150)}
+                style={[
+                  menuStyles.dropdown,
+                  { top: insets.top + webTopInset + 52, right: 16 },
+                ]}
+              >
+              <View style={menuStyles.profileRow}>
+                <View style={menuStyles.profileAvatar}>
+                  <Text style={menuStyles.profileAvatarText}>{initials}</Text>
+                </View>
+                <View style={menuStyles.profileInfo}>
+                  <Text style={menuStyles.profileName} numberOfLines={1}>{user?.name || 'User'}</Text>
+                  {user?.calling && <Text style={menuStyles.profileRole} numberOfLines={1}>{user.calling}</Text>}
+                </View>
               </View>
-              <View style={menuStyles.profileInfo}>
-                <Text style={menuStyles.profileName}>{user?.name || 'User'}</Text>
-                {user?.calling && <Text style={menuStyles.profileRole}>{user.calling}</Text>}
-                {user?.ward && <Text style={menuStyles.profileWard}>{user.ward}</Text>}
-              </View>
-            </View>
 
-            <View style={menuStyles.divider} />
+              <View style={menuStyles.divider} />
 
-            {menuItems.map((item, idx) => (
+              {menuItems.map((item, idx) => (
+                <Pressable
+                  key={item.id}
+                  onPress={() => {
+                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setMenuVisible(false);
+                    setTimeout(() => router.push(item.route as any), 150);
+                  }}
+                  style={({ pressed }) => [
+                    menuStyles.menuItem,
+                    idx < menuItems.length - 1 && menuStyles.menuItemBorder,
+                    pressed && menuStyles.menuItemPressed,
+                  ]}
+                >
+                  <Ionicons name={item.icon} size={18} color={Colors.brand.darkGray} />
+                  <Text style={menuStyles.menuLabel}>{item.label}</Text>
+                </Pressable>
+              ))}
+
+              <View style={menuStyles.divider} />
+
               <Pressable
-                key={item.id}
-                onPress={() => {
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setMenuVisible(false);
-                  setTimeout(() => router.push(item.route as any), 200);
-                }}
+                onPress={handleLogout}
                 style={({ pressed }) => [
                   menuStyles.menuItem,
                   pressed && menuStyles.menuItemPressed,
                 ]}
               >
-                <Ionicons name={item.icon} size={20} color={Colors.brand.darkGray} />
-                <Text style={menuStyles.menuLabel}>{item.label}</Text>
-                <Ionicons name="chevron-forward" size={16} color={Colors.brand.midGray} />
+                <Ionicons name="log-out-outline" size={18} color={Colors.brand.error} />
+                <Text style={[menuStyles.menuLabel, { color: Colors.brand.error }]}>Sign Out</Text>
               </Pressable>
-            ))}
-
-            <View style={menuStyles.divider} />
-
-            <Pressable
-              onPress={handleLogout}
-              style={({ pressed }) => [
-                menuStyles.menuItem,
-                pressed && menuStyles.menuItemPressed,
-              ]}
-            >
-              <Ionicons name="log-out-outline" size={20} color={Colors.brand.error} />
-              <Text style={[menuStyles.menuLabel, { color: Colors.brand.error }]}>Sign Out</Text>
+              </Animated.View>
             </Pressable>
-          </View>
-        </Pressable>
-      </Modal>
+          </Pressable>
+        </Modal>
+      )}
 
       <ScrollView
         style={styles.scrollView}
@@ -677,40 +687,37 @@ const doStyles = StyleSheet.create({
 const menuStyles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.15)',
   },
-  sheet: {
+  dropdown: {
+    position: 'absolute',
+    width: 230,
     backgroundColor: Colors.brand.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 8,
-    paddingHorizontal: 20,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.brand.lightGray,
-    alignSelf: 'center',
-    marginBottom: 16,
+    borderRadius: 14,
+    paddingVertical: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 12,
   },
   profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 8,
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
   profileAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: Colors.brand.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   profileAvatarText: {
-    fontSize: 18,
+    fontSize: 13,
     fontWeight: '700',
     color: Colors.brand.white,
     fontFamily: 'Inter_700Bold',
@@ -719,41 +726,42 @@ const menuStyles = StyleSheet.create({
     flex: 1,
   },
   profileName: {
-    fontSize: 17,
+    fontSize: 14,
     fontWeight: '600',
     color: Colors.brand.dark,
     fontFamily: 'Inter_600SemiBold',
   },
   profileRole: {
-    fontSize: 13,
-    color: Colors.brand.darkGray,
-    fontFamily: 'Inter_400Regular',
-    marginTop: 1,
-  },
-  profileWard: {
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.brand.midGray,
     fontFamily: 'Inter_400Regular',
+    marginTop: 1,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: Colors.brand.lightGray,
-    marginVertical: 12,
+    marginHorizontal: 14,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    gap: 14,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    gap: 10,
+  },
+  menuItemBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.brand.lightGray,
+    marginHorizontal: 0,
   },
   menuItemPressed: {
-    opacity: 0.6,
+    backgroundColor: Colors.brand.offWhite,
   },
   menuLabel: {
     flex: 1,
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '400',
     color: Colors.brand.dark,
-    fontFamily: 'Inter_500Medium',
+    fontFamily: 'Inter_400Regular',
   },
 });

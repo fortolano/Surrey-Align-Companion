@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,13 +8,23 @@ import {
   ActivityIndicator,
   Platform,
   RefreshControl,
+  Alert,
+  Dimensions,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  runOnJS,
+} from 'react-native-reanimated';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
@@ -32,6 +42,8 @@ interface Notification {
   };
 }
 
+type FilterTab = 'all' | 'unread' | 'read';
+
 const NOTIF_ICONS: Record<string, { name: string; color: string; bg: string }> = {
   vote_requested: { name: 'hand-left-outline', color: '#B45309', bg: '#FEF3C7' },
   vote_cast: { name: 'checkmark-circle-outline', color: '#065f46', bg: '#d1fae5' },
@@ -46,6 +58,10 @@ const NOTIF_ICONS: Record<string, { name: string; color: string; bg: string }> =
   reminder: { name: 'alarm-outline', color: '#B45309', bg: '#FEF3C7' },
   default: { name: 'notifications-outline', color: Colors.brand.primary, bg: '#E8F4F8' },
 };
+
+const SWIPE_THRESHOLD = 80;
+const DELETE_THRESHOLD = 160;
+const SCREEN_WIDTH = Dimensions.get('window').width;
 
 function timeAgo(dateStr: string): string {
   const now = Date.now();
@@ -63,11 +79,143 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
+function SwipeableNotifRow({
+  item,
+  index,
+  onPress,
+  onMarkRead,
+  onMarkUnread,
+  onDelete,
+}: {
+  item: Notification;
+  index: number;
+  onPress: () => void;
+  onMarkRead: () => void;
+  onMarkUnread: () => void;
+  onDelete: () => void;
+}) {
+  const translateX = useSharedValue(0);
+  const icon = NOTIF_ICONS[item.type] || NOTIF_ICONS.default;
+
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-15, 15])
+    .failOffsetY([-10, 10])
+    .onUpdate((e) => {
+      translateX.value = Math.min(0, e.translationX);
+    })
+    .onEnd((e) => {
+      if (e.translationX < -DELETE_THRESHOLD) {
+        translateX.value = withTiming(-SCREEN_WIDTH, { duration: 200 });
+        runOnJS(onDelete)();
+      } else if (e.translationX < -SWIPE_THRESHOLD) {
+        translateX.value = withSpring(-SWIPE_THRESHOLD, { damping: 20 });
+      } else {
+        translateX.value = withSpring(0, { damping: 20 });
+      }
+    });
+
+  const tapGesture = Gesture.Tap().onEnd(() => {
+    if (translateX.value < -20) {
+      translateX.value = withSpring(0, { damping: 20 });
+    } else {
+      runOnJS(onPress)();
+    }
+  });
+
+  const composed = Gesture.Race(panGesture, tapGesture);
+
+  const rowStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const actionsBgStyle = useAnimatedStyle(() => ({
+    opacity: translateX.value < -20 ? withTiming(1, { duration: 100 }) : withTiming(0, { duration: 100 }),
+  }));
+
+  return (
+    <Animated.View entering={FadeInDown.duration(250).delay(Math.min(index * 40, 200))}>
+      <View style={styles.swipeContainer}>
+        <Animated.View style={[styles.swipeActions, actionsBgStyle]}>
+          <Pressable
+            onPress={() => {
+              translateX.value = withSpring(0, { damping: 20 });
+              item.is_read ? onMarkUnread() : onMarkRead();
+            }}
+            style={[styles.swipeActionBtn, { backgroundColor: Colors.brand.primary }]}
+          >
+            <Ionicons
+              name={item.is_read ? 'mail-unread-outline' : 'mail-open-outline'}
+              size={20}
+              color="#fff"
+            />
+            <Text style={styles.swipeActionText}>{item.is_read ? 'Unread' : 'Read'}</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              translateX.value = withTiming(-SCREEN_WIDTH, { duration: 200 });
+              onDelete();
+            }}
+            style={[styles.swipeActionBtn, { backgroundColor: '#EF4444' }]}
+          >
+            <Ionicons name="trash-outline" size={20} color="#fff" />
+            <Text style={styles.swipeActionText}>Delete</Text>
+          </Pressable>
+        </Animated.View>
+        <GestureDetector gesture={composed}>
+          <Animated.View
+            style={[
+              styles.notifRow,
+              !item.is_read && styles.notifRowUnread,
+              rowStyle,
+            ]}
+          >
+            <View style={[styles.iconCircle, { backgroundColor: icon.bg }]}>
+              <Ionicons name={icon.name as any} size={18} color={icon.color} />
+            </View>
+            <View style={styles.notifContent}>
+              <Text
+                style={[styles.notifTitle, !item.is_read && styles.notifTitleUnread]}
+                numberOfLines={2}
+              >
+                {item.title || item.message}
+              </Text>
+              {item.title && item.message && item.message !== item.title && (
+                <Text style={styles.notifMessage} numberOfLines={2}>
+                  {item.message}
+                </Text>
+              )}
+              <View style={styles.notifMeta}>
+                <Text style={styles.notifTime}>{timeAgo(item.created_at)}</Text>
+                {item.data?.calling_request_id && (
+                  <View style={styles.linkChip}>
+                    <Ionicons name="open-outline" size={11} color={Colors.brand.primary} />
+                    <Text style={styles.linkChipText}>View</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+            {!item.is_read && <View style={styles.unreadDot} />}
+            {item.data?.calling_request_id && (
+              <Ionicons
+                name="chevron-forward"
+                size={16}
+                color={Colors.brand.midGray}
+                style={{ marginLeft: 4 }}
+              />
+            )}
+          </Animated.View>
+        </GestureDetector>
+      </View>
+    </Animated.View>
+  );
+}
+
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
   const qClient = useQueryClient();
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
+  const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
   const [markingAllRead, setMarkingAllRead] = useState(false);
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery<{
@@ -80,71 +228,104 @@ export default function NotificationsScreen() {
     staleTime: 15000,
   });
 
-  const notifications = data?.notifications || [];
+  const allNotifications = data?.notifications || [];
   const unreadCount = data?.meta?.unread_count ?? 0;
+  const readCount = allNotifications.length - unreadCount;
 
-  const markAsRead = useCallback(async (notifId: number) => {
-    try {
-      await authFetch(token, `/api/notifications/${notifId}/read`, { method: 'POST' });
-      qClient.invalidateQueries({ queryKey: ['/api/notifications'] });
-    } catch {}
-  }, [token, qClient]);
+  const filteredNotifications = useMemo(() => {
+    if (activeFilter === 'unread') return allNotifications.filter((n) => !n.is_read);
+    if (activeFilter === 'read') return allNotifications.filter((n) => n.is_read);
+    return allNotifications;
+  }, [allNotifications, activeFilter]);
+
+  const invalidateAll = useCallback(() => {
+    qClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+  }, [qClient]);
+
+  const markReadMut = useMutation({
+    mutationFn: (id: number) => authFetch(token, `/api/notifications/${id}/read`, { method: 'POST' }),
+    onSuccess: invalidateAll,
+  });
+
+  const markUnreadMut = useMutation({
+    mutationFn: (id: number) => authFetch(token, `/api/notifications/${id}/unread`, { method: 'POST' }),
+    onSuccess: invalidateAll,
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: number) => authFetch(token, `/api/notifications/${id}`, { method: 'DELETE' }),
+    onSuccess: invalidateAll,
+  });
 
   const markAllRead = useCallback(async () => {
     setMarkingAllRead(true);
     try {
       await authFetch(token, '/api/notifications/read-all', { method: 'POST' });
-      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      refetch();
-      qClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      if (Platform.OS !== 'web')
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      invalidateAll();
     } catch {}
     setMarkingAllRead(false);
-  }, [token, refetch, qClient]);
+  }, [token, invalidateAll]);
 
-  const handleNotifPress = useCallback((notif: Notification) => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (!notif.is_read) markAsRead(notif.id);
-    const crId = notif.data?.calling_request_id;
-    if (crId) {
-      router.push({ pathname: '/calling-detail', params: { id: String(crId) } });
-    }
-  }, [markAsRead]);
+  const handleNotifPress = useCallback(
+    (notif: Notification) => {
+      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (!notif.is_read) markReadMut.mutate(notif.id);
+      const crId = notif.data?.calling_request_id;
+      if (crId) {
+        router.push({ pathname: '/calling-detail', params: { id: String(crId) } });
+      }
+    },
+    [markReadMut]
+  );
 
-  const getIcon = (type: string) => NOTIF_ICONS[type] || NOTIF_ICONS.default;
+  const confirmDelete = useCallback(
+    (notif: Notification) => {
+      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const doDelete = () => deleteMut.mutate(notif.id);
+      if (Platform.OS === 'web') {
+        if (confirm('Delete this notification?')) doDelete();
+      } else {
+        Alert.alert('Delete Notification', 'Are you sure you want to delete this?', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: doDelete },
+        ]);
+      }
+    },
+    [deleteMut]
+  );
+
+  const getFilterLabel = (tab: FilterTab) => {
+    if (tab === 'all') return `All (${allNotifications.length})`;
+    if (tab === 'unread') return `Unread (${unreadCount})`;
+    return `Read (${readCount})`;
+  };
 
   const renderNotif = ({ item, index }: { item: Notification; index: number }) => {
-    const icon = getIcon(item.type);
     return (
-      <Animated.View entering={FadeInDown.duration(250).delay(Math.min(index * 40, 200))}>
-        <Pressable
-          onPress={() => handleNotifPress(item)}
-          style={({ pressed }) => [
-            styles.notifRow,
-            !item.is_read && styles.notifRowUnread,
-            pressed && { opacity: 0.7 },
-          ]}
-          testID={`notif-${item.id}`}
-        >
-          <View style={[styles.iconCircle, { backgroundColor: icon.bg }]}>
-            <Ionicons name={icon.name as any} size={18} color={icon.color} />
-          </View>
-          <View style={styles.notifContent}>
-            <Text style={[styles.notifTitle, !item.is_read && styles.notifTitleUnread]} numberOfLines={2}>
-              {item.title || item.message}
-            </Text>
-            {item.title && item.message && item.message !== item.title && (
-              <Text style={styles.notifMessage} numberOfLines={2}>{item.message}</Text>
-            )}
-            <Text style={styles.notifTime}>{timeAgo(item.created_at)}</Text>
-          </View>
-          {!item.is_read && <View style={styles.unreadDot} />}
-          {item.data?.calling_request_id && (
-            <Ionicons name="chevron-forward" size={16} color={Colors.brand.midGray} style={{ marginLeft: 4 }} />
-          )}
-        </Pressable>
-      </Animated.View>
+      <SwipeableNotifRow
+        item={item}
+        index={index}
+        onPress={() => handleNotifPress(item)}
+        onMarkRead={() => markReadMut.mutate(item.id)}
+        onMarkUnread={() => markUnreadMut.mutate(item.id)}
+        onDelete={() => confirmDelete(item)}
+      />
     );
   };
+
+  const emptyMessage = useMemo(() => {
+    if (activeFilter === 'unread') return 'No unread notifications';
+    if (activeFilter === 'read') return 'No read notifications';
+    return 'No notifications yet';
+  }, [activeFilter]);
+
+  const emptySubtitle = useMemo(() => {
+    if (activeFilter === 'unread') return "You're all caught up!";
+    if (activeFilter === 'read') return 'Notifications you read will appear here.';
+    return "You'll see updates here when there's activity on your calling requests.";
+  }, [activeFilter]);
 
   if (isLoading) {
     return (
@@ -167,33 +348,70 @@ export default function NotificationsScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      {unreadCount > 0 && (
-        <View style={styles.topBar}>
-          <Text style={styles.topBarText}>{unreadCount} unread</Text>
+    <GestureHandlerRootView style={styles.container}>
+      <View style={styles.filterBar}>
+        {(['all', 'unread', 'read'] as FilterTab[]).map((tab) => (
+          <Pressable
+            key={tab}
+            onPress={() => {
+              setActiveFilter(tab);
+              if (Platform.OS !== 'web') Haptics.selectionAsync();
+            }}
+            style={[styles.filterTab, activeFilter === tab && styles.filterTabActive]}
+            testID={`filter-${tab}`}
+          >
+            <Text
+              style={[
+                styles.filterTabText,
+                activeFilter === tab && styles.filterTabTextActive,
+              ]}
+            >
+              {getFilterLabel(tab)}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {unreadCount > 0 && activeFilter !== 'read' && (
+        <View style={styles.actionBar}>
+          <Text style={styles.actionBarText}>
+            {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
+          </Text>
           <Pressable
             onPress={markAllRead}
             style={({ pressed }) => [styles.markAllBtn, pressed && { opacity: 0.7 }]}
             disabled={markingAllRead}
+            testID="mark-all-read"
           >
             {markingAllRead ? (
               <ActivityIndicator size="small" color={Colors.brand.primary} />
             ) : (
-              <Text style={styles.markAllText}>Mark all read</Text>
+              <>
+                <Ionicons name="checkmark-done-outline" size={16} color={Colors.brand.primary} />
+                <Text style={styles.markAllText}>Mark all read</Text>
+              </>
             )}
           </Pressable>
         </View>
       )}
+
+      {Platform.OS !== 'web' && allNotifications.length > 0 && (
+        <View style={styles.swipeHint}>
+          <Ionicons name="arrow-back" size={12} color={Colors.brand.midGray} />
+          <Text style={styles.swipeHintText}>Swipe left for options</Text>
+        </View>
+      )}
+
       <FlatList
-        data={notifications}
+        data={filteredNotifications}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderNotif}
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: insets.bottom + webBottomInset + 24 },
-          notifications.length === 0 && styles.emptyContainer,
+          filteredNotifications.length === 0 && styles.emptyContainer,
         ]}
-        scrollEnabled={!!notifications.length}
+        scrollEnabled={!!filteredNotifications.length}
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}
@@ -204,15 +422,23 @@ export default function NotificationsScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Ionicons name="notifications-off-outline" size={48} color={Colors.brand.midGray} />
-            <Text style={styles.emptyTitle}>No notifications yet</Text>
-            <Text style={styles.emptySubtitle}>
-              You'll see updates here when there's activity on your calling requests.
-            </Text>
+            <View style={styles.emptyIconCircle}>
+              <Ionicons
+                name={
+                  activeFilter === 'unread'
+                    ? 'checkmark-circle-outline'
+                    : 'notifications-off-outline'
+                }
+                size={36}
+                color={Colors.brand.midGray}
+              />
+            </View>
+            <Text style={styles.emptyTitle}>{emptyMessage}</Text>
+            <Text style={styles.emptySubtitle}>{emptySubtitle}</Text>
           </View>
         }
       />
-    </View>
+    </GestureHandlerRootView>
   );
 }
 
@@ -244,27 +470,57 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter_600SemiBold',
   },
-  topBar: {
+  filterBar: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+    backgroundColor: Colors.brand.white,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.brand.lightGray,
+  },
+  filterTab: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: Colors.light.background,
+  },
+  filterTabActive: {
+    backgroundColor: Colors.brand.primary,
+  },
+  filterTabText: {
+    fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+    color: Colors.brand.darkGray,
+  },
+  filterTabTextActive: {
+    color: Colors.brand.white,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  actionBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 10,
+    backgroundColor: '#FFFBEB',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.brand.lightGray,
-    backgroundColor: Colors.brand.white,
+    borderBottomColor: '#FDE68A',
   },
-  topBarText: {
-    fontSize: 14,
+  actionBarText: {
+    fontSize: 13,
     fontWeight: '600' as const,
-    color: Colors.brand.dark,
+    color: '#92400E',
     fontFamily: 'Inter_600SemiBold',
   },
   markAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: '#E8F4F8',
+    backgroundColor: 'rgba(1, 97, 131, 0.1)',
   },
   markAllText: {
     fontSize: 13,
@@ -272,12 +528,48 @@ const styles = StyleSheet.create({
     color: Colors.brand.primary,
     fontFamily: 'Inter_600SemiBold',
   },
+  swipeHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 20,
+    paddingVertical: 6,
+    backgroundColor: Colors.light.background,
+  },
+  swipeHintText: {
+    fontSize: 11,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_400Regular',
+  },
   listContent: {
-    paddingTop: 8,
+    paddingTop: 4,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
+  },
+  swipeContainer: {
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  swipeActions: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+  },
+  swipeActionBtn: {
+    width: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 2,
+  },
+  swipeActionText: {
+    fontSize: 11,
+    color: '#fff',
+    fontFamily: 'Inter_500Medium',
   },
   notifRow: {
     flexDirection: 'row',
@@ -290,6 +582,9 @@ const styles = StyleSheet.create({
   },
   notifRowUnread: {
     backgroundColor: '#F0F9FF',
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.brand.primary,
+    paddingLeft: 17,
   },
   iconCircle: {
     width: 40,
@@ -319,11 +614,30 @@ const styles = StyleSheet.create({
     marginTop: 2,
     lineHeight: 18,
   },
+  notifMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 8,
+  },
   notifTime: {
     fontSize: 12,
     color: Colors.brand.midGray,
     fontFamily: 'Inter_400Regular',
-    marginTop: 4,
+  },
+  linkChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: '#E8F4F8',
+  },
+  linkChipText: {
+    fontSize: 11,
+    color: Colors.brand.primary,
+    fontFamily: 'Inter_500Medium',
   },
   unreadDot: {
     width: 10,
@@ -336,12 +650,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 40,
   },
+  emptyIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.light.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   emptyTitle: {
     fontSize: 17,
     fontWeight: '600' as const,
     color: Colors.brand.dark,
     fontFamily: 'Inter_600SemiBold',
-    marginTop: 16,
+    marginTop: 12,
   },
   emptySubtitle: {
     fontSize: 14,
@@ -350,5 +673,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     lineHeight: 20,
+    maxWidth: 260,
   },
 });

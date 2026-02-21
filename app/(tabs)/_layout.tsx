@@ -73,11 +73,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="callings"
+        name="add"
         options={{
-          title: 'Callings',
+          title: 'Add',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'people' : 'people-outline'} size={iconSize} color={color} />
+            <View style={addBtnStyles.circle}>
+              <Ionicons name="add" size={30} color={focused ? Colors.brand.primary : Colors.brand.midGray} />
+            </View>
           ),
         }}
       />
@@ -102,9 +104,29 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="callings"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
+
+const addBtnStyles = StyleSheet.create({
+  circle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.brand.offWhite,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: Colors.brand.lightGray,
+    marginTop: -8,
+  },
+});
 
 const badgeStyles = StyleSheet.create({
   badge: {

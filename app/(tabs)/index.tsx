@@ -156,6 +156,14 @@ export default function HomeScreen() {
     }
     links.push(
       {
+        id: 'callings',
+        label: 'Callings',
+        icon: <Ionicons name="people-outline" size={22} color={Colors.brand.primary} />,
+        route: '/(tabs)/callings',
+        color: Colors.brand.primary,
+        bgColor: '#E8F4F8',
+      },
+      {
         id: 'sunday-business',
         label: 'Sunday Business',
         icon: <MaterialCommunityIcons name="script-text-outline" size={22} color={Colors.brand.primary} />,

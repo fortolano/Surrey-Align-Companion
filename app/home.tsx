@@ -203,7 +203,8 @@ export default function HomeScreen() {
     queryKey: ['/api/sunday-business/sunday'],
     queryFn: () => authFetch(token, '/api/sunday-business/sunday'),
     enabled: !!token,
-    staleTime: 60000,
+    staleTime: 30000,
+    refetchInterval: 30000,
   });
 
   const { data: actionRequiredData, refetch: refetchActionRequired, isRefetching: isRefetchingActions } = useQuery<{
@@ -217,7 +218,8 @@ export default function HomeScreen() {
     queryKey: ['/api/calling-requests/action-required'],
     queryFn: () => authFetch(token, '/api/calling-requests/action-required'),
     enabled: !!token,
-    staleTime: 60000,
+    staleTime: 15000,
+    refetchInterval: 15000,
   });
 
   const { data: notificationsData, refetch: refetchNotifications } = useQuery<{
@@ -227,7 +229,8 @@ export default function HomeScreen() {
     queryKey: ['/api/notifications', { unread_only: 'true' }],
     queryFn: () => authFetch(token, '/api/notifications', { params: { unread_only: 'true' } }),
     enabled: !!token,
-    staleTime: 60000,
+    staleTime: 15000,
+    refetchInterval: 15000,
   });
 
   const unreadNotifCount = notificationsData?.meta?.unread_count ?? 0;

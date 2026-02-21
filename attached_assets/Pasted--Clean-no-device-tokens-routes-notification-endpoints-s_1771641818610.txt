@@ -1,0 +1,36 @@
+ Clean — no device-tokens routes, notification endpoints still present. Done.
+
+  ★ Insight ─────────────────────────────────────
+  The Replit agent's approach is pragmatic. Pull-based polling (fetch on app focus/resume) is the right starting point for an internal app with ~80
+  users who check it intentionally. Push notifications are a UX enhancement, not a functional requirement — the action-required endpoint already
+  surfaces everything the user needs when they open the app. If the team eventually wants background notifications, the server-side
+  NotificationController is already in place, and the push infrastructure can be added without touching anything that exists today.
+  ─────────────────────────────────────────────────
+
+  Current clean state — what exists vs. what was removed:
+
+  ┌────────────────────────────────────────┬────────────────────────────────────────┐
+  │                                        │                 Status                 │
+  ├────────────────────────────────────────┼────────────────────────────────────────┤
+  │ GET /notifications                     │ ✅ Kept — Replit uses this             │
+  ├────────────────────────────────────────┼────────────────────────────────────────┤
+  │ POST /notifications/{id}/read          │ ✅ Kept — Replit uses this             │
+  ├────────────────────────────────────────┼────────────────────────────────────────┤
+  │ POST /notifications/read-all           │ ✅ Kept — Replit uses this             │
+  ├────────────────────────────────────────┼────────────────────────────────────────┤
+  │ hc_count in vote_tally                 │ ✅ Kept — useful for the voting screen │
+  ├────────────────────────────────────────┼────────────────────────────────────────┤
+  │ pending_voters array                   │ ✅ Kept — useful for SP view           │
+  ├────────────────────────────────────────┼────────────────────────────────────────┤
+  │ PushNotificationService                │ ❌ Removed                             │
+  ├────────────────────────────────────────┼────────────────────────────────────────┤
+  │ DeviceToken model                      │ ❌ Removed                             │
+  ├────────────────────────────────────────┼────────────────────────────────────────┤
+  │ DeviceTokenController                  │ ❌ Removed                             │
+  ├────────────────────────────────────────┼────────────────────────────────────────┤
+  │ device_tokens table                    │ ❌ Removed (rolled back)               │
+  ├────────────────────────────────────────┼────────────────────────────────────────┤
+  │ APNs config in services.php            │ ❌ Removed                             │
+  ├────────────────────────────────────────┼────────────────────────────────────────┤
+  │ Push triggers in CallingRequestService │ ❌ Removed                             │
+  └────────────────────────────────────────┴────────────────────────────────────────┘

@@ -100,6 +100,10 @@ function RootLayoutNav() {
         name="sunday-business"
         options={{ title: "Stake Business" }}
       />
+      <Stack.Screen
+        name="notifications"
+        options={{ title: "Notifications" }}
+      />
     </Stack>
   );
 }

@@ -347,18 +347,40 @@ export default function HomeScreen() {
             <Text style={styles.greeting}>Welcome back,</Text>
             <Text style={styles.userName}>{firstName}</Text>
           </View>
-          <Pressable
-            onPress={handleMenuToggle}
-            style={({ pressed }) => [
-              styles.avatarButton,
-              pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] },
-            ]}
-            testID="menu-button"
-          >
-            <Text style={styles.avatarText}>
-              {(user?.name || 'U').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
-            </Text>
-          </Pressable>
+          <View style={styles.headerRight}>
+            <Pressable
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/notifications');
+              }}
+              style={({ pressed }) => [
+                styles.bellButton,
+                pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] },
+              ]}
+              testID="bell-button"
+            >
+              <Ionicons name="notifications-outline" size={22} color={Colors.brand.dark} />
+              {unreadNotifCount > 0 && (
+                <View style={styles.bellBadge}>
+                  <Text style={styles.bellBadgeText}>
+                    {unreadNotifCount > 99 ? '99+' : unreadNotifCount}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+            <Pressable
+              onPress={handleMenuToggle}
+              style={({ pressed }) => [
+                styles.avatarButton,
+                pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] },
+              ]}
+              testID="menu-button"
+            >
+              <Text style={styles.avatarText}>
+                {(user?.name || 'U').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+              </Text>
+            </Pressable>
+          </View>
         </View>
         {user?.calling && (
           <View style={styles.roleChip}>
@@ -540,6 +562,39 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: 22,
+    fontWeight: '700' as const,
+    color: Colors.brand.white,
+    fontFamily: 'Inter_700Bold',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  bellButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: '#EF4444',
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: Colors.brand.primary,
+  },
+  bellBadgeText: {
+    fontSize: 10,
     fontWeight: '700' as const,
     color: Colors.brand.white,
     fontFamily: 'Inter_700Bold',

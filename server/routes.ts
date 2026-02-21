@@ -91,6 +91,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   g(app, "/api/calling-requests/:id/feedback-candidates", (req) => `calling-requests/${req.params.id}/feedback-candidates`);
 
   g(app, "/api/notifications", "notifications");
+  p(app, "/api/notifications/read-all", "notifications/read-all", false);
   p(app, "/api/notifications/:id/read", (req) => `notifications/${req.params.id}/read`, false);
 
   g(app, "/api/sunday-business/sunday", "sunday-business/sunday");

@@ -1,0 +1,185 @@
+ Build: Calling Approvals Card + HC Voting Feature
+
+  Add two interconnected features to the SurreyAlign companion app:
+
+  1. A Calling Approvals card on the home screen that surfaces requests needing attention
+  2. A complete voting/recommendation screen for High Councilors to cast their recommendation on calling requests
+
+  Use the API endpoints documented in docs/replit-mobile-app-update-spec.md. No client-side business logic — render what the server returns.
+
+  ---
+  Feature 1: Calling Approvals Card (Home Screen)
+
+  Data source
+
+  GET /calling-requests/action-required
+
+  Filter the results to show only items where the user needs to act. The action_label field tells you what's needed. For HC members during voting, this
+   will be "Your recommendation needed".
+
+  Card placement
+
+  Place this card near the top of the home screen, above the general Callings list. Only show it when there are items needing action. If meta.total ===
+   0, hide the card entirely.
+
+  Card design
+
+  ┌──────────────────────────────────────────────────────┐
+  │  ⚡ Calling Approvals              3 need attention  │
+  │  ─────────────────────────────────────────────────── │
+  │  ○  Stake High Councilor                             │
+  │     David Smith · Stake-level                        │
+  │     → Your recommendation needed         Voting  →  │
+  │                                                      │
+  │  ○  Surrey 4th RS 2nd Counselor                      │
+  │     Jane Lee · Ward-level                            │
+  │     → Review & begin discussion      Submitted  →   │
+  │                                                      │
+  │  ○  Stake YM First Counselor                         │
+  │     Joe Martinez · Stake-level                       │
+  │     → Waiting for Sunday business    In Progress →  │
+  └──────────────────────────────────────────────────────┘
+
+  Styling rules:
+  - Card header: amber/warning accent when there are unreviewed items (count > 0)
+  - Each row: calling name bold, nominees and scope subdued below
+  - action_label in a distinct color (amber for "needed", muted for "waiting")
+  - status_label right-aligned, small
+  - Full row tappable → navigates to calling request detail
+  - "Your recommendation needed" rows get a left accent border in amber
+
+  ---
+  Feature 2: Voting / Recommendation Screen
+
+  When to show the voting UI
+
+  On the calling request detail screen, when next_action.type === "vote", render the voting UI as a prominent section above the content tabs. The
+  existing next_action banner already appears here — extend it to include the voting form inline (don't navigate away to a separate screen).
+
+  When next_action.type === "voted", show a "Recommendation submitted" confirmation state instead (no form).
+
+  The voting section layout
+
+  ┌─────────────────────────────────────────────────────────┐
+  │  ⚡ Your Recommendation Needed                          │
+  │                                                         │
+  │  Prayerfully consider this calling. Your recommendation │
+  │  is confidential and will be reviewed by the Stake      │
+  │  President before a final decision is made.             │
+  │                                                         │
+  │  ┌────────────────────────────────────────────────┐    │
+  │  │  HC Participation    6 of 10 have responded    │    │
+  │  │  ████████████░░░░░░░  60%                      │    │
+  │  └────────────────────────────────────────────────┘    │
+  │                                                         │
+  │  ┌──────────────────┐   ┌────────────────────────┐    │
+  │  │  ✓  I Support    │   │  ✗  I Have Concerns    │    │
+  │  │    this calling  │   │    about this calling  │    │
+  │  └──────────────────┘   └────────────────────────┘    │
+  │                                                         │
+  │  Comment (optional)                                     │
+  │  ┌──────────────────────────────────────────────────┐  │
+  │  │  Share any thoughts for the Stake President...  │  │
+  │  └──────────────────────────────────────────────────┘  │
+  │                                                         │
+  │  ☐  Keep this comment private (visible to SP only)    │
+  │                                                         │
+  │              [ Submit Recommendation ]                  │
+  └─────────────────────────────────────────────────────────┘
+
+  UX rules for the voting form
+
+  - "I Support" / "I Have Concerns" — use these labels instead of "Approve / Disapprove". They feel less legalistic and match how HC members actually
+  deliberate. The API still receives vote: "approve" or vote: "disapprove".
+  - Both buttons are large, full-width side by side. Tapping one selects it (highlighted state). User can change selection before submitting.
+  - Comment is optional. Show a soft placeholder. Expand the textarea when tapped.
+  - Private toggle — show a short explanation inline: "Private comments are visible only to the Stake President." Default unchecked.
+  - Submit button is disabled until one of the two options is selected. Becomes active once selected.
+  - After submit: replace the form with the "voted" confirmation (see below).
+
+  After voting — confirmation state
+
+  ┌─────────────────────────────────────────────────────────┐
+  │  ✅ Recommendation Submitted                            │
+  │                                                         │
+  │  Thank you. Your recommendation has been recorded.      │
+  │  The Stake President will make the final decision       │
+  │  after reviewing all High Council input.                │
+  │                                                         │
+  │  7 of 10 HC members have responded.                     │
+  └─────────────────────────────────────────────────────────┘
+
+  This maps to next_action.type === "voted". Render this state when loading the page if the user has already voted.
+
+  API call
+
+  // POST /calling-requests/{id}/vote
+  const body = {
+    vote: selectedOption,          // "approve" | "disapprove"
+    comment: commentText || null,  // null if empty
+    is_private: isPrivate,         // boolean
+  };
+
+  Handle errors: the server returns { success: false, message: "..." } if something goes wrong. Show the error message inline near the submit button.
+
+  Participation progress bar
+
+  Use vote_tally.total_voters and vote_tally.hc_count from the detail response:
+  const responded = response.calling_request.vote_tally.total_voters;
+  const total = response.calling_request.vote_tally.hc_count ?? 0;
+  const percent = total > 0 ? Math.round((responded / total) * 100) : 0;
+  // Display: "6 of 10 have responded"
+
+  Only show the participation bar when vote_tally.hc_count is not null (i.e. this is an HC-vote calling).
+
+  Pending voters (SP view only)
+
+  When view_level === "full" or view_level === "presidency" AND pending_voters array is present in the response, show a collapsible section below the
+  participation bar:
+
+  ▼ Still waiting on (4):  Elder Fortolano, Elder Brown, Elder Wilson, Elder Davis
+
+  Collapsed by default. One line of names. Tap to expand to a full list.
+
+  ---
+  Notification Badge
+
+  Use GET /notifications?unread_only=true (or just check meta.unread_count from GET /notifications) to show an unread badge on the Callings tab in the
+  bottom navigation. Poll on tab focus or app resume — don't poll continuously.
+
+  When a notification has related_type === "CallingRequest", tapping it navigates to GET /calling-requests/{related_id}. When related_type ===
+  "StakeBusiness", navigate to the Sunday Business screen. Otherwise open action_url in a webview.
+
+  Mark individual notifications as read when the user navigates to their destination: POST /notifications/{id}/read.
+
+  ---
+  TypeScript interfaces (from spec)
+
+  // Already in the spec — use these exact shapes:
+  interface VoteTally {
+    approve: number;
+    disapprove: number;
+    total_voters: number;
+    hc_count: number | null;
+  }
+
+  interface Notification {
+    id: number;
+    type: string;
+    category: string;
+    title: string;
+    message: string | null;
+    action_url: string | null;
+    related_type: 'CallingRequest' | 'StakeBusiness' | null;
+    related_id: number | null;
+    is_read: boolean;
+    is_overdue: boolean;
+    created_at: string;
+  }
+
+  ---
+  What NOT to build
+
+  - Do not build a separate screen for voting — it lives inline on the calling request detail screen as the next_action banner expanded into a form
+  - Do not implement push notifications — that is a future phase requiring APNs setup
+  - Do not add any client-side logic to determine who can vote — the server controls this via permissions.can_vote and next_action.type

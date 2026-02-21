@@ -246,10 +246,17 @@ function VotingSection({ detail, permissions, requestId, token, userId, onRefres
   const [comment, setComment] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [pendingVotersExpanded, setPendingVotersExpanded] = useState(false);
 
   const tally = detail.vote_tally || { approve: 0, disapprove: 0, total_voters: 0 };
   const votes = detail.votes || [];
   const individuals = detail.individuals || [];
+  const castCount = tally.approve + tally.disapprove;
+  const pendingCount = Math.max(0, tally.total_voters - castCount);
+  const participationPct = tally.total_voters > 0 ? Math.round((castCount / tally.total_voters) * 100) : 0;
+  const myVote = votes.find((v: any) => v.voter?.id === userId);
+  const canSeePending = permissions.can_decide || permissions.can_manage;
+  const pendingVoters = detail.pending_voters || [];
 
   const submitVote = async () => {
     if (!vote) { Alert.alert('Required', 'Please select your recommendation.'); return; }
@@ -271,23 +278,52 @@ function VotingSection({ detail, permissions, requestId, token, userId, onRefres
 
   return (
     <View>
-      <View style={vsStyles.tallyRow}>
-        <View style={[vsStyles.tallyCard, { backgroundColor: '#d1fae5' }]}>
-          <Text style={[vsStyles.tallyNum, { color: '#065f46' }]}>{tally.approve}</Text>
-          <Text style={[vsStyles.tallyLabel, { color: '#065f46' }]}>Approved</Text>
+      <View style={vsStyles.participationSection}>
+        <View style={vsStyles.participationHeader}>
+          <Text style={vsStyles.participationTitle}>Participation</Text>
+          <Text style={vsStyles.participationPct}>{participationPct}%</Text>
         </View>
-        <View style={[vsStyles.tallyCard, { backgroundColor: '#fce7f3' }]}>
-          <Text style={[vsStyles.tallyNum, { color: '#9d174d' }]}>{tally.disapprove}</Text>
-          <Text style={[vsStyles.tallyLabel, { color: '#9d174d' }]}>Not Approved</Text>
+        <View style={vsStyles.participationTrack}>
+          <View style={[vsStyles.participationFillApprove, { width: `${tally.total_voters > 0 ? (tally.approve / tally.total_voters) * 100 : 0}%` }]} />
+          <View style={[vsStyles.participationFillDisapprove, { width: `${tally.total_voters > 0 ? (tally.disapprove / tally.total_voters) * 100 : 0}%` }]} />
         </View>
-        <View style={[vsStyles.tallyCard, { backgroundColor: '#f3f4f6' }]}>
-          <Text style={[vsStyles.tallyNum, { color: '#6b7280' }]}>{tally.total_voters - tally.approve - tally.disapprove}</Text>
-          <Text style={[vsStyles.tallyLabel, { color: '#6b7280' }]}>Pending</Text>
+        <View style={vsStyles.participationLegend}>
+          <View style={vsStyles.legendItem}>
+            <View style={[vsStyles.legendDot, { backgroundColor: '#10B981' }]} />
+            <Text style={vsStyles.legendText}>{tally.approve} Approve</Text>
+          </View>
+          <View style={vsStyles.legendItem}>
+            <View style={[vsStyles.legendDot, { backgroundColor: '#EF4444' }]} />
+            <Text style={vsStyles.legendText}>{tally.disapprove} Oppose</Text>
+          </View>
+          <View style={vsStyles.legendItem}>
+            <View style={[vsStyles.legendDot, { backgroundColor: '#D1D5DB' }]} />
+            <Text style={vsStyles.legendText}>{pendingCount} Pending</Text>
+          </View>
         </View>
       </View>
 
+      {myVote && (
+        <View style={vsStyles.yourVoteCard}>
+          <View style={vsStyles.yourVoteHeader}>
+            <Ionicons
+              name={myVote.vote === 'approve' ? 'checkmark-circle' : 'close-circle'}
+              size={20}
+              color={myVote.vote === 'approve' ? '#10B981' : '#EF4444'}
+            />
+            <Text style={vsStyles.yourVoteTitle}>You voted</Text>
+          </View>
+          <Text style={vsStyles.yourVoteValue}>
+            {myVote.vote === 'approve' ? 'Approve' : 'Not Approved'}
+            {myVote.individual ? ` \u2014 ${myVote.individual.name}` : ''}
+          </Text>
+          {myVote.comment && <Text style={vsStyles.yourVoteComment}>{myVote.comment}</Text>}
+        </View>
+      )}
+
       {votes.length > 0 && (
         <View style={vsStyles.votesList}>
+          <Text style={vsStyles.votesListTitle}>All Recommendations</Text>
           {votes.map((v: any) => (
             <View key={v.id} style={vsStyles.voteItem}>
               <View style={[vsStyles.voteBadge, { backgroundColor: v.vote === 'approve' ? '#d1fae5' : '#fce7f3' }]}>
@@ -316,9 +352,38 @@ function VotingSection({ detail, permissions, requestId, token, userId, onRefres
         </View>
       )}
 
-      {permissions.can_vote && (
+      {canSeePending && pendingCount > 0 && (
+        <View style={vsStyles.pendingSection}>
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.selectionAsync();
+              setPendingVotersExpanded(!pendingVotersExpanded);
+            }}
+            style={vsStyles.pendingHeader}
+          >
+            <Ionicons name="people-outline" size={18} color="#B45309" />
+            <Text style={vsStyles.pendingTitle}>Pending Voters ({pendingCount})</Text>
+            <Ionicons name={pendingVotersExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.brand.midGray} />
+          </Pressable>
+          {pendingVotersExpanded && pendingVoters.length > 0 && (
+            <View style={vsStyles.pendingList}>
+              {pendingVoters.map((pv: any, idx: number) => (
+                <View key={pv.id || idx} style={vsStyles.pendingVoterRow}>
+                  <Ionicons name="ellipse-outline" size={14} color={Colors.brand.midGray} />
+                  <Text style={vsStyles.pendingVoterName}>{pv.name || pv.voter_name || 'Member'}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+          {pendingVotersExpanded && pendingVoters.length === 0 && pendingCount > 0 && (
+            <Text style={vsStyles.pendingNoData}>{pendingCount} voter(s) have not yet submitted their recommendation.</Text>
+          )}
+        </View>
+      )}
+
+      {permissions.can_vote && !myVote && (
         <View style={vsStyles.formSection}>
-          <Text style={vsStyles.formTitle}>Provide Your Recommendation</Text>
+          <Text style={vsStyles.formTitle}>Cast Your Vote</Text>
           {individuals.length > 1 && (
             <View style={vsStyles.radioGroup}>
               <Text style={vsStyles.radioLabel}>Which individual do you feel inspired to support?</Text>
@@ -331,20 +396,20 @@ function VotingSection({ detail, permissions, requestId, token, userId, onRefres
             </View>
           )}
           <View style={vsStyles.radioGroup}>
-            <Pressable onPress={() => setVote('approve')} style={vsStyles.radioRow}>
-              <Ionicons name={vote === 'approve' ? 'radio-button-on' : 'radio-button-off'} size={20} color={Colors.brand.success} />
-              <Text style={vsStyles.radioText}>Approve</Text>
+            <Pressable onPress={() => setVote('approve')} style={[vsStyles.voteOptionCard, vote === 'approve' && vsStyles.voteOptionCardApprove]}>
+              <Ionicons name={vote === 'approve' ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={vote === 'approve' ? '#10B981' : Colors.brand.midGray} />
+              <Text style={[vsStyles.voteOptionText, vote === 'approve' && { color: '#065f46', fontFamily: 'Inter_600SemiBold' }]}>Approve</Text>
             </Pressable>
-            <Pressable onPress={() => setVote('disapprove')} style={vsStyles.radioRow}>
-              <Ionicons name={vote === 'disapprove' ? 'radio-button-on' : 'radio-button-off'} size={20} color={Colors.brand.error} />
-              <Text style={vsStyles.radioText}>Not Approved</Text>
+            <Pressable onPress={() => setVote('disapprove')} style={[vsStyles.voteOptionCard, vote === 'disapprove' && vsStyles.voteOptionCardDisapprove]}>
+              <Ionicons name={vote === 'disapprove' ? 'close-circle' : 'ellipse-outline'} size={22} color={vote === 'disapprove' ? '#EF4444' : Colors.brand.midGray} />
+              <Text style={[vsStyles.voteOptionText, vote === 'disapprove' && { color: '#991B1B', fontFamily: 'Inter_600SemiBold' }]}>Not Approved</Text>
             </Pressable>
           </View>
           <TextInput
             style={vsStyles.commentInput}
             value={comment}
             onChangeText={setComment}
-            placeholder="Add a comment..."
+            placeholder="Add a comment (optional)..."
             placeholderTextColor={Colors.brand.midGray}
             multiline
           />
@@ -352,7 +417,7 @@ function VotingSection({ detail, permissions, requestId, token, userId, onRefres
             <Ionicons name={isPrivate ? 'checkbox' : 'square-outline'} size={20} color={Colors.brand.primary} />
             <Text style={vsStyles.checkText}>Private comment (visible to Stake President only)</Text>
           </Pressable>
-          <Pressable onPress={submitVote} style={vsStyles.submitBtn} disabled={submitting}>
+          <Pressable onPress={submitVote} style={[vsStyles.submitBtn, !vote && { opacity: 0.5 }]} disabled={submitting || !vote}>
             {submitting ? <ActivityIndicator size="small" color={Colors.brand.white} /> : (
               <Text style={vsStyles.submitBtnText}>Submit Recommendation</Text>
             )}
@@ -364,11 +429,24 @@ function VotingSection({ detail, permissions, requestId, token, userId, onRefres
 }
 
 const vsStyles = StyleSheet.create({
-  tallyRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  tallyCard: { flex: 1, borderRadius: 10, padding: 12, alignItems: 'center' },
-  tallyNum: { fontSize: 20, fontWeight: '700' as const, fontFamily: 'Inter_700Bold' },
-  tallyLabel: { fontSize: 11, fontWeight: '500' as const, fontFamily: 'Inter_500Medium', marginTop: 2 },
+  participationSection: { marginBottom: 16 },
+  participationHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  participationTitle: { fontSize: 14, fontWeight: '600' as const, color: Colors.brand.dark, fontFamily: 'Inter_600SemiBold' },
+  participationPct: { fontSize: 14, fontWeight: '700' as const, color: Colors.brand.primary, fontFamily: 'Inter_700Bold' },
+  participationTrack: { height: 10, backgroundColor: '#E5E7EB', borderRadius: 5, overflow: 'hidden', flexDirection: 'row' },
+  participationFillApprove: { height: '100%', backgroundColor: '#10B981' },
+  participationFillDisapprove: { height: '100%', backgroundColor: '#EF4444' },
+  participationLegend: { flexDirection: 'row', gap: 14, marginTop: 8 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendText: { fontSize: 12, color: Colors.brand.darkGray, fontFamily: 'Inter_400Regular' },
+  yourVoteCard: { backgroundColor: '#F0FDF4', borderRadius: 12, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#BBF7D0' },
+  yourVoteHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  yourVoteTitle: { fontSize: 14, fontWeight: '600' as const, color: '#065f46', fontFamily: 'Inter_600SemiBold' },
+  yourVoteValue: { fontSize: 15, fontWeight: '700' as const, color: Colors.brand.dark, fontFamily: 'Inter_700Bold', marginLeft: 26 },
+  yourVoteComment: { fontSize: 13, color: Colors.brand.darkGray, marginTop: 4, marginLeft: 26, fontFamily: 'Inter_400Regular' },
   votesList: { marginBottom: 14 },
+  votesListTitle: { fontSize: 14, fontWeight: '600' as const, color: Colors.brand.dark, fontFamily: 'Inter_600SemiBold', marginBottom: 8 },
   voteItem: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.brand.lightGray, gap: 10 },
   voteBadge: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   voteInfo: { flex: 1 },
@@ -378,12 +456,26 @@ const vsStyles = StyleSheet.create({
   privateComment: { fontSize: 12, color: Colors.brand.midGray, fontStyle: 'italic' as const, marginTop: 4, fontFamily: 'Inter_400Regular' },
   privateBadge: { backgroundColor: '#fef3c7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   privateBadgeText: { fontSize: 10, color: '#92400e', fontFamily: 'Inter_600SemiBold' },
+  pendingSection: { backgroundColor: '#FFFBEB', borderRadius: 12, marginBottom: 14, overflow: 'hidden' },
+  pendingHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14 },
+  pendingTitle: { flex: 1, fontSize: 14, fontWeight: '600' as const, color: '#B45309', fontFamily: 'Inter_600SemiBold' },
+  pendingList: { paddingHorizontal: 14, paddingBottom: 14 },
+  pendingVoterRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
+  pendingVoterName: { fontSize: 14, color: Colors.brand.dark, fontFamily: 'Inter_400Regular' },
+  pendingNoData: { fontSize: 13, color: '#B45309', paddingHorizontal: 14, paddingBottom: 14, fontFamily: 'Inter_400Regular' },
   formSection: { backgroundColor: Colors.brand.sectionBg, borderRadius: 14, padding: 16, marginTop: 8 },
-  formTitle: { fontSize: 15, fontWeight: '700' as const, color: Colors.brand.dark, marginBottom: 12, fontFamily: 'Inter_700Bold', borderLeftWidth: 3, borderLeftColor: Colors.brand.primary, paddingLeft: 10 },
-  radioGroup: { marginBottom: 12 },
+  formTitle: { fontSize: 15, fontWeight: '700' as const, color: Colors.brand.dark, marginBottom: 14, fontFamily: 'Inter_700Bold', borderLeftWidth: 3, borderLeftColor: Colors.brand.primary, paddingLeft: 10 },
+  radioGroup: { marginBottom: 12, gap: 8 },
   radioLabel: { fontSize: 13, color: Colors.brand.darkGray, marginBottom: 8, fontFamily: 'Inter_500Medium' },
   radioRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
   radioText: { fontSize: 14, color: Colors.brand.dark, fontFamily: 'Inter_400Regular' },
+  voteOptionCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: Colors.brand.white,
+    borderRadius: 12, padding: 14, borderWidth: 1.5, borderColor: Colors.brand.lightGray,
+  },
+  voteOptionCardApprove: { borderColor: '#10B981', backgroundColor: '#F0FDF4' },
+  voteOptionCardDisapprove: { borderColor: '#EF4444', backgroundColor: '#FEF2F2' },
+  voteOptionText: { fontSize: 15, color: Colors.brand.dark, fontFamily: 'Inter_500Medium' },
   commentInput: {
     backgroundColor: Colors.brand.white, borderRadius: 12, borderWidth: 1, borderColor: Colors.brand.inputBorder,
     paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: Colors.brand.dark, fontFamily: 'Inter_400Regular',
@@ -391,7 +483,7 @@ const vsStyles = StyleSheet.create({
   },
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
   checkText: { fontSize: 13, color: Colors.brand.darkGray, fontFamily: 'Inter_400Regular', flex: 1 },
-  submitBtn: { backgroundColor: Colors.brand.primary, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+  submitBtn: { backgroundColor: Colors.brand.primary, borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
   submitBtnText: { fontSize: 14, fontWeight: '600' as const, color: Colors.brand.white, fontFamily: 'Inter_600SemiBold' },
 });
 

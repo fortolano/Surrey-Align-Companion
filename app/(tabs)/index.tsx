@@ -106,14 +106,41 @@ export default function HomeScreen() {
     }));
   }, [actionRequiredData]);
 
-  const actionTotal = actionRequiredData?.meta?.total ?? actionRequiredData?.total_count ?? actionItems.length;
-
   const showSustainings = isHighCouncilor(user?.calling) || (user?.is_stake_presidency ?? false);
+  const userIsHC = isHighCouncilor(user?.calling);
+
+  const sustainingItems = useMemo(() => {
+    return actionItems.filter((item: any) => {
+      const label = (item.action_label || '').toLowerCase();
+      const type = (item.action_type || '').toLowerCase();
+      return type === 'vote' || type === 'recommend' || type === 'sustain' ||
+        label.includes('vote') || label.includes('recommendation') ||
+        label.includes('sustain') || label.includes('voting');
+    });
+  }, [actionItems]);
+
+  const nonSustainingItems = useMemo(() => {
+    return actionItems.filter((item: any) => {
+      const label = (item.action_label || '').toLowerCase();
+      const type = (item.action_type || '').toLowerCase();
+      return !(type === 'vote' || type === 'recommend' || type === 'sustain' ||
+        label.includes('vote') || label.includes('recommendation') ||
+        label.includes('sustain') || label.includes('voting'));
+    });
+  }, [actionItems]);
 
   const topActionItem = useMemo(() => {
-    if (actionItems.length === 0) return null;
-    return actionItems[0];
-  }, [actionItems]);
+    if (userIsHC && sustainingItems.length > 0) {
+      return { item: sustainingItems[0], total: sustainingItems.length, isSustaining: true };
+    }
+    if (nonSustainingItems.length > 0) {
+      return { item: nonSustainingItems[0], total: nonSustainingItems.length, isSustaining: false };
+    }
+    if (actionItems.length > 0) {
+      return { item: actionItems[0], total: actionItems.length, isSustaining: false };
+    }
+    return null;
+  }, [actionItems, sustainingItems, nonSustainingItems, userIsHC]);
 
   const primaryLinks: QuickLink[] = useMemo(() => {
     const links: QuickLink[] = [];
@@ -308,7 +335,11 @@ export default function HomeScreen() {
           <Pressable
             onPress={() => {
               if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push({ pathname: '/calling-detail', params: { id: String(topActionItem.id) } });
+              if (topActionItem.isSustaining) {
+                router.push('/sustainings');
+              } else {
+                router.push({ pathname: '/calling-detail', params: { id: String(topActionItem.item.id) } });
+              }
             }}
             style={({ pressed }) => [
               doStyles.card,
@@ -318,28 +349,30 @@ export default function HomeScreen() {
           >
             <View style={doStyles.cardHeader}>
               <View style={doStyles.iconCircle}>
-                <Ionicons name="flash" size={18} color="#B45309" />
+                <Ionicons name={topActionItem.isSustaining ? 'hand-left-outline' : 'flash'} size={18} color="#B45309" />
               </View>
               <View style={doStyles.headerText}>
-                <Text style={doStyles.cardTitle}>Do This Now</Text>
-                {actionTotal > 1 && (
-                  <Text style={doStyles.cardCount}>+{actionTotal - 1} more</Text>
+                <Text style={doStyles.cardTitle}>
+                  {topActionItem.isSustaining ? 'Provide Your Sustaining' : 'Do This Now'}
+                </Text>
+                {topActionItem.total > 1 && (
+                  <Text style={doStyles.cardCount}>+{topActionItem.total - 1} more</Text>
                 )}
               </View>
               <Ionicons name="chevron-forward" size={18} color={Colors.brand.midGray} />
             </View>
             <View style={doStyles.cardBody}>
               <Text style={doStyles.callingName} numberOfLines={1}>
-                {topActionItem.target_calling || topActionItem.request_type_label}
+                {topActionItem.item.target_calling || topActionItem.item.request_type_label}
               </Text>
-              {topActionItem.individuals?.length > 0 && (
+              {topActionItem.item.individuals?.length > 0 && (
                 <Text style={doStyles.individualsText} numberOfLines={1}>
-                  {topActionItem.individuals.map((i: any) => i.name).join(', ')}
+                  {topActionItem.item.individuals.map((i: any) => i.name).join(', ')}
                 </Text>
               )}
               <View style={doStyles.actionChip}>
                 <Ionicons name="arrow-forward" size={12} color={Colors.brand.white} />
-                <Text style={doStyles.actionChipText}>{topActionItem.action_label}</Text>
+                <Text style={doStyles.actionChipText}>{topActionItem.item.action_label}</Text>
               </View>
             </View>
           </Pressable>

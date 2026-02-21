@@ -10,7 +10,7 @@ import {
   Modal,
   Alert,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
@@ -193,20 +193,51 @@ export default function HomeScreen() {
 
   const { data: actionRequiredData, refetch: refetchActionRequired, isRefetching: isRefetchingActions } = useQuery<{
     success: boolean;
-    action_items: Array<{
+    calling_requests?: Array<{
+      id: number;
+      target_calling: string | null;
+      request_type_label: string;
+      scope: 'stake' | 'ward';
+      status: string;
+      status_label: string;
+      action_label: string;
+      action_type: string;
+      individuals: Array<{ id: number; name: string; is_selected: boolean }>;
+    }>;
+    action_items?: Array<{
       calling_request_id: number;
       action_type: string;
       action_label: string;
       calling_name: string;
       status_label: string;
     }>;
-    total_count: number;
+    meta?: { total: number };
+    total_count?: number;
   }>({
     queryKey: ['/api/calling-requests/action-required'],
     queryFn: () => authFetch(token, '/api/calling-requests/action-required'),
     enabled: !!token,
     staleTime: 60000,
   });
+
+  const { data: notificationsData, refetch: refetchNotifications } = useQuery<{
+    notifications?: Array<any>;
+    meta?: { unread_count: number };
+  }>({
+    queryKey: ['/api/notifications', { unread_only: 'true' }],
+    queryFn: () => authFetch(token, '/api/notifications', { params: { unread_only: 'true' } }),
+    enabled: !!token,
+    staleTime: 60000,
+  });
+
+  const unreadNotifCount = notificationsData?.meta?.unread_count ?? 0;
+
+  useFocusEffect(
+    React.useCallback(() => {
+      refetchActionRequired();
+      refetchNotifications();
+    }, [refetchActionRequired, refetchNotifications])
+  );
 
   const isRefetching = isRefetchingBusiness || isRefetchingActions;
 
@@ -238,13 +269,36 @@ export default function HomeScreen() {
     ];
   }, [stakeBusinessData]);
 
-  const callingsBadges = useMemo<BadgeInfo[]>(() => {
-    const count = actionRequiredData?.total_count ?? 0;
-    if (count === 0) return [];
-    return [
-      { label: 'Action Needed', count, color: Colors.brand.primary, bgColor: '#E8F4F8' },
-    ];
+  const actionItems = useMemo(() => {
+    if (actionRequiredData?.calling_requests) return actionRequiredData.calling_requests;
+    if (actionRequiredData?.action_items) {
+      return actionRequiredData.action_items.map(item => ({
+        id: item.calling_request_id,
+        target_calling: item.calling_name,
+        request_type_label: '',
+        scope: 'stake' as const,
+        status: '',
+        status_label: item.status_label,
+        action_label: item.action_label,
+        action_type: item.action_type,
+        individuals: [],
+      }));
+    }
+    return [];
   }, [actionRequiredData]);
+
+  const actionTotal = actionRequiredData?.meta?.total ?? actionRequiredData?.total_count ?? actionItems.length;
+
+  const callingsBadges = useMemo<BadgeInfo[]>(() => {
+    const badges: BadgeInfo[] = [];
+    if (actionTotal > 0) {
+      badges.push({ label: 'Action Needed', count: actionTotal, color: Colors.brand.primary, bgColor: '#E8F4F8' });
+    }
+    if (unreadNotifCount > 0) {
+      badges.push({ label: 'Unread', count: unreadNotifCount, color: '#B45309', bgColor: '#FEF3C7' });
+    }
+    return badges;
+  }, [actionTotal, unreadNotifCount]);
 
   const handleMenuToggle = () => {
     if (Platform.OS !== 'web') {
@@ -324,12 +378,67 @@ export default function HomeScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}
-            onRefresh={() => { refetchStakeBusiness(); refetchActionRequired(); }}
+            onRefresh={() => { refetchStakeBusiness(); refetchActionRequired(); refetchNotifications(); }}
             tintColor={Colors.brand.primary}
             colors={[Colors.brand.primary]}
           />
         }
       >
+        {actionItems.length > 0 && (
+          <Animated.View entering={FadeInDown.duration(400).delay(60)} style={arStyles.card}>
+            <View style={arStyles.cardHeader}>
+              <View style={arStyles.cardHeaderLeft}>
+                <Ionicons name="flash" size={18} color="#B45309" />
+                <Text style={arStyles.cardHeaderTitle}>Calling Approvals</Text>
+              </View>
+              <View style={arStyles.countBadge}>
+                <Text style={arStyles.countBadgeText}>{actionTotal} need attention</Text>
+              </View>
+            </View>
+            {actionItems.slice(0, 5).map((item, idx) => {
+              const isVoteNeeded = item.action_type === 'vote' || item.action_label.toLowerCase().includes('recommendation needed');
+              const individualsText = item.individuals?.map(i => i.name).join(', ') || '';
+              return (
+                <Pressable
+                  key={item.id}
+                  onPress={() => {
+                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push({ pathname: '/calling-detail', params: { id: String(item.id) } });
+                  }}
+                  style={({ pressed }) => [
+                    arStyles.row,
+                    isVoteNeeded && arStyles.rowAccent,
+                    idx === Math.min(actionItems.length, 5) - 1 && arStyles.rowLast,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                  testID={`action-item-${item.id}`}
+                >
+                  <View style={arStyles.rowContent}>
+                    <Text style={arStyles.rowTitle} numberOfLines={1}>
+                      {item.target_calling || item.request_type_label}
+                    </Text>
+                    {individualsText ? (
+                      <Text style={arStyles.rowSub} numberOfLines={1}>
+                        {individualsText} · {item.scope === 'stake' ? 'Stake' : 'Ward'}-level
+                      </Text>
+                    ) : null}
+                    <View style={arStyles.actionRow}>
+                      <Ionicons name="arrow-forward" size={12} color={isVoteNeeded ? '#B45309' : Colors.brand.midGray} />
+                      <Text style={[arStyles.actionLabel, isVoteNeeded && arStyles.actionLabelUrgent]}>
+                        {item.action_label}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={arStyles.rowRight}>
+                    <Text style={arStyles.statusLabel}>{item.status_label}</Text>
+                    <Ionicons name="chevron-forward" size={16} color={Colors.brand.midGray} />
+                  </View>
+                </Pressable>
+              );
+            })}
+          </Animated.View>
+        )}
+
         <Text style={styles.sectionTitle}>Quick Access</Text>
         {TILES.map((tile, index) => (
           <FeatureTile
@@ -605,5 +714,107 @@ const styles = StyleSheet.create({
   menuDivider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: Colors.brand.lightGray,
+  },
+});
+
+const arStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.brand.white,
+    borderRadius: 16,
+    marginBottom: 20,
+    shadowColor: 'rgba(15, 23, 42, 0.1)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 3,
+    overflow: 'hidden',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.brand.lightGray,
+    backgroundColor: '#FFFBEB',
+  },
+  cardHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  cardHeaderTitle: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.brand.dark,
+    fontFamily: 'Inter_700Bold',
+  },
+  countBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  countBadgeText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#B45309',
+    fontFamily: 'Inter_600SemiBold',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.brand.lightGray,
+  },
+  rowAccent: {
+    borderLeftWidth: 3,
+    borderLeftColor: '#F59E0B',
+  },
+  rowLast: {
+    borderBottomWidth: 0,
+  },
+  rowContent: {
+    flex: 1,
+  },
+  rowTitle: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.brand.dark,
+    fontFamily: 'Inter_600SemiBold',
+    marginBottom: 2,
+  },
+  rowSub: {
+    fontSize: 13,
+    color: Colors.brand.darkGray,
+    fontFamily: 'Inter_400Regular',
+    marginBottom: 4,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  actionLabel: {
+    fontSize: 13,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_500Medium',
+  },
+  actionLabelUrgent: {
+    color: '#B45309',
+  },
+  rowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginLeft: 8,
+  },
+  statusLabel: {
+    fontSize: 11,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_500Medium',
   },
 });

@@ -248,15 +248,9 @@ export default function SustainingsScreen() {
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery<{
     success: boolean;
-    calling_requests?: ActionItem[];
-    action_items?: Array<{
-      calling_request_id: number;
-      action_type: string;
-      action_label: string;
-      calling_name: string;
-      status_label: string;
-      target_ward?: string;
-    }>;
+    action_required?: Array<any>;
+    calling_requests?: Array<any>;
+    action_items?: Array<any>;
     meta?: { total: number };
     total_count?: number;
   }>({
@@ -267,24 +261,19 @@ export default function SustainingsScreen() {
   });
 
   const actionItems = useMemo(() => {
-    let items: ActionItem[] = [];
-    if (data?.calling_requests) {
-      items = data.calling_requests;
-    } else if (data?.action_items) {
-      items = data.action_items.map((ai) => ({
-        id: ai.calling_request_id,
-        target_calling: ai.calling_name,
-        request_type_label: '',
-        scope: 'stake' as const,
-        status: '',
-        status_label: ai.status_label,
-        action_label: ai.action_label,
-        action_type: ai.action_type,
-        individuals: [],
-        target_ward: ai.target_ward || null,
-      }));
-    }
-    return items;
+    const rawItems = data?.action_required || data?.calling_requests || data?.action_items || [];
+    return rawItems.map((ai: any): ActionItem => ({
+      id: ai.id ?? ai.calling_request_id ?? 0,
+      target_calling: ai.target_calling ?? ai.calling_name ?? ai.title ?? null,
+      request_type_label: ai.request_type_label ?? ai.type_label ?? '',
+      scope: ai.scope ?? 'stake',
+      status: ai.status ?? '',
+      status_label: ai.status_label ?? '',
+      action_label: ai.action_label ?? ai.action ?? '',
+      action_type: ai.action_type ?? '',
+      individuals: ai.individuals ?? [],
+      target_ward: ai.target_ward ?? ai.ward ?? null,
+    }));
   }, [data]);
 
   const handleRefresh = useCallback(() => {

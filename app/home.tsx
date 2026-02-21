@@ -208,24 +208,9 @@ export default function HomeScreen() {
 
   const { data: actionRequiredData, refetch: refetchActionRequired, isRefetching: isRefetchingActions } = useQuery<{
     success: boolean;
-    calling_requests?: Array<{
-      id: number;
-      target_calling: string | null;
-      request_type_label: string;
-      scope: 'stake' | 'ward';
-      status: string;
-      status_label: string;
-      action_label: string;
-      action_type: string;
-      individuals: Array<{ id: number; name: string; is_selected: boolean }>;
-    }>;
-    action_items?: Array<{
-      calling_request_id: number;
-      action_type: string;
-      action_label: string;
-      calling_name: string;
-      status_label: string;
-    }>;
+    action_required?: Array<any>;
+    calling_requests?: Array<any>;
+    action_items?: Array<any>;
     meta?: { total: number };
     total_count?: number;
   }>({
@@ -285,21 +270,18 @@ export default function HomeScreen() {
   }, [stakeBusinessData]);
 
   const actionItems = useMemo(() => {
-    if (actionRequiredData?.calling_requests) return actionRequiredData.calling_requests;
-    if (actionRequiredData?.action_items) {
-      return actionRequiredData.action_items.map(item => ({
-        id: item.calling_request_id,
-        target_calling: item.calling_name,
-        request_type_label: '',
-        scope: 'stake' as const,
-        status: '',
-        status_label: item.status_label,
-        action_label: item.action_label,
-        action_type: item.action_type,
-        individuals: [],
-      }));
-    }
-    return [];
+    const rawItems = actionRequiredData?.action_required || actionRequiredData?.calling_requests || actionRequiredData?.action_items || [];
+    return rawItems.map((ai: any) => ({
+      id: ai.id ?? ai.calling_request_id ?? 0,
+      target_calling: ai.target_calling ?? ai.calling_name ?? ai.title ?? null,
+      request_type_label: ai.request_type_label ?? ai.type_label ?? '',
+      scope: ai.scope ?? 'stake',
+      status: ai.status ?? '',
+      status_label: ai.status_label ?? '',
+      action_label: ai.action_label ?? ai.action ?? '',
+      action_type: ai.action_type ?? '',
+      individuals: ai.individuals ?? [],
+    }));
   }, [actionRequiredData]);
 
   const actionTotal = actionRequiredData?.meta?.total ?? actionRequiredData?.total_count ?? actionItems.length;

@@ -307,9 +307,7 @@ export default function HomeScreen() {
   const showSustainings = isHighCouncilor(user?.calling) || (user?.is_stake_presidency ?? false);
 
   const sustainingsVoteCount = useMemo(() => {
-    return actionItems.filter(
-      (i) => i.action_type === 'vote' || i.action_type === 'decide' || i.action_type === 'decide_after_voting'
-    ).length;
+    return actionItems.length;
   }, [actionItems]);
 
   const sustainingsBadges = useMemo<BadgeInfo[]>(() => {

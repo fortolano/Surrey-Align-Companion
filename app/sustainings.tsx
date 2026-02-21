@@ -66,7 +66,9 @@ function InlineVoteCard({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const isVoteAction = item.action_type === 'vote' || item.action_label.toLowerCase().includes('recommendation');
+  const actionLower = item.action_label.toLowerCase();
+  const typeLower = item.action_type.toLowerCase();
+  const isVoteAction = typeLower === 'vote' || typeLower.includes('recommend') || typeLower.includes('sustain') || actionLower.includes('recommendation') || actionLower.includes('sustain') || actionLower.includes('vote');
   const individualsText = item.individuals?.map((i) => i.name).join(', ') || '';
 
   const submitVote = async () => {
@@ -282,15 +284,8 @@ export default function SustainingsScreen() {
         target_ward: ai.target_ward || null,
       }));
     }
-    return items.filter(
-      (i) => i.action_type === 'vote' || i.action_type === 'decide' || i.action_type === 'decide_after_voting'
-    );
+    return items;
   }, [data]);
-
-  const voteItems = actionItems.filter((i) => i.action_type === 'vote');
-  const decideItems = actionItems.filter(
-    (i) => i.action_type === 'decide' || i.action_type === 'decide_after_voting'
-  );
 
   const handleRefresh = useCallback(() => {
     refetch();

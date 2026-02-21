@@ -50,6 +50,10 @@ function pa(app: Express, route: string, apiPath: string | ((req: Request) => st
   app.patch(route, (req, res) => proxyRequest(req, res, "PATCH", typeof apiPath === "function" ? apiPath(req) : apiPath, { includeBody: true }));
 }
 
+function d(app: Express, route: string, apiPath: string | ((req: Request) => string)) {
+  app.delete(route, (req, res) => proxyRequest(req, res, "DELETE", typeof apiPath === "function" ? apiPath(req) : apiPath));
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/login", (req, res) =>
     proxyRequest(req, res, "POST", "auth/login", { includeBody: true, requireAuth: false })
@@ -93,6 +97,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   g(app, "/api/notifications", "notifications");
   p(app, "/api/notifications/read-all", "notifications/read-all", false);
   p(app, "/api/notifications/:id/read", (req) => `notifications/${req.params.id}/read`, false);
+  p(app, "/api/notifications/:id/unread", (req) => `notifications/${req.params.id}/unread`, false);
+  d(app, "/api/notifications/:id", (req) => `notifications/${req.params.id}`);
 
   g(app, "/api/sunday-business/sunday", "sunday-business/sunday");
   g(app, "/api/sunday-business/outstanding", "sunday-business/outstanding");

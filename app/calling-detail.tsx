@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -734,6 +734,7 @@ export default function CallingDetailScreen() {
   const requestId = Number(id);
 
   const [activeTab, setActiveTab] = useState<'discussion' | 'approvals' | 'steps'>('discussion');
+  const [hasSetInitialTab, setHasSetInitialTab] = useState(false);
   const [actionLoading, setActionLoading] = useState('');
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery<{
@@ -761,6 +762,24 @@ export default function CallingDetailScreen() {
     refetch();
     qClient.invalidateQueries({ queryKey: ['/api/calling-requests/pending-action-count'] });
   }, [refetch, qClient]);
+
+  useEffect(() => {
+    if (!data || hasSetInitialTab) return;
+    const nextAction = data.next_action;
+    const detail = data.calling_request;
+    const hasApprovals = detail?.approval_authority === 'high_council';
+    if (nextAction) {
+      const type = nextAction.type;
+      if (['vote', 'voted', 'provide_recommendation'].includes(type) && hasApprovals) {
+        setActiveTab('approvals');
+      } else if (['next_step', 'assign_interviewer', 'mark_complete', 'waiting_setting_apart'].includes(type)) {
+        setActiveTab('steps');
+      }
+    } else if (hasApprovals) {
+      setActiveTab('approvals');
+    }
+    setHasSetInitialTab(true);
+  }, [data, hasSetInitialTab]);
 
   const performAction = async (action: string, label: string) => {
     setActionLoading(action);

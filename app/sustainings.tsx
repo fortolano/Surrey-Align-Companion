@@ -334,7 +334,7 @@ export default function SustainingsScreen() {
         <View style={styles.roleBarHC}>
           <Ionicons name="hand-left-outline" size={16} color="#B45309" />
           <Text style={styles.roleBarHCText}>
-            {voteItems.length} calling{voteItems.length !== 1 ? 's' : ''} awaiting your sustaining
+            {actionItems.length} calling{actionItems.length !== 1 ? 's' : ''} awaiting your sustaining
           </Text>
         </View>
       )}

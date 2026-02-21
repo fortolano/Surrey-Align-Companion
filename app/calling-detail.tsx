@@ -383,7 +383,7 @@ function VotingSection({ detail, permissions, requestId, token, userId, onRefres
 
       {permissions.can_vote && !myVote && (
         <View style={vsStyles.formSection}>
-          <Text style={vsStyles.formTitle}>Cast Your Vote</Text>
+          <Text style={vsStyles.formTitle}>Provide Your Sustaining</Text>
           {individuals.length > 1 && (
             <View style={vsStyles.radioGroup}>
               <Text style={vsStyles.radioLabel}>Which individual do you feel inspired to support?</Text>
@@ -669,7 +669,7 @@ function NextActionBanner({ nextAction, onActionPress }: {
     : nextAction.is_waiting ? 'time-outline' : 'arrow-forward-circle';
 
   const ACTION_HINTS: Record<string, string> = {
-    vote: 'Cast Recommendation',
+    vote: 'Provide Sustaining',
     voted: '',
     submit: 'Submit for Review',
     begin_review: 'Begin Review',

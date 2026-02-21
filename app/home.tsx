@@ -422,45 +422,27 @@ export default function HomeScreen() {
       >
         {actionItems.length > 0 && (
           <Animated.View entering={FadeInDown.duration(400).delay(60)} style={arStyles.card}>
-            <Pressable
-              onPress={() => {
-                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                if (showSustainings) {
-                  router.push('/sustainings' as any);
-                }
-              }}
-              style={arStyles.cardHeader}
-              disabled={!showSustainings}
-            >
+            <View style={arStyles.cardHeader}>
               <View style={arStyles.cardHeaderLeft}>
                 <Ionicons name="flash" size={18} color="#B45309" />
-                <Text style={arStyles.cardHeaderTitle}>Calling Approvals</Text>
+                <Text style={arStyles.cardHeaderTitle}>Action Required</Text>
               </View>
               <View style={arStyles.countBadge}>
                 <Text style={arStyles.countBadgeText}>{actionTotal} need attention</Text>
               </View>
-              {showSustainings && (
-                <Ionicons name="chevron-forward" size={16} color={Colors.brand.midGray} style={{ marginLeft: 4 }} />
-              )}
-            </Pressable>
-            {actionItems.slice(0, 3).map((item, idx) => {
-              const isVoteNeeded = item.action_type === 'vote' || item.action_label.toLowerCase().includes('recommendation needed');
-              const individualsText = item.individuals?.map(i => i.name).join(', ') || '';
+            </View>
+            {actionItems.slice(0, 5).map((item, idx) => {
+              const individualsText = item.individuals?.map((i: any) => i.name).join(', ') || '';
               return (
                 <Pressable
                   key={item.id}
                   onPress={() => {
                     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    if (showSustainings) {
-                      router.push('/sustainings' as any);
-                    } else {
-                      router.push({ pathname: '/calling-detail', params: { id: String(item.id) } });
-                    }
+                    router.push({ pathname: '/calling-detail', params: { id: String(item.id) } });
                   }}
                   style={({ pressed }) => [
                     arStyles.row,
-                    isVoteNeeded && arStyles.rowAccent,
-                    idx === Math.min(actionItems.length, 3) - 1 && arStyles.rowLast,
+                    idx === Math.min(actionItems.length, 5) - 1 && arStyles.rowLast,
                     pressed && { opacity: 0.7 },
                   ]}
                   testID={`action-item-${item.id}`}
@@ -471,12 +453,12 @@ export default function HomeScreen() {
                     </Text>
                     {individualsText ? (
                       <Text style={arStyles.rowSub} numberOfLines={1}>
-                        {individualsText} · {item.scope === 'stake' ? 'Stake' : 'Ward'}-level
+                        {individualsText}
                       </Text>
                     ) : null}
                     <View style={arStyles.actionRow}>
-                      <Ionicons name="arrow-forward" size={12} color={isVoteNeeded ? '#B45309' : Colors.brand.midGray} />
-                      <Text style={[arStyles.actionLabel, isVoteNeeded && arStyles.actionLabelUrgent]}>
+                      <Ionicons name="arrow-forward" size={12} color="#B45309" />
+                      <Text style={[arStyles.actionLabel, arStyles.actionLabelUrgent]}>
                         {item.action_label}
                       </Text>
                     </View>
@@ -488,18 +470,6 @@ export default function HomeScreen() {
                 </Pressable>
               );
             })}
-            {showSustainings && actionItems.length > 3 && (
-              <Pressable
-                onPress={() => {
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/sustainings' as any);
-                }}
-                style={({ pressed }) => [arStyles.viewAllBtn, pressed && { opacity: 0.7 }]}
-              >
-                <Text style={arStyles.viewAllText}>View all {actionTotal} items</Text>
-                <Ionicons name="arrow-forward" size={14} color={Colors.brand.primary} />
-              </Pressable>
-            )}
           </Animated.View>
         )}
 

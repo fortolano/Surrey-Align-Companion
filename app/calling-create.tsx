@@ -8,6 +8,7 @@ import {
   TextInput,
   ActivityIndicator,
   Platform,
+  Alert,
   KeyboardAvoidingView,
   Switch,
 } from 'react-native';
@@ -18,9 +19,7 @@ import * as Haptics from 'expo-haptics';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
-import { useToast } from '@/components/Toast';
 import Colors from '@/constants/colors';
-import { contentContainer, cardShadow } from '@/constants/styles';
 
 interface Ward { id: number; name: string; }
 interface CallingOption { id: number; name: string; level?: string; organization_type?: string; }
@@ -102,7 +101,7 @@ const pfStyles = StyleSheet.create({
   dropdown: {
     marginTop: 4, backgroundColor: Colors.brand.white, borderRadius: 10,
     borderWidth: 1, borderColor: Colors.brand.lightGray, overflow: 'hidden',
-    ...cardShadow(),
+    ...Platform.select({ ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8 }, android: { elevation: 4 } }),
   },
   dropdownScroll: { maxHeight: 220 },
   option: { paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.brand.lightGray },
@@ -208,7 +207,6 @@ export default function CallingCreateScreen() {
   const { token, user } = useAuth();
   const qClient = useQueryClient();
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
-  const toast = useToast();
 
   const [scope, setScope] = useState<string>('');
   const [wardId, setWardId] = useState<string>('');
@@ -329,11 +327,11 @@ export default function CallingCreateScreen() {
   const handleSubmit = async (asDraft: boolean) => {
     const validNominees = nominees.filter(n => n.name.trim());
     if (validNominees.length === 0) {
-      toast.warning('Required', 'Please add at least one individual.');
+      Alert.alert('Required', 'Please add at least one individual.');
       return;
     }
     if (!callingId) {
-      toast.warning('Required', 'Please select a calling.');
+      Alert.alert('Required', 'Please select a calling.');
       return;
     }
     setSubmitting(true);
@@ -374,7 +372,7 @@ export default function CallingCreateScreen() {
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch (err: any) {
-      toast.error('Error', err.message || 'Failed to create request.');
+      Alert.alert('Error', err.message || 'Failed to create request.');
     } finally {
       setSubmitting(false);
     }
@@ -560,10 +558,10 @@ const styles = StyleSheet.create({
   noAccessText: { fontSize: 15, color: Colors.brand.darkGray, textAlign: 'center', marginTop: 12, fontFamily: 'Inter_400Regular' },
   backBtn: { marginTop: 16, backgroundColor: Colors.brand.primary, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8 },
   backBtnText: { color: Colors.brand.white, fontSize: 14, fontFamily: 'Inter_600SemiBold' },
-  scrollContent: { padding: 20, ...contentContainer },
+  scrollContent: { padding: 20 },
   section: {
-    backgroundColor: Colors.brand.white, borderRadius: 14, padding: 18, marginBottom: 16,
-    borderWidth: 1, borderColor: Colors.brand.lightGray, ...cardShadow(),
+    backgroundColor: Colors.brand.white, borderRadius: 14, padding: 20, marginBottom: 20,
+    shadowColor: 'rgba(15, 23, 42, 0.08)', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 8, elevation: 2,
   },
   fieldsInner: {
     backgroundColor: Colors.brand.sectionBg, borderRadius: 14, padding: 16,

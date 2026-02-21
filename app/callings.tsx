@@ -18,9 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
-import { ListCardSkeleton } from '@/components/Skeleton';
 import Colors from '@/constants/colors';
-import { contentContainer, cardShadow } from '@/constants/styles';
 
 interface ListIndividual {
   id: number;
@@ -196,10 +194,9 @@ export default function CallingsScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
-        <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
-          <ListCardSkeleton count={5} />
-        </View>
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color={Colors.brand.primary} />
+        <Text style={styles.loadingText}>Loading calling requests...</Text>
       </View>
     );
   }
@@ -372,7 +369,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.brand.lightGray,
     marginBottom: 4,
-    ...contentContainer,
   },
   pendingBanner: {
     flexDirection: 'row',
@@ -496,16 +492,17 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    ...contentContainer,
   },
   card: {
     backgroundColor: Colors.brand.white,
     borderRadius: 14,
-    padding: 16,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: Colors.brand.lightGray,
-    ...cardShadow(),
+    padding: 18,
+    marginBottom: 14,
+    shadowColor: 'rgba(15, 23, 42, 0.1)',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 10,
+    elevation: 3,
   },
   cardPressed: {
     opacity: 0.7,

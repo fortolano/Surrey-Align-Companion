@@ -17,7 +17,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { getApiUrl } from '@/lib/query-client';
 import Colors from '@/constants/colors';
-import { cardShadow } from '@/constants/styles';
 
 interface ActionItem {
   id: number;
@@ -542,11 +541,13 @@ const styles = StyleSheet.create({
   heroCard: {
     margin: 20,
     backgroundColor: Colors.brand.white,
-    borderRadius: 14,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: Colors.brand.lightGray,
-    ...cardShadow(),
+    borderRadius: 20,
+    padding: 22,
+    shadowColor: Colors.light.cardShadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 3,
   },
   heroTop: {
     flexDirection: 'row',
@@ -702,12 +703,14 @@ const styles = StyleSheet.create({
   },
   entitySection: {
     backgroundColor: Colors.brand.white,
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: Colors.brand.lightGray,
-    ...cardShadow(),
+    marginBottom: 14,
+    shadowColor: Colors.light.cardShadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 1,
   },
   entityHeader: {
     flexDirection: 'row',

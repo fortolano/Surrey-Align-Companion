@@ -12,7 +12,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth-context';
 import Colors from '@/constants/colors';
-import { contentContainer, cardShadow } from '@/constants/styles';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -118,12 +117,14 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: Colors.brand.white,
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 8,
-    borderWidth: 1,
-    borderColor: Colors.brand.lightGray,
-    ...cardShadow(),
+    shadowColor: 'rgba(1, 97, 131, 0.06)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
   },
   row: {
     flexDirection: 'row',

@@ -4,42 +4,43 @@ import {
   View,
   Text,
   Pressable,
+  Alert,
   Platform,
   ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/lib/auth-context';
-import { useToast } from '@/components/Toast';
 import Colors from '@/constants/colors';
-import { contentContainer, cardShadow } from '@/constants/styles';
-
-interface NavItem {
-  id: string;
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  route: string;
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { id: 'align', label: 'ALIGN', icon: 'compass-outline', route: '/align-info' },
-  { id: 'settings', label: 'Settings', icon: 'settings-outline', route: '/settings' },
-  { id: 'about', label: 'About this App', icon: 'information-circle-outline', route: '/about-app' },
-  { id: 'tos', label: 'Terms of Service', icon: 'document-text-outline', route: '/terms' },
-];
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
-  const toast = useToast();
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      router.replace('/');
-    } catch {
-      toast.error('Sign Out Failed', 'Please try again.');
+  const webBottomInset = Platform.OS === 'web' ? 34 : 0;
+
+  const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      logout().then(() => router.replace('/'));
+      return;
     }
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/');
+          },
+        },
+      ],
+    );
   };
 
   const infoRows = [
@@ -53,7 +54,9 @@ export default function ProfileScreen() {
   return (
     <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + webBottomInset + 24,
+        }}
         showsVerticalScrollIndicator={false}
       >
         <View style={[styles.profileHeader, { paddingTop: 24 }]}>
@@ -98,37 +101,12 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <View style={styles.navSection}>
-          <Text style={styles.sectionLabel}>More</Text>
-          <View style={styles.infoCard}>
-            {NAV_ITEMS.map((item, i) => (
-              <Pressable
-                key={item.id}
-                onPress={() => {
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push(item.route as any);
-                }}
-                style={({ pressed }) => [
-                  styles.navRow,
-                  i < NAV_ITEMS.length - 1 && styles.infoRowBorder,
-                  pressed && styles.navRowPressed,
-                ]}
-              >
-                <View style={styles.infoRowLeft}>
-                  <Ionicons name={item.icon} size={18} color={Colors.brand.midGray} />
-                  <Text style={styles.navLabel}>{item.label}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={Colors.brand.midGray} />
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
         <View style={styles.actionsSection}>
-          <Text style={styles.versionText}>v1.1.0 - Native Grid Build</Text>
           <Pressable
             onPress={() => {
-              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              if (Platform.OS !== 'web') {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              }
               handleLogout();
             }}
             style={({ pressed }) => [
@@ -150,9 +128,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.light.background,
-  },
-  scrollContent: {
-    paddingBottom: 100,
   },
   profileHeader: {
     alignItems: 'center',
@@ -201,10 +176,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginTop: 8,
   },
-  navSection: {
-    paddingHorizontal: 20,
-    marginTop: 24,
-  },
   sectionLabel: {
     fontSize: 13,
     fontWeight: '600' as const,
@@ -216,11 +187,13 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     backgroundColor: Colors.brand.white,
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: Colors.brand.lightGray,
-    ...cardShadow(),
+    shadowColor: Colors.light.cardShadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
   },
   infoRow: {
     flexDirection: 'row',
@@ -251,31 +224,9 @@ const styles = StyleSheet.create({
     textAlign: 'right' as const,
     fontFamily: 'Inter_500Medium',
   },
-  navRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  navRowPressed: {
-    backgroundColor: Colors.brand.offWhite,
-  },
-  navLabel: {
-    fontSize: 14,
-    color: Colors.brand.dark,
-    fontFamily: 'Inter_500Medium',
-  },
   actionsSection: {
     paddingHorizontal: 20,
     marginTop: 32,
-  },
-  versionText: {
-    fontSize: 11,
-    color: Colors.brand.midGray,
-    textAlign: 'center',
-    marginBottom: 8,
-    fontFamily: 'Inter_400Regular',
   },
   logoutButton: {
     flexDirection: 'row',

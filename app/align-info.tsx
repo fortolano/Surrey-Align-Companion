@@ -13,7 +13,6 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
-import { cardShadow } from '@/constants/styles';
 
 export default function AlignInfoScreen() {
   const insets = useSafeAreaInsets();
@@ -97,14 +96,16 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     backgroundColor: Colors.brand.white,
-    borderRadius: 14,
-    padding: 22,
-    marginBottom: 14,
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 16,
     borderLeftWidth: 4,
     borderLeftColor: Colors.brand.primary,
-    borderWidth: 1,
-    borderColor: Colors.brand.lightGray,
-    ...cardShadow(),
+    shadowColor: 'rgba(1, 97, 131, 0.1)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    elevation: 3,
   },
   heroIconRow: {
     marginBottom: 16,
@@ -147,13 +148,15 @@ const styles = StyleSheet.create({
   },
   bodyCard: {
     backgroundColor: Colors.brand.white,
-    borderRadius: 14,
-    padding: 22,
-    marginBottom: 14,
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 16,
     gap: 14,
-    borderWidth: 1,
-    borderColor: Colors.brand.lightGray,
-    ...cardShadow(),
+    shadowColor: 'rgba(1, 97, 131, 0.06)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
   },
   bodyText: {
     fontSize: 15,

@@ -17,9 +17,7 @@ import * as Haptics from 'expo-haptics';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { getApiUrl } from '@/lib/query-client';
-import { ListCardSkeleton } from '@/components/Skeleton';
 import Colors from '@/constants/colors';
-import { contentContainer, cardShadow } from '@/constants/styles';
 
 interface GoalPeriod {
   id: number;
@@ -216,10 +214,9 @@ export default function GoalsScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
-        <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
-          <ListCardSkeleton count={4} />
-        </View>
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color={Colors.brand.primary} />
+        <Text style={styles.loadingText}>Loading goals...</Text>
       </View>
     );
   }
@@ -403,7 +400,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     gap: 8,
-    ...contentContainer,
   },
   filterChip: {
     paddingHorizontal: 20,
@@ -430,7 +426,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 4,
-    ...contentContainer,
   },
   resultsCount: {
     fontSize: 12,
@@ -440,12 +435,14 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: Colors.brand.white,
-    borderRadius: 14,
-    padding: 18,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: Colors.brand.lightGray,
-    ...cardShadow(),
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: 'rgba(15, 23, 42, 0.1)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 3,
   },
   cardPressed: {
     transform: [{ scale: 0.98 }],

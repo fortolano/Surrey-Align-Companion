@@ -7,6 +7,7 @@ import {
   Pressable,
   ActivityIndicator,
   Platform,
+  Alert,
   RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,9 +17,7 @@ import * as Haptics from 'expo-haptics';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
-import { useToast } from '@/components/Toast';
 import Colors from '@/constants/colors';
-import { contentContainer, cardShadow, buttonShadow } from '@/constants/styles';
 
 interface Ward {
   id: number;
@@ -151,11 +150,13 @@ const cardStyles = StyleSheet.create({
     backgroundColor: Colors.brand.white,
     borderRadius: 14,
     padding: 18,
-    marginBottom: 12,
+    marginBottom: 14,
     marginHorizontal: 16,
-    borderWidth: 1,
-    borderColor: Colors.brand.lightGray,
-    ...cardShadow(),
+    shadowColor: 'rgba(15, 23, 42, 0.1)',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 10,
+    elevation: 3,
   },
   header: {
     flexDirection: 'row',
@@ -281,7 +282,6 @@ export default function SundayBusinessScreen() {
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
   const qClient = useQueryClient();
-  const toast = useToast();
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
 
   const [selectedWardId, setSelectedWardId] = useState<number | null>(null);
@@ -362,12 +362,10 @@ export default function SundayBusinessScreen() {
 
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (anyStepUpdated) {
-        toast.success('Updated', 'Calling lifecycle steps have been updated.');
-      } else {
-        toast.success('Done', 'Items marked as conducted.');
+        Alert.alert('Updated', 'Calling lifecycle steps have been updated.');
       }
     } catch (err: any) {
-      toast.error('Error', err.message || 'Failed to mark as conducted.');
+      Alert.alert('Error', err.message || 'Failed to mark as conducted.');
     } finally {
       setMarkingAll(false);
     }
@@ -819,9 +817,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 4,
     marginHorizontal: 16,
-    borderWidth: 1,
-    borderColor: Colors.brand.lightGray,
-    ...cardShadow(),
+    shadowColor: 'rgba(15, 23, 42, 0.1)',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 10,
+    elevation: 3,
   },
   wardCheckRow: {
     flexDirection: 'row',
@@ -857,11 +857,15 @@ const styles = StyleSheet.create({
     gap: 10,
     backgroundColor: Colors.brand.primary,
     borderRadius: 14,
-    paddingVertical: 16,
+    paddingVertical: 18,
     marginHorizontal: 16,
     marginTop: 6,
     marginBottom: 8,
-    ...buttonShadow(),
+    shadowColor: Colors.brand.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   masterConductBtnText: {
     fontSize: 16,

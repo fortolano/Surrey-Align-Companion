@@ -36,6 +36,21 @@ interface TileData {
   color: string;
 }
 
+function isHighCouncilor(calling: string | undefined): boolean {
+  if (!calling) return false;
+  const lower = calling.toLowerCase();
+  return lower.includes('high council') || lower.includes('high councilor');
+}
+
+const SUSTAININGS_TILE: TileData = {
+  id: 'sustainings',
+  title: 'Sustainings',
+  description: 'Review and provide your sustaining for pending callings',
+  icon: <Ionicons name="hand-left-outline" size={26} color="#B45309" />,
+  route: '/sustainings',
+  color: '#FEF3C7',
+};
+
 const TILES: TileData[] = [
   {
     id: 'callings',
@@ -289,6 +304,19 @@ export default function HomeScreen() {
 
   const actionTotal = actionRequiredData?.meta?.total ?? actionRequiredData?.total_count ?? actionItems.length;
 
+  const showSustainings = isHighCouncilor(user?.calling) || (user?.is_stake_presidency ?? false);
+
+  const sustainingsVoteCount = useMemo(() => {
+    return actionItems.filter(
+      (i) => i.action_type === 'vote' || i.action_type === 'decide' || i.action_type === 'decide_after_voting'
+    ).length;
+  }, [actionItems]);
+
+  const sustainingsBadges = useMemo<BadgeInfo[]>(() => {
+    if (sustainingsVoteCount === 0) return [];
+    return [{ label: 'Pending', count: sustainingsVoteCount, color: '#B45309', bgColor: '#FEF3C7' }];
+  }, [sustainingsVoteCount]);
+
   const callingsBadges = useMemo<BadgeInfo[]>(() => {
     const badges: BadgeInfo[] = [];
     if (actionTotal > 0) {
@@ -408,7 +436,16 @@ export default function HomeScreen() {
       >
         {actionItems.length > 0 && (
           <Animated.View entering={FadeInDown.duration(400).delay(60)} style={arStyles.card}>
-            <View style={arStyles.cardHeader}>
+            <Pressable
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                if (showSustainings) {
+                  router.push('/sustainings' as any);
+                }
+              }}
+              style={arStyles.cardHeader}
+              disabled={!showSustainings}
+            >
               <View style={arStyles.cardHeaderLeft}>
                 <Ionicons name="flash" size={18} color="#B45309" />
                 <Text style={arStyles.cardHeaderTitle}>Calling Approvals</Text>
@@ -416,8 +453,11 @@ export default function HomeScreen() {
               <View style={arStyles.countBadge}>
                 <Text style={arStyles.countBadgeText}>{actionTotal} need attention</Text>
               </View>
-            </View>
-            {actionItems.slice(0, 5).map((item, idx) => {
+              {showSustainings && (
+                <Ionicons name="chevron-forward" size={16} color={Colors.brand.midGray} style={{ marginLeft: 4 }} />
+              )}
+            </Pressable>
+            {actionItems.slice(0, 3).map((item, idx) => {
               const isVoteNeeded = item.action_type === 'vote' || item.action_label.toLowerCase().includes('recommendation needed');
               const individualsText = item.individuals?.map(i => i.name).join(', ') || '';
               return (
@@ -425,12 +465,16 @@ export default function HomeScreen() {
                   key={item.id}
                   onPress={() => {
                     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push({ pathname: '/calling-detail', params: { id: String(item.id) } });
+                    if (showSustainings) {
+                      router.push('/sustainings' as any);
+                    } else {
+                      router.push({ pathname: '/calling-detail', params: { id: String(item.id) } });
+                    }
                   }}
                   style={({ pressed }) => [
                     arStyles.row,
                     isVoteNeeded && arStyles.rowAccent,
-                    idx === Math.min(actionItems.length, 5) - 1 && arStyles.rowLast,
+                    idx === Math.min(actionItems.length, 3) - 1 && arStyles.rowLast,
                     pressed && { opacity: 0.7 },
                   ]}
                   testID={`action-item-${item.id}`}
@@ -458,15 +502,34 @@ export default function HomeScreen() {
                 </Pressable>
               );
             })}
+            {showSustainings && actionItems.length > 3 && (
+              <Pressable
+                onPress={() => {
+                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push('/sustainings' as any);
+                }}
+                style={({ pressed }) => [arStyles.viewAllBtn, pressed && { opacity: 0.7 }]}
+              >
+                <Text style={arStyles.viewAllText}>View all {actionTotal} items</Text>
+                <Ionicons name="arrow-forward" size={14} color={Colors.brand.primary} />
+              </Pressable>
+            )}
           </Animated.View>
         )}
 
         <Text style={styles.sectionTitle}>Quick Access</Text>
+        {showSustainings && (
+          <FeatureTile
+            tile={SUSTAININGS_TILE}
+            index={0}
+            badges={sustainingsBadges}
+          />
+        )}
         {TILES.map((tile, index) => (
           <FeatureTile
             key={tile.id}
             tile={tile}
-            index={index}
+            index={showSustainings ? index + 1 : index}
             badges={tile.id === 'stake-business' ? stakeBusinessBadges : tile.id === 'callings' ? callingsBadges : undefined}
           />
         ))}
@@ -871,5 +934,21 @@ const arStyles = StyleSheet.create({
     fontSize: 11,
     color: Colors.brand.midGray,
     fontFamily: 'Inter_500Medium',
+  },
+  viewAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.brand.lightGray,
+    backgroundColor: '#FEFCE8',
+  },
+  viewAllText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.brand.primary,
+    fontFamily: 'Inter_600SemiBold',
   },
 });

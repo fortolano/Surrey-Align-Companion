@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
@@ -138,9 +138,12 @@ function FeatureTile({ tile, index, badges }: { tile: TileData; index: number; b
   };
 
   const activeBadges = badges?.filter(b => b.count > 0) || [];
+  const didAnimate = useRef(false);
+  const entering = didAnimate.current ? undefined : FadeInDown.duration(400).delay(100 + index * 80);
+  if (!didAnimate.current) didAnimate.current = true;
 
   return (
-    <Animated.View entering={FadeInDown.duration(400).delay(100 + index * 80)}>
+    <Animated.View entering={entering}>
       <Pressable
         onPress={handlePress}
         style={({ pressed }) => [
@@ -191,7 +194,7 @@ export default function HomeScreen() {
 
   const firstName = user?.name?.split(' ')[0] || 'Leader';
 
-  const { data: stakeBusinessData, refetch: refetchStakeBusiness, isRefetching: isRefetchingBusiness } = useQuery<{
+  const { data: stakeBusinessData, refetch: refetchStakeBusiness } = useQuery<{
     success: boolean;
     business_items: Array<{
       id: number;
@@ -203,11 +206,11 @@ export default function HomeScreen() {
     queryKey: ['/api/sunday-business/sunday'],
     queryFn: () => authFetch(token, '/api/sunday-business/sunday'),
     enabled: !!token,
-    staleTime: 30000,
-    refetchInterval: 30000,
+    staleTime: 60000,
+    placeholderData: keepPreviousData,
   });
 
-  const { data: actionRequiredData, refetch: refetchActionRequired, isRefetching: isRefetchingActions } = useQuery<{
+  const { data: actionRequiredData, refetch: refetchActionRequired } = useQuery<{
     success: boolean;
     action_required?: Array<any>;
     calling_requests?: Array<any>;
@@ -218,8 +221,8 @@ export default function HomeScreen() {
     queryKey: ['/api/calling-requests/action-required'],
     queryFn: () => authFetch(token, '/api/calling-requests/action-required'),
     enabled: !!token,
-    staleTime: 15000,
-    refetchInterval: 15000,
+    staleTime: 30000,
+    placeholderData: keepPreviousData,
   });
 
   const { data: notificationsData, refetch: refetchNotifications } = useQuery<{
@@ -229,11 +232,25 @@ export default function HomeScreen() {
     queryKey: ['/api/notifications', { unread_only: 'true' }],
     queryFn: () => authFetch(token, '/api/notifications', { params: { unread_only: 'true' } }),
     enabled: !!token,
-    staleTime: 15000,
-    refetchInterval: 15000,
+    staleTime: 30000,
+    placeholderData: keepPreviousData,
   });
 
   const unreadNotifCount = notificationsData?.meta?.unread_count ?? 0;
+
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+  const handleManualRefresh = useCallback(async () => {
+    setIsManualRefreshing(true);
+    try {
+      await Promise.all([
+        refetchStakeBusiness(),
+        refetchActionRequired(),
+        refetchNotifications(),
+      ]);
+    } finally {
+      setIsManualRefreshing(false);
+    }
+  }, [refetchStakeBusiness, refetchActionRequired, refetchNotifications]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -241,8 +258,6 @@ export default function HomeScreen() {
       refetchNotifications();
     }, [refetchActionRequired, refetchNotifications])
   );
-
-  const isRefetching = isRefetchingBusiness || isRefetchingActions;
 
   const stakeBusinessBadges = useMemo<BadgeInfo[]>(() => {
     const items = stakeBusinessData?.business_items || [];
@@ -416,15 +431,15 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={() => { refetchStakeBusiness(); refetchActionRequired(); refetchNotifications(); }}
+            refreshing={isManualRefreshing}
+            onRefresh={handleManualRefresh}
             tintColor={Colors.brand.primary}
             colors={[Colors.brand.primary]}
           />
         }
       >
         {actionItems.length > 0 && (
-          <Animated.View entering={FadeInDown.duration(400).delay(60)} style={arStyles.card}>
+          <View style={arStyles.card}>
             <View style={arStyles.cardHeader}>
               <View style={arStyles.cardHeaderLeft}>
                 <Ionicons name="flash" size={18} color="#B45309" />
@@ -473,7 +488,7 @@ export default function HomeScreen() {
                 </Pressable>
               );
             })}
-          </Animated.View>
+          </View>
         )}
 
         <Text style={styles.sectionTitle}>Quick Access</Text>

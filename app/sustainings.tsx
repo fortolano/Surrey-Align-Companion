@@ -11,12 +11,12 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
@@ -101,8 +101,12 @@ function InlineVoteCard({
     }
   };
 
+  const didAnimate = useRef(false);
+  const entering = didAnimate.current ? undefined : FadeInDown.duration(350).delay(Math.min(index * 60, 300));
+  if (!didAnimate.current) didAnimate.current = true;
+
   return (
-    <Animated.View entering={FadeInDown.duration(350).delay(Math.min(index * 60, 300))}>
+    <Animated.View entering={entering}>
       <Pressable
         onPress={() => {
           if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -247,7 +251,7 @@ export default function SustainingsScreen() {
   const userIsSP = user?.is_stake_presidency ?? false;
   const canVote = userIsHC;
 
-  const { data, isLoading, isError, refetch, isRefetching } = useQuery<{
+  const { data, isLoading, isError, refetch } = useQuery<{
     success: boolean;
     action_required?: Array<any>;
     calling_requests?: Array<any>;
@@ -258,8 +262,8 @@ export default function SustainingsScreen() {
     queryKey: ['/api/calling-requests/action-required'],
     queryFn: () => authFetch(token, '/api/calling-requests/action-required'),
     enabled: !!token,
-    staleTime: 15000,
-    refetchInterval: 15000,
+    staleTime: 30000,
+    placeholderData: keepPreviousData,
   });
 
   const actionItems = useMemo(() => {
@@ -307,10 +311,21 @@ export default function SustainingsScreen() {
     }
   }, [actionItems]);
 
-  const handleRefresh = useCallback(() => {
-    refetch();
-    qClient.invalidateQueries({ queryKey: ['/api/calling-requests/action-required'] });
-  }, [refetch, qClient]);
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+  const handleRefresh = useCallback(async () => {
+    setIsManualRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setIsManualRefreshing(false);
+    }
+  }, [refetch]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
 
   const renderItem = ({ item, index }: { item: ActionItem; index: number }) => (
     <InlineVoteCard
@@ -380,7 +395,7 @@ export default function SustainingsScreen() {
         scrollEnabled={!!actionItems.length}
         refreshControl={
           <RefreshControl
-            refreshing={isRefetching}
+            refreshing={isManualRefreshing}
             onRefresh={handleRefresh}
             tintColor={Colors.brand.primary}
             colors={[Colors.brand.primary]}

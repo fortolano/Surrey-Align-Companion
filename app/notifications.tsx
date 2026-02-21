@@ -225,8 +225,7 @@ export default function NotificationsScreen() {
     queryKey: ['/api/notifications'],
     queryFn: () => authFetch(token, '/api/notifications'),
     enabled: !!token,
-    staleTime: 15000,
-    refetchInterval: 15000,
+    staleTime: 30000,
   });
 
   const allNotifications = data?.notifications || [];

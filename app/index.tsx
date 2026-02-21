@@ -79,7 +79,7 @@ export default function LoginScreen() {
         <Animated.View entering={FadeIn.duration(600)} style={styles.logoSection}>
           <View style={styles.logoCircle}>
             <Image
-              source={require('@assets/surreyalign-compass_1771638432457.png')}
+              source={require('../assets/images/surreyalign-compass.png')}
               style={styles.logoImage}
               resizeMode="contain"
             />

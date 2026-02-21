@@ -213,8 +213,23 @@ export default function CallingsScreen() {
     );
   }
 
+  const webTopInset = Platform.OS === 'web' ? 67 : 0;
+
   return (
     <View style={styles.container}>
+      <View style={[styles.screenHeader, { paddingTop: insets.top + webTopInset + 12 }]}>
+        <Text style={styles.screenHeaderTitle}>Callings & Releases</Text>
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push('/calling-create');
+          }}
+          style={({ pressed }) => [styles.createBtn, pressed && { opacity: 0.7 }]}
+          testID="create-calling-btn"
+        >
+          <Ionicons name="add" size={20} color={Colors.brand.white} />
+        </Pressable>
+      </View>
       <Animated.View entering={FadeIn.duration(300)} style={styles.filterSection}>
         {pendingCount > 0 && (
           <View style={styles.pendingBanner}>
@@ -326,6 +341,28 @@ export default function CallingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  screenHeader: {
+    backgroundColor: Colors.brand.primary,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  screenHeaderTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.brand.white,
+    fontFamily: 'Inter_700Bold',
+  },
+  createBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   container: {
     flex: 1,
     backgroundColor: Colors.light.background,

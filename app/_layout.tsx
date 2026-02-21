@@ -36,17 +36,13 @@ function RootLayoutNav() {
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="home" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
         name="profile"
         options={{
           title: "Profile",
           presentation: "modal",
         }}
-      />
-      <Stack.Screen
-        name="callings"
-        options={{ title: "Callings & Releases" }}
       />
       <Stack.Screen
         name="high-council-agenda"
@@ -103,10 +99,6 @@ function RootLayoutNav() {
       <Stack.Screen
         name="sustainings"
         options={{ title: "Sustainings" }}
-      />
-      <Stack.Screen
-        name="notifications"
-        options={{ title: "Notifications" }}
       />
     </Stack>
   );

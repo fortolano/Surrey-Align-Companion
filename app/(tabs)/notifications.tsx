@@ -347,8 +347,13 @@ export default function NotificationsScreen() {
     );
   }
 
+  const webTopInset = Platform.OS === 'web' ? 67 : 0;
+
   return (
     <GestureHandlerRootView style={styles.container}>
+      <View style={[styles.screenHeader, { paddingTop: insets.top + webTopInset + 12 }]}>
+        <Text style={styles.screenHeaderTitle}>Notifications</Text>
+      </View>
       <View style={styles.filterBar}>
         {(['all', 'unread', 'read'] as FilterTab[]).map((tab) => (
           <Pressable
@@ -443,6 +448,17 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
+  screenHeader: {
+    backgroundColor: Colors.brand.primary,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  screenHeaderTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.brand.white,
+    fontFamily: 'Inter_700Bold',
+  },
   container: {
     flex: 1,
     backgroundColor: Colors.light.background,

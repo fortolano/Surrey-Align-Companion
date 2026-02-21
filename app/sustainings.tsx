@@ -258,7 +258,8 @@ export default function SustainingsScreen() {
     queryKey: ['/api/calling-requests/action-required'],
     queryFn: () => authFetch(token, '/api/calling-requests/action-required'),
     enabled: !!token,
-    staleTime: 30000,
+    staleTime: 15000,
+    refetchInterval: 15000,
   });
 
   const actionItems = useMemo(() => {

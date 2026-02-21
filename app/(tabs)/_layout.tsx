@@ -34,6 +34,8 @@ export default function TabLayout() {
   const unreadCount = notifData?.notifications?.filter((n: any) => !n.is_read)?.length ?? 0;
 
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
+  const tabBarHeight = Platform.OS === 'web' ? 60 + webBottomInset : 64;
+  const iconSize = 26;
 
   return (
     <Tabs
@@ -44,14 +46,15 @@ export default function TabLayout() {
         tabBarLabelStyle: {
           fontFamily: 'Inter_500Medium',
           fontSize: 11,
-          marginTop: -2,
+          marginTop: 0,
         },
         tabBarStyle: {
           backgroundColor: Colors.brand.white,
           borderTopColor: Colors.brand.lightGray,
           borderTopWidth: StyleSheet.hairlineWidth,
-          height: 50 + webBottomInset,
-          paddingBottom: webBottomInset > 0 ? webBottomInset : undefined,
+          height: tabBarHeight,
+          paddingTop: 6,
+          paddingBottom: Platform.OS === 'web' ? webBottomInset + 4 : 8,
           elevation: 8,
           shadowColor: 'rgba(15, 23, 42, 0.08)',
           shadowOffset: { width: 0, height: -2 },
@@ -64,8 +67,8 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={iconSize} color={color} />
           ),
         }}
       />
@@ -73,8 +76,8 @@ export default function TabLayout() {
         name="callings"
         options={{
           title: 'Callings',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people-outline" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'people' : 'people-outline'} size={iconSize} color={color} />
           ),
         }}
       />
@@ -82,9 +85,9 @@ export default function TabLayout() {
         name="notifications"
         options={{
           title: 'Notifications',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, focused }) => (
             <View>
-              <Ionicons name="notifications-outline" size={size} color={color} />
+              <Ionicons name={focused ? 'notifications' : 'notifications-outline'} size={iconSize} color={color} />
               <TabBarBadge count={unreadCount} />
             </View>
           ),
@@ -94,8 +97,8 @@ export default function TabLayout() {
         name="more"
         options={{
           title: 'More',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="ellipsis-horizontal-circle-outline" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'ellipsis-horizontal-circle' : 'ellipsis-horizontal-circle-outline'} size={iconSize} color={color} />
           ),
         }}
       />
@@ -107,19 +110,19 @@ const badgeStyles = StyleSheet.create({
   badge: {
     position: 'absolute',
     top: -4,
-    right: -8,
+    right: -10,
     backgroundColor: '#EF4444',
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 3,
+    paddingHorizontal: 4,
     borderWidth: 1.5,
     borderColor: Colors.brand.white,
   },
   badgeText: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
     color: Colors.brand.white,
     fontFamily: 'Inter_700Bold',

@@ -7,6 +7,9 @@ import {
   RefreshControl,
   Pressable,
   Platform,
+  Modal,
+  Alert,
+  Dimensions,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -35,26 +38,12 @@ interface QuickLink {
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { user, token } = useAuth();
+  const { user, token, logout } = useAuth();
+  const [menuVisible, setMenuVisible] = useState(false);
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const firstName = user?.name?.split(' ')[0] || 'Leader';
-
-  const { data: stakeBusinessData, refetch: refetchStakeBusiness } = useQuery<{
-    success: boolean;
-    business_items: Array<{
-      id: number;
-      created_at: string;
-      wards_completed: number[];
-      wards_outstanding: number[];
-    }>;
-  }>({
-    queryKey: ['/api/sunday-business/sunday'],
-    queryFn: () => authFetch(token, '/api/sunday-business/sunday'),
-    enabled: !!token,
-    staleTime: 60000,
-    placeholderData: keepPreviousData,
-  });
+  const initials = (user?.name || 'U').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 
   const { data: actionRequiredData, refetch: refetchActionRequired } = useQuery<{
     success: boolean;
@@ -87,14 +76,13 @@ export default function HomeScreen() {
     setIsManualRefreshing(true);
     try {
       await Promise.all([
-        refetchStakeBusiness(),
         refetchActionRequired(),
         refetchNotifications(),
       ]);
     } finally {
       setIsManualRefreshing(false);
     }
-  }, [refetchStakeBusiness, refetchActionRequired, refetchNotifications]);
+  }, [refetchActionRequired, refetchNotifications]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -122,40 +110,10 @@ export default function HomeScreen() {
 
   const showSustainings = isHighCouncilor(user?.calling) || (user?.is_stake_presidency ?? false);
 
-  const sustainingsVoteCount = useMemo(() => {
-    return actionItems.filter((i: any) => {
-      const label = (i.action_label || '').toLowerCase();
-      const type = (i.action_type || '').toLowerCase();
-      return type === 'vote' || type === 'recommend' || type === 'sustain' ||
-        label.includes('vote') || label.includes('recommendation') ||
-        label.includes('sustain') || label.includes('voting');
-    }).length;
+  const topActionItem = useMemo(() => {
+    if (actionItems.length === 0) return null;
+    return actionItems[0];
   }, [actionItems]);
-
-  const outstandingWards = useMemo(() => {
-    const items = stakeBusinessData?.business_items || [];
-    let total = 0;
-    for (const item of items) {
-      total += item.wards_outstanding.length;
-    }
-    return total;
-  }, [stakeBusinessData]);
-
-  const unreadNotifCount = notificationsData?.meta?.unread_count ?? 0;
-
-  const statCards = useMemo(() => {
-    const cards: Array<{ label: string; value: number; color: string; icon: string }> = [];
-    if (actionTotal > 0) {
-      cards.push({ label: 'Action Items', value: actionTotal, color: '#B45309', icon: 'flash' });
-    }
-    if (showSustainings && sustainingsVoteCount > 0) {
-      cards.push({ label: 'Sustainings', value: sustainingsVoteCount, color: '#7C3AED', icon: 'hand-left-outline' });
-    }
-    if (outstandingWards > 0) {
-      cards.push({ label: 'Wards Pending', value: outstandingWards, color: Colors.brand.primary, icon: 'business-outline' });
-    }
-    return cards;
-  }, [actionTotal, sustainingsVoteCount, outstandingWards, showSustainings]);
 
   const primaryLinks: QuickLink[] = useMemo(() => {
     const links: QuickLink[] = [];
@@ -225,9 +183,24 @@ export default function HomeScreen() {
     },
   ];
 
-  const didAnimateRef = useRef(false);
-  const shouldAnimate = !didAnimateRef.current;
-  if (!didAnimateRef.current) didAnimateRef.current = true;
+  const handleLogout = () => {
+    setMenuVisible(false);
+    if (Platform.OS === 'web') {
+      logout();
+    } else {
+      Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign Out', style: 'destructive', onPress: () => logout() },
+      ]);
+    }
+  };
+
+  const menuItems = [
+    { id: 'profile', label: 'Profile', icon: 'person-outline' as const, route: '/profile' },
+    { id: 'settings', label: 'Settings', icon: 'settings-outline' as const, route: '/settings' },
+    { id: 'align', label: 'About ALIGN', icon: 'compass-outline' as const, route: '/align-info' },
+    { id: 'about', label: 'About This App', icon: 'information-circle-outline' as const, route: '/about-app' },
+  ];
 
   return (
     <View style={styles.container}>
@@ -241,8 +214,82 @@ export default function HomeScreen() {
               </Text>
             )}
           </View>
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setMenuVisible(true);
+            }}
+            style={({ pressed }) => [
+              styles.avatarBtn,
+              pressed && { opacity: 0.8, transform: [{ scale: 0.95 }] },
+            ]}
+            testID="avatar-menu-btn"
+          >
+            <Text style={styles.avatarText}>{initials}</Text>
+          </Pressable>
         </View>
       </View>
+
+      <Modal
+        visible={menuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <Pressable
+          style={menuStyles.overlay}
+          onPress={() => setMenuVisible(false)}
+        >
+          <View style={[menuStyles.sheet, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+            <View style={menuStyles.handle} />
+
+            <View style={menuStyles.profileRow}>
+              <View style={menuStyles.profileAvatar}>
+                <Text style={menuStyles.profileAvatarText}>{initials}</Text>
+              </View>
+              <View style={menuStyles.profileInfo}>
+                <Text style={menuStyles.profileName}>{user?.name || 'User'}</Text>
+                {user?.calling && <Text style={menuStyles.profileRole}>{user.calling}</Text>}
+                {user?.ward && <Text style={menuStyles.profileWard}>{user.ward}</Text>}
+              </View>
+            </View>
+
+            <View style={menuStyles.divider} />
+
+            {menuItems.map((item, idx) => (
+              <Pressable
+                key={item.id}
+                onPress={() => {
+                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setMenuVisible(false);
+                  setTimeout(() => router.push(item.route as any), 200);
+                }}
+                style={({ pressed }) => [
+                  menuStyles.menuItem,
+                  pressed && menuStyles.menuItemPressed,
+                ]}
+              >
+                <Ionicons name={item.icon} size={20} color={Colors.brand.darkGray} />
+                <Text style={menuStyles.menuLabel}>{item.label}</Text>
+                <Ionicons name="chevron-forward" size={16} color={Colors.brand.midGray} />
+              </Pressable>
+            ))}
+
+            <View style={menuStyles.divider} />
+
+            <Pressable
+              onPress={handleLogout}
+              style={({ pressed }) => [
+                menuStyles.menuItem,
+                pressed && menuStyles.menuItemPressed,
+              ]}
+            >
+              <Ionicons name="log-out-outline" size={20} color={Colors.brand.error} />
+              <Text style={[menuStyles.menuLabel, { color: Colors.brand.error }]}>Sign Out</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
 
       <ScrollView
         style={styles.scrollView}
@@ -257,85 +304,49 @@ export default function HomeScreen() {
           />
         }
       >
-        {statCards.length > 0 && (
-          <View style={styles.statsRow}>
-            {statCards.map((stat) => (
-              <Pressable
-                key={stat.label}
-                onPress={() => {
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  if (stat.label === 'Sustainings') router.push('/sustainings');
-                  else if (stat.label === 'Wards Pending') router.push('/sunday-business');
-                  else router.push('/(tabs)/callings' as any);
-                }}
-                style={({ pressed }) => [
-                  styles.statCard,
-                  pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
-                ]}
-              >
-                <Ionicons name={stat.icon as any} size={18} color={stat.color} />
-                <Text style={[styles.statValue, { color: stat.color }]}>{stat.value}</Text>
-                <Text style={styles.statLabel} numberOfLines={1}>{stat.label}</Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
-
-        {actionItems.length > 0 && (
-          <View style={arStyles.card}>
-            <View style={arStyles.cardHeader}>
-              <View style={arStyles.cardHeaderLeft}>
-                <Ionicons name="flash" size={16} color="#B45309" />
-                <Text style={arStyles.cardHeaderTitle}>Action Required</Text>
+        {topActionItem ? (
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push({ pathname: '/calling-detail', params: { id: String(topActionItem.id) } });
+            }}
+            style={({ pressed }) => [
+              doStyles.card,
+              pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+            ]}
+            testID="do-this-now-card"
+          >
+            <View style={doStyles.cardHeader}>
+              <View style={doStyles.iconCircle}>
+                <Ionicons name="flash" size={18} color="#B45309" />
               </View>
-              <View style={arStyles.countBadge}>
-                <Text style={arStyles.countBadgeText}>{actionTotal}</Text>
+              <View style={doStyles.headerText}>
+                <Text style={doStyles.cardTitle}>Do This Now</Text>
+                {actionTotal > 1 && (
+                  <Text style={doStyles.cardCount}>+{actionTotal - 1} more</Text>
+                )}
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={Colors.brand.midGray} />
+            </View>
+            <View style={doStyles.cardBody}>
+              <Text style={doStyles.callingName} numberOfLines={1}>
+                {topActionItem.target_calling || topActionItem.request_type_label}
+              </Text>
+              {topActionItem.individuals?.length > 0 && (
+                <Text style={doStyles.individualsText} numberOfLines={1}>
+                  {topActionItem.individuals.map((i: any) => i.name).join(', ')}
+                </Text>
+              )}
+              <View style={doStyles.actionChip}>
+                <Ionicons name="arrow-forward" size={12} color={Colors.brand.white} />
+                <Text style={doStyles.actionChipText}>{topActionItem.action_label}</Text>
               </View>
             </View>
-            {actionItems.slice(0, 4).map((item, idx) => {
-              const individualsText = item.individuals?.map((i: any) => i.name).join(', ') || '';
-              return (
-                <Pressable
-                  key={item.id}
-                  onPress={() => {
-                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push({ pathname: '/calling-detail', params: { id: String(item.id) } });
-                  }}
-                  style={({ pressed }) => [
-                    arStyles.row,
-                    idx === Math.min(actionItems.length, 4) - 1 && arStyles.rowLast,
-                    pressed && { opacity: 0.7 },
-                  ]}
-                  testID={`action-item-${item.id}`}
-                >
-                  <View style={arStyles.rowContent}>
-                    <Text style={arStyles.rowTitle} numberOfLines={1}>
-                      {item.target_calling || item.request_type_label}
-                    </Text>
-                    {individualsText ? (
-                      <Text style={arStyles.rowSub} numberOfLines={1}>{individualsText}</Text>
-                    ) : null}
-                    <View style={arStyles.actionRow}>
-                      <Ionicons name="arrow-forward" size={11} color="#B45309" />
-                      <Text style={arStyles.actionLabel}>{item.action_label}</Text>
-                    </View>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color={Colors.brand.midGray} />
-                </Pressable>
-              );
-            })}
-            {actionTotal > 4 && (
-              <Pressable
-                onPress={() => {
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/(tabs)/callings' as any);
-                }}
-                style={({ pressed }) => [arStyles.viewAllBtn, pressed && { opacity: 0.7 }]}
-              >
-                <Text style={arStyles.viewAllText}>View all {actionTotal} items</Text>
-                <Ionicons name="arrow-forward" size={14} color={Colors.brand.primary} />
-              </Pressable>
-            )}
+          </Pressable>
+        ) : (
+          <View style={doStyles.emptyCard}>
+            <Ionicons name="checkmark-circle" size={28} color={Colors.brand.success} />
+            <Text style={doStyles.emptyText}>You're all caught up!</Text>
           </View>
         )}
 
@@ -410,6 +421,7 @@ const styles = StyleSheet.create({
   },
   headerLeft: {
     flex: 1,
+    marginRight: 12,
   },
   greeting: {
     fontSize: 22,
@@ -423,6 +435,22 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     marginTop: 3,
   },
+  avatarBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.35)',
+  },
+  avatarText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.brand.white,
+    fontFamily: 'Inter_700Bold',
+  },
   scrollView: {
     flex: 1,
   },
@@ -430,36 +458,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 24,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 20,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: Colors.brand.white,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    gap: 4,
-    shadowColor: 'rgba(15, 23, 42, 0.06)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    fontFamily: 'Inter_700Bold',
-  },
-  statLabel: {
-    fontSize: 11,
-    color: Colors.brand.midGray,
-    fontFamily: 'Inter_500Medium',
-    textAlign: 'center',
   },
   sectionLabel: {
     fontSize: 13,
@@ -538,11 +536,13 @@ const styles = StyleSheet.create({
   },
 });
 
-const arStyles = StyleSheet.create({
+const doStyles = StyleSheet.create({
   card: {
     backgroundColor: Colors.brand.white,
-    borderRadius: 14,
+    borderRadius: 16,
     marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
     shadowColor: 'rgba(15, 23, 42, 0.08)',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 1,
@@ -552,91 +552,175 @@ const arStyles = StyleSheet.create({
   },
   cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.brand.lightGray,
-    backgroundColor: '#FFFBEB',
+    paddingTop: 14,
+    paddingBottom: 6,
+    gap: 10,
   },
-  cardHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  cardHeaderTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.brand.dark,
-    fontFamily: 'Inter_700Bold',
-  },
-  countBadge: {
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#FEF3C7',
-    width: 26,
-    height: 26,
-    borderRadius: 13,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  countBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#B45309',
-    fontFamily: 'Inter_700Bold',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.brand.lightGray,
-    gap: 8,
-  },
-  rowLast: {
-    borderBottomWidth: 0,
-  },
-  rowContent: {
+  headerText: {
     flex: 1,
   },
-  rowTitle: {
+  cardTitle: {
     fontSize: 14,
+    fontWeight: '700',
+    color: '#92400E',
+    fontFamily: 'Inter_700Bold',
+  },
+  cardCount: {
+    fontSize: 12,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 1,
+  },
+  cardBody: {
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+    paddingTop: 4,
+    marginLeft: 46,
+  },
+  callingName: {
+    fontSize: 15,
     fontWeight: '600',
     color: Colors.brand.dark,
     fontFamily: 'Inter_600SemiBold',
-    marginBottom: 1,
+    marginBottom: 2,
   },
-  rowSub: {
-    fontSize: 12,
+  individualsText: {
+    fontSize: 13,
     color: Colors.brand.darkGray,
     fontFamily: 'Inter_400Regular',
-    marginBottom: 3,
+    marginBottom: 6,
   },
-  actionRow: {
+  actionChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    alignSelf: 'flex-start',
+    backgroundColor: '#B45309',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    gap: 4,
+    marginTop: 4,
   },
-  actionLabel: {
+  actionChipText: {
     fontSize: 12,
-    color: '#B45309',
-    fontFamily: 'Inter_500Medium',
+    fontWeight: '600',
+    color: Colors.brand.white,
+    fontFamily: 'Inter_600SemiBold',
   },
-  viewAllBtn: {
+  emptyCard: {
+    backgroundColor: Colors.brand.white,
+    borderRadius: 16,
+    marginBottom: 20,
+    paddingVertical: 24,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 11,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.brand.lightGray,
-    backgroundColor: '#FEFCE8',
+    gap: 10,
+    shadowColor: 'rgba(15, 23, 42, 0.06)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  viewAllText: {
-    fontSize: 13,
+  emptyText: {
+    fontSize: 15,
     fontWeight: '600',
-    color: Colors.brand.primary,
+    color: Colors.brand.darkGray,
     fontFamily: 'Inter_600SemiBold',
+  },
+});
+
+const menuStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: Colors.brand.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 8,
+    paddingHorizontal: 20,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.brand.lightGray,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  profileAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.brand.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileAvatarText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.brand.white,
+    fontFamily: 'Inter_700Bold',
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: Colors.brand.dark,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  profileRole: {
+    fontSize: 13,
+    color: Colors.brand.darkGray,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 1,
+  },
+  profileWard: {
+    fontSize: 12,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_400Regular',
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.brand.lightGray,
+    marginVertical: 12,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    gap: 14,
+  },
+  menuItemPressed: {
+    opacity: 0.6,
+  },
+  menuLabel: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.brand.dark,
+    fontFamily: 'Inter_500Medium',
   },
 });

@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Platform,
   Keyboard,
+  Image,
 } from 'react-native';
 import { Redirect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -77,7 +78,11 @@ export default function LoginScreen() {
       >
         <Animated.View entering={FadeIn.duration(600)} style={styles.logoSection}>
           <View style={styles.logoCircle}>
-            <Ionicons name="compass-outline" size={40} color={Colors.brand.primary} />
+            <Image
+              source={require('@assets/surreyalign-compass_1771638432457.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
           <Text style={styles.appName}>SurreyAlign</Text>
           <Text style={styles.subtitle}>Leadership Companion</Text>
@@ -194,9 +199,9 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   logoCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: Colors.brand.white,
     justifyContent: 'center',
     alignItems: 'center',
@@ -206,6 +211,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 6,
+  },
+  logoImage: {
+    width: 56,
+    height: 56,
   },
   appName: {
     fontSize: 28,

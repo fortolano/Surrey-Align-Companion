@@ -103,7 +103,18 @@ function InlineVoteCard({
 
   return (
     <Animated.View entering={FadeInDown.duration(350).delay(Math.min(index * 60, 300))}>
-      <View style={[cardStyles.card, isVoteAction && canVote && !submitted && cardStyles.cardUrgent]}>
+      <Pressable
+        onPress={() => {
+          if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          router.push({ pathname: '/calling-detail', params: { id: String(item.id) } });
+        }}
+        style={({ pressed }) => [
+          cardStyles.card,
+          isVoteAction && canVote && !submitted && cardStyles.cardUrgent,
+          pressed && { opacity: 0.85 },
+        ]}
+        testID={`view-detail-${item.id}`}
+      >
         <View style={cardStyles.cardHeader}>
           <View style={cardStyles.headerLeft}>
             <Text style={cardStyles.callingName} numberOfLines={2}>
@@ -118,17 +129,7 @@ function InlineVoteCard({
               <Text style={cardStyles.wardLabel}>{item.target_ward}</Text>
             )}
           </View>
-          <Pressable
-            onPress={() => {
-              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push({ pathname: '/calling-detail', params: { id: String(item.id) } });
-            }}
-            style={({ pressed }) => [cardStyles.detailBtn, pressed && { opacity: 0.7 }]}
-            testID={`view-detail-${item.id}`}
-          >
-            <Ionicons name="open-outline" size={14} color={Colors.brand.primary} />
-            <Text style={cardStyles.detailBtnText}>Details</Text>
-          </Pressable>
+          <Ionicons name="chevron-forward" size={18} color={Colors.brand.midGray} />
         </View>
 
         <View style={cardStyles.statusRow}>
@@ -228,10 +229,10 @@ function InlineVoteCard({
         {!canVote && (
           <View style={cardStyles.viewOnlyBar}>
             <Ionicons name="eye-outline" size={16} color={Colors.brand.primary} />
-            <Text style={cardStyles.viewOnlyText}>Tap Details to view voting progress</Text>
+            <Text style={cardStyles.viewOnlyText}>Tap to view voting progress</Text>
           </View>
         )}
-      </View>
+      </Pressable>
     </Animated.View>
   );
 }

@@ -49,7 +49,7 @@ const TILES: TileData[] = [
     id: 'stake-business',
     title: 'Sunday Business',
     description: 'Conduct releases and sustainings in wards',
-    icon: <MaterialCommunityIcons name="church" size={26} color="#016183" />,
+    icon: <MaterialCommunityIcons name="script-text-outline" size={26} color="#016183" />,
     route: '/sunday-business',
     color: '#F0F4E8',
   },
@@ -296,12 +296,14 @@ export default function HomeScreen() {
           <Pressable
             onPress={handleMenuToggle}
             style={({ pressed }) => [
-              styles.profileButton,
-              pressed && { opacity: 0.7 },
+              styles.avatarButton,
+              pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] },
             ]}
             testID="menu-button"
           >
-            <Ionicons name="person-circle-outline" size={32} color={Colors.brand.white} />
+            <Text style={styles.avatarText}>
+              {(user?.name || 'U').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+            </Text>
           </Pressable>
         </View>
         {user?.calling && (
@@ -433,11 +435,21 @@ const styles = StyleSheet.create({
     color: Colors.brand.white,
     fontFamily: 'Inter_700Bold',
   },
-  profileButton: {
-    width: 44,
-    height: 44,
+  avatarButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.4)',
+  },
+  avatarText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.brand.white,
+    fontFamily: 'Inter_700Bold',
   },
   roleChip: {
     flexDirection: 'row',
@@ -498,12 +510,12 @@ const styles = StyleSheet.create({
     alignItems: 'center' as const,
   },
   tilePressed: {
-    transform: [{ scale: 0.98 }],
-    opacity: 0.9,
+    transform: [{ scale: 0.97 }],
+    opacity: 0.85,
   },
   tileIconContainer: {
-    width: 56,
-    height: 56,
+    width: 50,
+    height: 50,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',

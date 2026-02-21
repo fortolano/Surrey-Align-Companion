@@ -30,7 +30,9 @@ function RootLayoutNav() {
           fontSize: 17,
           color: Colors.brand.black,
         },
+        headerShadowVisible: false,
         contentStyle: { backgroundColor: Colors.light.background },
+        animation: "slide_from_right",
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />

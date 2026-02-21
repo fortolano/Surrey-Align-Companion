@@ -505,8 +505,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   cardPressed: {
-    opacity: 0.7,
-    transform: [{ scale: 0.98 }],
+    opacity: 0.85,
+    transform: [{ scale: 0.97 }],
   },
   cardTitle: {
     fontSize: 16,

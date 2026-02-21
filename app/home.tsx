@@ -289,7 +289,13 @@ export default function HomeScreen() {
   const showSustainings = isHighCouncilor(user?.calling) || (user?.is_stake_presidency ?? false);
 
   const sustainingsVoteCount = useMemo(() => {
-    return actionItems.length;
+    return actionItems.filter((i: any) => {
+      const label = (i.action_label || '').toLowerCase();
+      const type = (i.action_type || '').toLowerCase();
+      return type === 'vote' || type === 'recommend' || type === 'sustain' ||
+        label.includes('vote') || label.includes('recommendation') ||
+        label.includes('sustain') || label.includes('voting');
+    }).length;
   }, [actionItems]);
 
   const sustainingsBadges = useMemo<BadgeInfo[]>(() => {

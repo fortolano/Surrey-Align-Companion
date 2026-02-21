@@ -262,7 +262,7 @@ export default function SustainingsScreen() {
 
   const actionItems = useMemo(() => {
     const rawItems = data?.action_required || data?.calling_requests || data?.action_items || [];
-    return rawItems.map((ai: any): ActionItem => ({
+    const mapped = rawItems.map((ai: any): ActionItem => ({
       id: ai.id ?? ai.calling_request_id ?? 0,
       target_calling: ai.target_calling ?? ai.calling_name ?? ai.title ?? null,
       request_type_label: ai.request_type_label ?? ai.type_label ?? '',
@@ -274,6 +274,13 @@ export default function SustainingsScreen() {
       individuals: ai.individuals ?? [],
       target_ward: ai.target_ward ?? ai.ward ?? null,
     }));
+    return mapped.filter((item) => {
+      const label = item.action_label.toLowerCase();
+      const type = item.action_type.toLowerCase();
+      return type === 'vote' || type === 'recommend' || type === 'sustain' ||
+        label.includes('vote') || label.includes('recommendation') ||
+        label.includes('sustain') || label.includes('voting');
+    });
   }, [data]);
 
   const handleRefresh = useCallback(() => {

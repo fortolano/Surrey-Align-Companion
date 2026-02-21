@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -285,6 +285,28 @@ export default function SustainingsScreen() {
     });
   }, [data]);
 
+  const seenIdsRef = useRef<Set<number>>(new Set());
+  const [newItemCount, setNewItemCount] = useState(0);
+
+  useEffect(() => {
+    if (actionItems.length === 0) return;
+    const currentIds = new Set(actionItems.map((i) => i.id));
+    if (seenIdsRef.current.size === 0) {
+      seenIdsRef.current = currentIds;
+      return;
+    }
+    let newCount = 0;
+    for (const id of currentIds) {
+      if (!seenIdsRef.current.has(id)) newCount++;
+    }
+    if (newCount > 0) {
+      setNewItemCount(newCount);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      seenIdsRef.current = currentIds;
+      setTimeout(() => setNewItemCount(0), 5000);
+    }
+  }, [actionItems]);
+
   const handleRefresh = useCallback(() => {
     refetch();
     qClient.invalidateQueries({ queryKey: ['/api/calling-requests/action-required'] });
@@ -337,6 +359,15 @@ export default function SustainingsScreen() {
         </View>
       )}
 
+      {newItemCount > 0 && (
+        <Animated.View entering={FadeInDown.duration(300)} style={styles.newItemsBanner}>
+          <Ionicons name="arrow-down-circle" size={18} color="#065f46" />
+          <Text style={styles.newItemsText}>
+            {newItemCount} new sustaining{newItemCount !== 1 ? 's' : ''} just arrived
+          </Text>
+        </Animated.View>
+      )}
+
       <FlatList
         data={actionItems}
         keyExtractor={(item) => String(item.id)}
@@ -375,6 +406,21 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.light.background,
+  },
+  newItemsBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#d1fae5',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#6ee7b7',
+  },
+  newItemsText: {
+    fontSize: 13,
+    color: '#065f46',
+    fontFamily: 'Inter_600SemiBold',
   },
   centered: {
     justifyContent: 'center',

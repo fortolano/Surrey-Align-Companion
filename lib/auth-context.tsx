@@ -199,12 +199,11 @@ export function useAuth() {
 
 export function useLogout() {
   const { logout } = useAuth();
+
   const doLogout = useCallback(async () => {
-    queryClient.clear();
     await logout();
-    setTimeout(() => {
-      router.replace('/');
-    }, 0);
+    queryClient.clear();
+    // Navigation is handled by the auth gate in app/_layout.tsx
   }, [logout]);
 
   return useCallback(() => {

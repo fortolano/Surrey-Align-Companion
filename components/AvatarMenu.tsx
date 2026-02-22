@@ -87,7 +87,8 @@ export default function AvatarMenu() {
                 <Pressable
                   onPress={() => {
                     setMenuVisible(false);
-                    handleLogout();
+                    // Small delay to let modal dismiss before logout
+                    setTimeout(() => handleLogout(), 100);
                   }}
                   style={({ pressed }) => [
                     styles.menuItem,

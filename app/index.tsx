@@ -84,14 +84,14 @@ export default function LoginScreen() {
               resizeMode="contain"
             />
           </View>
-          <Text style={styles.appName}>SurreyAlign</Text>
+          <Text style={styles.appName}>SurreyALIGN</Text>
           <Text style={styles.subtitle}>Leadership Companion</Text>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.duration(500).delay(200)} style={styles.formCard}>
           <Text style={styles.welcomeText}>Welcome back</Text>
           <Text style={styles.instructionText}>
-            Sign in with your SurreyAlign credentials
+            Sign in with your SurreyALIGN credentials
           </Text>
 
           {!!error && (

@@ -52,7 +52,7 @@ export default function ProfileScreen() {
               <Text style={styles.adminBadgeText}>Stake Admin</Text>
             </View>
           )}
-          {user?.is_stake_presidency && !user?.is_stake_admin && (
+          {user?.is_stake_presidency_member && !user?.is_stake_admin && (
             <View style={styles.adminBadge}>
               <Ionicons name="star" size={14} color={Colors.brand.primary} />
               <Text style={styles.adminBadgeText}>Stake Presidency</Text>

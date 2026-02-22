@@ -248,7 +248,7 @@ export default function SustainingsScreen() {
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
 
   const userIsHC = isHC(user?.calling);
-  const userIsSP = user?.is_stake_presidency ?? false;
+  const userIsSP = user?.is_stake_presidency_member ?? false;
   const canVote = userIsHC;
 
   const { data, isLoading, isError, refetch } = useQuery<{

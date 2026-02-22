@@ -101,7 +101,7 @@ export default function HomeScreen() {
     }));
   }, [actionRequiredData]);
 
-  const showSustainings = isHighCouncilor(user) || (user?.is_stake_presidency ?? false);
+  const showSustainings = isHighCouncilor(user) || (user?.is_stake_presidency_member ?? false);
   const userIsHC = isHighCouncilor(user);
 
   const sustainingItems = useMemo(() => {

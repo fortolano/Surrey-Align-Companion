@@ -17,10 +17,18 @@ export interface SAUser {
   stake: string;
   stake_id: number;
   is_stake_admin: boolean;
-  is_stake_presidency: boolean;
+  is_stake_president: boolean;
+  is_stake_presidency_member: boolean;
+  is_stake_council_member: boolean;
   is_high_councilor: boolean;
   is_bishop: boolean;
   is_bishopric_member: boolean;
+  is_ward_org_president: boolean;
+  is_ward_org_presidency_member: boolean;
+  is_stake_org_president: boolean;
+  is_stake_org_presidency_member: boolean;
+  is_stake_director: boolean;
+  is_executive_secretary: boolean;
   is_active: boolean;
 }
 

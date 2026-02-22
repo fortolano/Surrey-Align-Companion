@@ -31,17 +31,11 @@ function detectRole(user: any): 'high_councilor' | 'stake_council' | 'bishopric'
   if (!user) return 'other';
 
   // Use structured API flags instead of string matching
-  if (user.is_stake_admin || user.is_stake_presidency) return 'stake_council';
+  if (user.is_stake_admin || user.is_stake_presidency_member) return 'stake_council';
   if (user.is_high_councilor) return 'high_councilor';
   if (user.is_bishop || user.is_bishopric_member) return 'bishopric';
-
-  // Fall back to calling text for org presidents (no API flag for this)
-  const c = (user.calling || '').toLowerCase();
-  if (
-    (c.includes('president') && !c.includes('counselor') && !c.includes('stake')) &&
-    (c.includes('relief society') || c.includes('young women') || c.includes('young men') ||
-     c.includes('primary') || c.includes('sunday school') || c.includes('elders quorum'))
-  ) return 'ward_org_president';
+  if (user.is_ward_org_president || user.is_ward_org_presidency_member) return 'ward_org_president';
+  if (user.is_executive_secretary) return 'stake_council';
 
   return 'other';
 }

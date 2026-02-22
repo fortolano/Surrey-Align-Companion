@@ -1,0 +1,112 @@
+ Update companion app for new API role flags
+
+  The SurreyAlign API (/api/external/v1/auth/login and /api/external/v1/auth/me) has been updated with expanded role flags in the user profile response. The companion app needs to be
+  updated to handle these changes.
+
+  Breaking change
+
+  The field is_stake_presidency has been renamed to is_stake_presidency_member. Any code referencing user.is_stake_presidency must be updated to user.is_stake_presidency_member.
+
+  Complete user profile response (current)
+
+  {
+    "id": 2,
+    "name": "Flavio Ortolano",
+    "email": "flavio@ortolanos.com",
+    "phone": "7783894499",
+    "calling": "Stake President",
+    "ward": "Surrey 4th",
+    "ward_id": 9,
+    "stake": "Surrey British Columbia Stake",
+    "stake_id": 1,
+    "is_stake_admin": true,
+    "is_stake_president": true,
+    "is_stake_presidency_member": true,
+    "is_stake_council_member": true,
+    "is_high_councilor": false,
+    "is_bishop": false,
+    "is_bishopric_member": false,
+    "is_ward_org_president": false,
+    "is_ward_org_presidency_member": false,
+    "is_stake_org_president": true,
+    "is_stake_org_presidency_member": true,
+    "is_stake_director": false,
+    "is_executive_secretary": false,
+    "is_active": true
+  }
+
+  New flags reference
+
+  Flag: is_stake_admin
+  Meaning: Has the stake_admin role (full system access)
+  Example callings: Stake President, counselors with admin role
+  ────────────────────────────────────────
+  Flag: is_stake_president
+  Meaning: Specifically the Stake President
+  Example callings: "Stake President"
+  ────────────────────────────────────────
+  Flag: is_stake_presidency_member
+  Meaning: Stake President or Stake Presidency Counselor
+  Example callings: "Stake President", "Stake Presidency First Counselor", "Stake Presidency Second Counselor"
+  ────────────────────────────────────────
+  Flag: is_stake_council_member
+  Meaning: Sits on the Stake Council
+  Example callings: Stake Presidency, High Councilors, Stake Org Presidents, Directors
+  ────────────────────────────────────────
+  Flag: is_high_councilor
+  Meaning: High Councilor
+  Example callings: "Stake High Councilor"
+  ────────────────────────────────────────
+  Flag: is_bishop
+  Meaning: Bishop or Branch President
+  Example callings: "Bishop", "Branch President"
+  ────────────────────────────────────────
+  Flag: is_bishopric_member
+  Meaning: Bishop/Branch President or their counselors
+  Example callings: "Bishop", "Bishopric First Counselor", "Branch President", etc.
+  ────────────────────────────────────────
+  Flag: is_ward_org_president
+  Meaning: President of a ward-level organization
+  Example callings: "Relief Society President", "Elders Quorum President", "Primary President", etc.
+  ────────────────────────────────────────
+  Flag: is_ward_org_presidency_member
+  Meaning: President or counselor of a ward-level organization
+  Example callings: "Relief Society President", "Relief Society Second Counselor", "Primary First Counselor", etc.
+  ────────────────────────────────────────
+  Flag: is_stake_org_president
+  Meaning: President of a stake-level organization
+  Example callings: "Stake Relief Society President", "Stake Young Men President", "Stake President", etc.
+  ────────────────────────────────────────
+  Flag: is_stake_org_presidency_member
+  Meaning: President or counselor of a stake-level organization
+  Example callings: "Stake Relief Society President", "Stake Presidency First Counselor", "Stake Young Men Second Counselor", etc.
+  ────────────────────────────────────────
+  Flag: is_stake_director
+  Meaning: Holds a Director calling
+  Example callings: "Director, Stake Welfare & Self-Reliance", "Director, Communications", etc.
+  ────────────────────────────────────────
+  Flag: is_executive_secretary
+  Meaning: Executive Secretary at any level (stake or ward)
+  Example callings: "Stake Executive Secretary", "Ward Executive Secretary", "Relief Society Executive Secretary", etc.
+  ────────────────────────────────────────
+  Flag: is_active
+  Meaning: Account is active
+  Example callings: —
+
+  Role hierarchy (who sees what)
+
+  These flags are not mutually exclusive — a user can have multiple true flags. Here's how they nest for access control:
+
+  - Full access: is_stake_admin
+  - Stake-wide visibility: is_stake_president, is_stake_presidency_member, is_high_councilor
+  - Stake council participants: is_stake_council_member (includes presidency, HC, stake org presidents, directors)
+  - Ward-wide visibility: is_bishop, is_bishopric_member
+  - Organization-level: is_ward_org_president, is_ward_org_presidency_member, is_stake_org_president, is_stake_org_presidency_member
+  - Support roles (same tool access as their presidency): is_executive_secretary, is_stake_director
+
+  What to do
+
+  1. Search and replace any reference to is_stake_presidency with is_stake_presidency_member
+  2. Update the user type/interface to include all new boolean fields
+  3. Update any role-based UI logic (showing/hiding features, navigation items, etc.) to use the new granular flags where appropriate
+  4. Executive secretaries (is_executive_secretary) should generally have the same tool access as their presidency members — they handle scheduling, agendas, and coordination

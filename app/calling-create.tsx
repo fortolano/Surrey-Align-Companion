@@ -13,6 +13,7 @@ import {
   Switch,
 } from 'react-native';
 import { router } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -206,6 +207,7 @@ export default function CallingCreateScreen() {
   const insets = useSafeAreaInsets();
   const { token, user } = useAuth();
   const qClient = useQueryClient();
+  const navigation = useNavigation();
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
 
   const [scope, setScope] = useState<string>('');
@@ -217,6 +219,20 @@ export default function CallingCreateScreen() {
   const [contextNotes, setContextNotes] = useState('');
   const [nominees, setNominees] = useState<NomineeEntry[]>([emptyNominee()]);
   const [submitting, setSubmitting] = useState(false);
+  // Warn if navigating away with unsaved changes
+  useEffect(() => {
+    const hasChanges = !!(callingId || contextNotes.trim() || nominees.some(n => n.name.trim()));
+    if (!hasChanges) return;
+    const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
+      e.preventDefault();
+      Alert.alert('Discard Changes?', 'You have unsaved changes that will be lost.', [
+        { text: 'Keep Editing', style: 'cancel' },
+        { text: 'Discard', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+      ]);
+    });
+    return unsubscribe;
+  }, [navigation, callingId, contextNotes, nominees]);
+
 
   const { data: ctx, isLoading: ctxLoading } = useQuery<SubmissionContext>({
     queryKey: ['/api/calling-requests/submission-context'],
@@ -247,8 +263,10 @@ export default function CallingCreateScreen() {
   });
 
   const { data: holdersData } = useQuery<{ holders?: Holder[]; data?: Holder[] }>({
-    queryKey: ['/api/reference/current-holders', callingId],
-    queryFn: () => authFetch(token, `/api/reference/current-holders/${callingId}`),
+    queryKey: ['/api/reference/current-holders', callingId, wardId],
+    queryFn: () => authFetch(token, `/api/reference/current-holders/${callingId}`, {
+      params: wardId ? { ward_id: wardId } : {},
+    }),
     enabled: !!token && !!callingId,
   });
 
@@ -261,6 +279,9 @@ export default function CallingCreateScreen() {
   useEffect(() => {
     if (ctx?.allowed_scopes?.length === 1) {
       setScope(ctx.allowed_scopes[0]);
+    }
+    if (ctx?.allowed_wards?.length === 1) {
+      setWardId(String(ctx.allowed_wards[0].id));
     }
   }, [ctx]);
 
@@ -276,7 +297,9 @@ export default function CallingCreateScreen() {
     setCurrentHolderName('');
     const holders = holdersData?.holders || holdersData?.data || [];
     if (holders.length > 0) {
-      const matched = holders.find(h => String(h.user_id) && wardId && h.label?.includes(wardId)) || holders[0];
+      const matched = wardId
+        ? holders.find((h) => String(h.ward_id) === wardId)
+        : holders[0];
       if (matched) {
         setCurrentHolderUserId(String(matched.user_id));
         setCurrentHolderName(matched.user_name);

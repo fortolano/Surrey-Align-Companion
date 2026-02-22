@@ -17,14 +17,13 @@ import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth, useLogout } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
+import { WEB_TOP_INSET, WEB_BOTTOM_INSET } from '@/constants/layout';
 
-function isHighCouncilor(calling: string | undefined): boolean {
-  if (!calling) return false;
-  const lower = calling.toLowerCase();
-  return lower.includes('high council') || lower.includes('high councilor');
+function isHighCouncilor(user: any): boolean {
+  return user?.is_high_councilor === true;
 }
 
 interface QuickLink {
@@ -38,10 +37,11 @@ interface QuickLink {
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { user, token, logout } = useAuth();
+  const { user, token } = useAuth();
+  const handleLogout = useLogout();
   const [menuVisible, setMenuVisible] = useState(false);
 
-  const webTopInset = Platform.OS === 'web' ? 67 : 0;
+  const webTopInset = WEB_TOP_INSET;
   const firstName = user?.name?.split(' ')[0] || 'Leader';
   const initials = (user?.name || 'U').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 
@@ -106,8 +106,8 @@ export default function HomeScreen() {
     }));
   }, [actionRequiredData]);
 
-  const showSustainings = isHighCouncilor(user?.calling) || (user?.is_stake_presidency ?? false);
-  const userIsHC = isHighCouncilor(user?.calling);
+  const showSustainings = isHighCouncilor(user) || (user?.is_stake_presidency ?? false);
+  const userIsHC = isHighCouncilor(user);
 
   const sustainingItems = useMemo(() => {
     return actionItems.filter((item: any) => {
@@ -218,17 +218,6 @@ export default function HomeScreen() {
     },
   ];
 
-  const handleLogout = () => {
-    setMenuVisible(false);
-    if (Platform.OS === 'web') {
-      logout();
-    } else {
-      Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign Out', style: 'destructive', onPress: () => logout() },
-      ]);
-    }
-  };
 
   const menuItems = [
     { id: 'profile', label: 'Profile', icon: 'person-outline' as const, route: '/profile' },

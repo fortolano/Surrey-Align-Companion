@@ -28,6 +28,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
+import { WEB_TOP_INSET, WEB_BOTTOM_INSET } from '@/constants/layout';
 
 interface Notification {
   id: number;
@@ -38,6 +39,8 @@ interface Notification {
   created_at: string;
   data?: {
     calling_request_id?: number;
+    related_type?: string;
+    related_id?: number;
     [key: string]: any;
   };
 }
@@ -214,7 +217,7 @@ export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
   const qClient = useQueryClient();
-  const webBottomInset = Platform.OS === 'web' ? 34 : 0;
+  const webBottomInset = WEB_BOTTOM_INSET;
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
   const [markingAllRead, setMarkingAllRead] = useState(false);
 
@@ -273,8 +276,11 @@ export default function NotificationsScreen() {
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       if (!notif.is_read) markReadMut.mutate(notif.id);
       const crId = notif.data?.calling_request_id;
+      const relatedType = notif.data?.related_type;
       if (crId) {
         router.push({ pathname: '/calling-detail', params: { id: String(crId) } });
+      } else if (relatedType === 'StakeBusiness') {
+        router.push('/sunday-business');
       }
     },
     [markReadMut]
@@ -284,14 +290,10 @@ export default function NotificationsScreen() {
     (notif: Notification) => {
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       const doDelete = () => deleteMut.mutate(notif.id);
-      if (Platform.OS === 'web') {
-        if (confirm('Delete this notification?')) doDelete();
-      } else {
-        Alert.alert('Delete Notification', 'Are you sure you want to delete this?', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: doDelete },
-        ]);
-      }
+      Alert.alert('Delete Notification', 'Are you sure you want to delete this?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: doDelete },
+      ]);
     },
     [deleteMut]
   );
@@ -347,7 +349,7 @@ export default function NotificationsScreen() {
     );
   }
 
-  const webTopInset = Platform.OS === 'web' ? 67 : 0;
+  const webTopInset = WEB_TOP_INSET;
 
   return (
     <GestureHandlerRootView style={styles.container}>

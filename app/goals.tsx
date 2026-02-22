@@ -16,7 +16,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
-import { getApiUrl } from '@/lib/query-client';
+import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
 
 interface GoalPeriod {
@@ -182,22 +182,12 @@ export default function GoalsScreen() {
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery<GoalsResponse>({
     queryKey: ['/api/goals', activeScope],
-    queryFn: async () => {
-      const base = getApiUrl();
-      const params = new URLSearchParams();
-      if (activeScope !== 'all') params.set('scope', activeScope);
-      params.set('status', 'active');
-      params.set('period_id', '7');
-      const url = `${base}api/goals?${params.toString()}`;
-      const res = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-      });
-      if (!res.ok) throw new Error('Failed to load goals');
-      return res.json();
-    },
+    queryFn: () => authFetch(token, '/api/goals', {
+      params: {
+        ...(activeScope !== 'all' ? { scope: activeScope } : {}),
+        status: 'active',
+      },
+    }),
     enabled: !!token,
     staleTime: 60000,
   });
@@ -238,7 +228,15 @@ export default function GoalsScreen() {
 
   return (
     <View style={styles.container}>
-      <Animated.View entering={FadeIn.duration(300)}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + webBottomInset + 24 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View entering={FadeIn.duration(300)}>
         {period && (
           <View style={styles.periodBanner}>
             <Ionicons name="calendar-outline" size={15} color={Colors.brand.primary} />
@@ -277,15 +275,7 @@ export default function GoalsScreen() {
             </Pressable>
           ))}
         </ScrollView>
-      </Animated.View>
-
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: insets.bottom + webBottomInset + 24 },
-        ]}
-        showsVerticalScrollIndicator={false}
+        </Animated.View>
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}

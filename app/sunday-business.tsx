@@ -18,6 +18,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
+import { WEB_TOP_INSET, WEB_BOTTOM_INSET } from '@/constants/layout';
 
 interface Ward {
   id: number;
@@ -282,7 +283,7 @@ export default function SundayBusinessScreen() {
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
   const qClient = useQueryClient();
-  const webBottomInset = Platform.OS === 'web' ? 34 : 0;
+  const webBottomInset = WEB_BOTTOM_INSET;
 
   const [selectedWardId, setSelectedWardId] = useState<number | null>(null);
   const [showWardPicker, setShowWardPicker] = useState(false);

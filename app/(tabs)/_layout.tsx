@@ -22,7 +22,7 @@ export default function TabLayout() {
   const { data: notifData } = useQuery({
     queryKey: ['notifications-badge'],
     queryFn: async () => {
-      const res = await authFetch('/api/notifications', token);
+      const res = await authFetch(token, '/api/notifications');
       return res;
     },
     enabled: !!token,

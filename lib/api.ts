@@ -1,4 +1,23 @@
 import { getApiUrl } from '@/lib/query-client';
+import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+
+async function clearStoredAuth() {
+  if (Platform.OS === 'web') {
+    await AsyncStorage.removeItem('sa_token');
+    await AsyncStorage.removeItem('sa_user');
+  } else {
+    await SecureStore.deleteItemAsync('sa_token');
+    await SecureStore.deleteItemAsync('sa_user');
+  }
+}
+
+// Global callback for auth expiry — set by AuthProvider
+let onAuthExpired: (() => void) | null = null;
+export function setAuthExpiredHandler(handler: () => void) {
+  onAuthExpired = handler;
+}
 
 export async function authFetch(
   token: string | null,
@@ -23,6 +42,14 @@ export async function authFetch(
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
+
+  // Handle expired/invalid tokens
+  if (res.status === 401) {
+    await clearStoredAuth();
+    if (onAuthExpired) onAuthExpired();
+    throw new Error('Session expired. Please sign in again.');
+  }
+
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || `Request failed (${res.status})`);
   return data;

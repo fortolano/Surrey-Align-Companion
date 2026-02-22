@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApiUrl } from '@/lib/query-client';
+import { setAuthExpiredHandler } from '@/lib/api';
 
 export interface SAUser {
   id: number;
@@ -16,6 +17,9 @@ export interface SAUser {
   stake_id: number;
   is_stake_admin: boolean;
   is_stake_presidency: boolean;
+  is_high_councilor: boolean;
+  is_bishop: boolean;
+  is_bishopric_member: boolean;
   is_active: boolean;
 }
 
@@ -65,6 +69,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SAUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Register global auth expiry handler
+  useEffect(() => {
+    setAuthExpiredHandler(() => {
+      setToken(null);
+      setUser(null);
+    });
+  }, []);
 
   useEffect(() => {
     validateSession();
@@ -182,4 +194,18 @@ export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
+}
+
+export function useLogout() {
+  const { logout } = useAuth();
+  return useCallback(() => {
+    if (Platform.OS === 'web') {
+      logout();
+    } else {
+      Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign Out', style: 'destructive', onPress: () => logout() },
+      ]);
+    }
+  }, [logout]);
 }

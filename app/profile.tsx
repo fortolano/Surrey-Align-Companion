@@ -12,36 +12,16 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth, useLogout } from '@/lib/auth-context';
 import Colors from '@/constants/colors';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const handleLogout = useLogout();
 
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
 
-  const handleLogout = () => {
-    if (Platform.OS === 'web') {
-      logout().then(() => router.replace('/'));
-      return;
-    }
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            router.replace('/');
-          },
-        },
-      ],
-    );
-  };
 
   const infoRows = [
     { label: 'Calling', value: user?.calling || '—', icon: 'briefcase-outline' as const },

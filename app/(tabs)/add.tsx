@@ -5,6 +5,7 @@ import {
   Text,
   Pressable,
   Platform,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +14,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/lib/auth-context';
 import Colors from '@/constants/colors';
+import { WEB_TOP_INSET, WEB_BOTTOM_INSET } from '@/constants/layout';
 
 interface AddMenuItem {
   id: string;
@@ -22,28 +24,19 @@ interface AddMenuItem {
   route: string;
   color: string;
   bgColor: string;
+  comingSoon?: boolean;
 }
 
-function detectRole(calling: string | undefined): 'high_councilor' | 'stake_council' | 'bishopric' | 'ward_org_president' | 'other' {
-  if (!calling) return 'other';
-  const c = calling.toLowerCase();
+function detectRole(user: any): 'high_councilor' | 'stake_council' | 'bishopric' | 'ward_org_president' | 'other' {
+  if (!user) return 'other';
 
-  if (c.includes('high council') || c.includes('high councilor')) return 'high_councilor';
+  // Use structured API flags instead of string matching
+  if (user.is_stake_admin || user.is_stake_presidency) return 'stake_council';
+  if (user.is_high_councilor) return 'high_councilor';
+  if (user.is_bishop || user.is_bishopric_member) return 'bishopric';
 
-  if (
-    c.includes('stake president') ||
-    c.includes('stake relief society') ||
-    c.includes('stake young') ||
-    c.includes('stake primary') ||
-    c.includes('stake sunday school') ||
-    (c.includes('stake') && c.includes('president'))
-  ) return 'stake_council';
-
-  if (
-    c.includes('bishop') ||
-    (c.includes('bishopric') && (c.includes('first') || c.includes('second') || c.includes('counselor')))
-  ) return 'bishopric';
-
+  // Fall back to calling text for org presidents (no API flag for this)
+  const c = (user.calling || '').toLowerCase();
   if (
     (c.includes('president') && !c.includes('counselor') && !c.includes('stake')) &&
     (c.includes('relief society') || c.includes('young women') || c.includes('young men') ||
@@ -57,35 +50,35 @@ function getMenuItems(role: string): AddMenuItem[] {
   switch (role) {
     case 'high_councilor':
       return [
-        { id: 'hc-agenda', label: 'HC Agenda', icon: 'clipboard-text-outline', iconSet: 'mci', route: '/create-hc-agenda', color: Colors.brand.primary, bgColor: '#E8F0F8' },
-        { id: 'sc-agenda', label: 'SC Agenda', icon: 'document-text-outline', iconSet: 'ionicons', route: '/create-sc-agenda', color: Colors.brand.primary, bgColor: '#E8F8F0' },
-        { id: 'calling-request', label: 'Calling Request', icon: 'people-outline', iconSet: 'ionicons', route: '/create-calling', color: '#B45309', bgColor: '#FEF3C7' },
-        { id: 'note-sp', label: 'Note to SP', icon: 'mail-outline', iconSet: 'ionicons', route: '/create-note-sp', color: '#7C3AED', bgColor: '#F0E8F8' },
+        { id: 'hc-agenda', label: 'HC Agenda', icon: 'clipboard-text-outline', iconSet: 'mci', route: '/high-council-agenda', color: Colors.brand.primary, bgColor: '#E8F0F8', comingSoon: true},
+        { id: 'sc-agenda', label: 'SC Agenda', icon: 'document-text-outline', iconSet: 'ionicons', route: '/stake-council-agenda', color: Colors.brand.primary, bgColor: '#E8F8F0', comingSoon: true},
+        { id: 'calling-request', label: 'Calling Request', icon: 'people-outline', iconSet: 'ionicons', route: '/calling-create', color: '#B45309', bgColor: '#FEF3C7' },
+        { id: 'note-sp', label: 'Note to SP', icon: 'mail-outline', iconSet: 'ionicons', route: '/assignments', color: '#7C3AED', bgColor: '#F0E8F8', comingSoon: true},
       ];
     case 'stake_council':
       return [
-        { id: 'sc-agenda', label: 'SC Agenda Item', icon: 'document-text-outline', iconSet: 'ionicons', route: '/create-sc-agenda', color: Colors.brand.primary, bgColor: '#E8F8F0' },
-        { id: 'my-org-agenda', label: 'My Org Agenda', icon: 'clipboard-text-outline', iconSet: 'mci', route: '/create-org-agenda', color: Colors.brand.primary, bgColor: '#E8F0F8' },
-        { id: 'calling-request', label: 'Calling Request', icon: 'people-outline', iconSet: 'ionicons', route: '/create-calling', color: '#B45309', bgColor: '#FEF3C7' },
-        { id: 'note-sp', label: 'Note to SP', icon: 'mail-outline', iconSet: 'ionicons', route: '/create-note-sp', color: '#7C3AED', bgColor: '#F0E8F8' },
+        { id: 'sc-agenda', label: 'SC Agenda Item', icon: 'document-text-outline', iconSet: 'ionicons', route: '/stake-council-agenda', color: Colors.brand.primary, bgColor: '#E8F8F0', comingSoon: true},
+        { id: 'my-org-agenda', label: 'My Org Agenda', icon: 'clipboard-text-outline', iconSet: 'mci', route: '/assignments', color: Colors.brand.primary, bgColor: '#E8F0F8', comingSoon: true},
+        { id: 'calling-request', label: 'Calling Request', icon: 'people-outline', iconSet: 'ionicons', route: '/calling-create', color: '#B45309', bgColor: '#FEF3C7' },
+        { id: 'note-sp', label: 'Note to SP', icon: 'mail-outline', iconSet: 'ionicons', route: '/assignments', color: '#7C3AED', bgColor: '#F0E8F8', comingSoon: true},
       ];
     case 'bishopric':
       return [
-        { id: 'bishopric-agenda', label: 'Bishopric Agenda', icon: 'clipboard-text-outline', iconSet: 'mci', route: '/create-bishopric-agenda', color: Colors.brand.primary, bgColor: '#E8F0F8' },
-        { id: 'wc-agenda', label: 'WC Agenda', icon: 'document-text-outline', iconSet: 'ionicons', route: '/create-wc-agenda', color: Colors.brand.primary, bgColor: '#E8F8F0' },
-        { id: 'calling-request', label: 'Calling Request', icon: 'people-outline', iconSet: 'ionicons', route: '/create-calling', color: '#B45309', bgColor: '#FEF3C7' },
-        { id: 'note-sp', label: 'Note to SP', icon: 'mail-outline', iconSet: 'ionicons', route: '/create-note-sp', color: '#7C3AED', bgColor: '#F0E8F8' },
+        { id: 'bishopric-agenda', label: 'Bishopric Agenda', icon: 'clipboard-text-outline', iconSet: 'mci', route: '/assignments', color: Colors.brand.primary, bgColor: '#E8F0F8', comingSoon: true},
+        { id: 'wc-agenda', label: 'WC Agenda', icon: 'document-text-outline', iconSet: 'ionicons', route: '/assignments', color: Colors.brand.primary, bgColor: '#E8F8F0', comingSoon: true},
+        { id: 'calling-request', label: 'Calling Request', icon: 'people-outline', iconSet: 'ionicons', route: '/calling-create', color: '#B45309', bgColor: '#FEF3C7' },
+        { id: 'note-sp', label: 'Note to SP', icon: 'mail-outline', iconSet: 'ionicons', route: '/assignments', color: '#7C3AED', bgColor: '#F0E8F8', comingSoon: true},
       ];
     case 'ward_org_president':
       return [
-        { id: 'wc-agenda', label: 'WC Agenda', icon: 'document-text-outline', iconSet: 'ionicons', route: '/create-wc-agenda', color: Colors.brand.primary, bgColor: '#E8F8F0' },
-        { id: 'my-org-agenda', label: 'My Org Agenda', icon: 'clipboard-text-outline', iconSet: 'mci', route: '/create-org-agenda', color: Colors.brand.primary, bgColor: '#E8F0F8' },
-        { id: 'calling-request', label: 'Calling Request', icon: 'people-outline', iconSet: 'ionicons', route: '/create-calling', color: '#B45309', bgColor: '#FEF3C7' },
-        { id: 'note-bishop', label: 'Note to Bishop', icon: 'mail-outline', iconSet: 'ionicons', route: '/create-note-bishop', color: '#7C3AED', bgColor: '#F0E8F8' },
+        { id: 'wc-agenda', label: 'WC Agenda', icon: 'document-text-outline', iconSet: 'ionicons', route: '/assignments', color: Colors.brand.primary, bgColor: '#E8F8F0', comingSoon: true},
+        { id: 'my-org-agenda', label: 'My Org Agenda', icon: 'clipboard-text-outline', iconSet: 'mci', route: '/assignments', color: Colors.brand.primary, bgColor: '#E8F0F8', comingSoon: true},
+        { id: 'calling-request', label: 'Calling Request', icon: 'people-outline', iconSet: 'ionicons', route: '/calling-create', color: '#B45309', bgColor: '#FEF3C7' },
+        { id: 'note-bishop', label: 'Note to Bishop', icon: 'mail-outline', iconSet: 'ionicons', route: '/assignments', color: '#7C3AED', bgColor: '#F0E8F8', comingSoon: true},
       ];
     default:
       return [
-        { id: 'my-org-agenda', label: 'My Org Agenda', icon: 'clipboard-text-outline', iconSet: 'mci', route: '/create-org-agenda', color: Colors.brand.primary, bgColor: '#E8F0F8' },
+        { id: 'my-org-agenda', label: 'My Org Agenda', icon: 'clipboard-text-outline', iconSet: 'mci', route: '/assignments', color: Colors.brand.primary, bgColor: '#E8F0F8', comingSoon: true},
       ];
   }
 }
@@ -93,9 +86,9 @@ function getMenuItems(role: string): AddMenuItem[] {
 export default function AddScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const webTopInset = Platform.OS === 'web' ? 67 : 0;
+  const webTopInset = WEB_TOP_INSET;
 
-  const role = useMemo(() => detectRole(user?.calling), [user?.calling]);
+  const role = useMemo(() => detectRole(user), [user]);
   const items = useMemo(() => getMenuItems(role), [role]);
 
   return (
@@ -111,6 +104,7 @@ export default function AddScreen() {
             <Pressable
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                if (item.comingSoon) { Alert.alert('Coming Soon', 'This feature is under development.'); return; }
                 router.push(item.route as any);
               }}
               style={({ pressed }) => [

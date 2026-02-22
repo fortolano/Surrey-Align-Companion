@@ -9,6 +9,7 @@ import {
   Platform,
   RefreshControl,
   Switch,
+  TextInput,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +20,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
+import { WEB_TOP_INSET, WEB_BOTTOM_INSET } from '@/constants/layout';
+import { STATUS_COLORS } from '@/constants/status-colors';
 
 interface ListIndividual {
   id: number;
@@ -46,17 +49,6 @@ interface CallingRequestListItem {
   updated_at: string;
 }
 
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  draft: { bg: '#f3f4f6', text: '#6b7280' },
-  submitted: { bg: '#e0e7ff', text: '#3730a3' },
-  discussion: { bg: '#dbeafe', text: '#1e40af' },
-  voting: { bg: '#fef3c7', text: '#92400e' },
-  approved: { bg: '#d1fae5', text: '#065f46' },
-  not_approved: { bg: '#fce7f3', text: '#9d174d' },
-  in_progress: { bg: '#dbeafe', text: '#1e40af' },
-  completed: { bg: '#d1fae5', text: '#065f46' },
-  cancelled: { bg: '#f3f4f6', text: '#6b7280' },
-};
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All Statuses' },
@@ -148,9 +140,10 @@ function CallingCard({ item, index }: { item: CallingRequestListItem; index: num
 export default function CallingsScreen() {
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
-  const webBottomInset = Platform.OS === 'web' ? 34 : 0;
+  const webBottomInset = WEB_BOTTOM_INSET;
 
   const [statusFilter, setStatusFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [scopeFilter, setScopeFilter] = useState<'' | 'stake' | 'ward'>('');
   const [mineOnly, setMineOnly] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
@@ -177,7 +170,15 @@ export default function CallingsScreen() {
     staleTime: 30000,
   });
 
-  const items: CallingRequestListItem[] = data?.calling_requests || data?.data || [];
+  const rawItems: CallingRequestListItem[] = data?.calling_requests || data?.data || [];
+  const items = searchQuery.trim()
+    ? rawItems.filter(i => {
+        const q = searchQuery.toLowerCase();
+        return (i.target_calling || '').toLowerCase().includes(q)
+          || i.individuals.some(ind => ind.name.toLowerCase().includes(q))
+          || (i.status_label || '').toLowerCase().includes(q);
+      })
+    : rawItems;
   const pendingCount = pendingData?.pending_action_count || 0;
 
   const handleRefresh = useCallback(() => {
@@ -213,7 +214,7 @@ export default function CallingsScreen() {
     );
   }
 
-  const webTopInset = Platform.OS === 'web' ? 67 : 0;
+  const webTopInset = WEB_TOP_INSET;
 
   return (
     <View style={styles.container}>
@@ -231,6 +232,24 @@ export default function CallingsScreen() {
         </Pressable>
       </View>
       <Animated.View entering={FadeIn.duration(300)} style={styles.filterSection}>
+  
+        <View style={styles.searchRow}>
+          <Ionicons name="search-outline" size={18} color={Colors.brand.midGray} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search callings or people..."
+            placeholderTextColor={Colors.brand.midGray}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery ? (
+            <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+              <Ionicons name="close-circle" size={18} color={Colors.brand.midGray} />
+            </Pressable>
+          ) : null}
+        </View>
         {pendingCount > 0 && (
           <View style={styles.pendingBanner}>
             <Ionicons name="alert-circle" size={18} color="#92400e" />
@@ -397,6 +416,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600' as const,
     fontFamily: 'Inter_600SemiBold',
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.brand.inputBg,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.brand.inputBorder,
+    paddingHorizontal: 12,
+    height: 42,
+    gap: 8,
+    marginBottom: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.brand.dark,
+    fontFamily: 'Inter_400Regular',
   },
   filterSection: {
     backgroundColor: Colors.brand.white,

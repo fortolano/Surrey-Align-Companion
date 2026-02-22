@@ -54,12 +54,7 @@ export default function SettingsScreen() {
               <Ionicons name="notifications-outline" size={20} color={Colors.brand.midGray} />
               <Text style={styles.rowLabel}>Push Notifications</Text>
             </View>
-            <Switch
-              value={false}
-              disabled
-              trackColor={{ false: Colors.brand.lightGray, true: Colors.brand.primaryLight }}
-              thumbColor={Colors.brand.white}
-            />
+            <Text style={[styles.rowValue, { color: Colors.brand.midGray, fontStyle: 'italic' }]}>Coming soon</Text>
           </View>
           <View style={styles.rowDivider} />
           <View style={styles.row}>
@@ -67,15 +62,10 @@ export default function SettingsScreen() {
               <Ionicons name="moon-outline" size={20} color={Colors.brand.midGray} />
               <Text style={styles.rowLabel}>Dark Mode</Text>
             </View>
-            <Switch
-              value={false}
-              disabled
-              trackColor={{ false: Colors.brand.lightGray, true: Colors.brand.primaryLight }}
-              thumbColor={Colors.brand.white}
-            />
+            <Text style={[styles.rowValue, { color: Colors.brand.midGray, fontStyle: 'italic' }]}>Coming soon</Text>
           </View>
         </View>
-        <Text style={styles.hintText}>More preferences coming in a future update.</Text>
+
 
         <Text style={styles.sectionLabel}>Data</Text>
         <View style={styles.card}>

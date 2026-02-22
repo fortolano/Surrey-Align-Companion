@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getApiUrl } from '@/lib/query-client';
+import { router } from 'expo-router';
+import { getApiUrl, queryClient } from '@/lib/query-client';
 import { setAuthExpiredHandler } from '@/lib/api';
 
 export interface SAUser {
@@ -198,14 +199,20 @@ export function useAuth() {
 
 export function useLogout() {
   const { logout } = useAuth();
+  const doLogout = useCallback(async () => {
+    await logout();
+    queryClient.clear();
+    router.replace('/');
+  }, [logout]);
+
   return useCallback(() => {
     if (Platform.OS === 'web') {
-      logout();
+      doLogout();
     } else {
       Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign Out', style: 'destructive', onPress: () => logout() },
+        { text: 'Sign Out', style: 'destructive', onPress: () => doLogout() },
       ]);
     }
-  }, [logout]);
+  }, [doLogout]);
 }

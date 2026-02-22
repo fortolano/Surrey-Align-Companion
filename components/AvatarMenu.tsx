@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
   },
   dropdown: {
     position: 'absolute',
-    width: 230,
+    width: 265,
     backgroundColor: Colors.brand.white,
     borderRadius: 14,
     paddingVertical: 6,
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   },
   menuLabel: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '400',
     color: Colors.brand.dark,
     fontFamily: 'Inter_400Regular',

@@ -78,7 +78,7 @@ export default function TabLayout() {
           title: 'Add',
           tabBarIcon: ({ color, focused }) => (
             <View style={addBtnStyles.circle}>
-              <Ionicons name="add" size={30} color={focused ? Colors.brand.primary : Colors.brand.midGray} />
+              <Ionicons name="add" size={22} color={focused ? Colors.brand.primary : Colors.brand.midGray} />
             </View>
           ),
         }}
@@ -116,15 +116,14 @@ export default function TabLayout() {
 
 const addBtnStyles = StyleSheet.create({
   circle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: Colors.brand.offWhite,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: Colors.brand.lightGray,
-    marginTop: -8,
   },
 });
 

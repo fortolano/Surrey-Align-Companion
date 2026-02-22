@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Platform, StyleSheet, View, Text } from 'react-native';
-import { Tabs, router } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
@@ -36,16 +36,6 @@ export default function TabLayout() {
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
   const tabBarHeight = Platform.OS === 'web' ? 60 + webBottomInset : 64;
   const iconSize = 26;
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.replace('/');
-    }
-  }, [isAuthenticated]);
-
-  if (!isAuthenticated) {
-    return null;
-  }
 
   return (
     <Tabs

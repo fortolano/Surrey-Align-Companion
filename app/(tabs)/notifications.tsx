@@ -354,7 +354,7 @@ export default function NotificationsScreen() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      <ScreenHeader title="Notifications" />
+      <ScreenHeader title="Notifications" subtitle="Stay up to date" />
       <View style={styles.filterBar}>
         {(['all', 'unread', 'read'] as FilterTab[]).map((tab) => (
           <Pressable

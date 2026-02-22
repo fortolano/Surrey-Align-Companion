@@ -15,6 +15,7 @@ import * as Haptics from 'expo-haptics';
 import { useAuth, useLogout } from '@/lib/auth-context';
 import Colors from '@/constants/colors';
 import { WEB_TOP_INSET, WEB_BOTTOM_INSET } from '@/constants/layout';
+import ScreenHeader, { HeaderAvatar } from '@/components/ScreenHeader';
 
 interface MenuSection {
   title: string;
@@ -197,23 +198,10 @@ export default function MoreScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + webTopInset + 12 }]}>
-        <Text style={styles.headerTitle}>More</Text>
-        {user && (
-          <View style={styles.userRow}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {(user.name || 'U').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
-              </Text>
-            </View>
-            <View style={styles.userInfo}>
-              <Text style={styles.userName}>{user.name}</Text>
-              <Text style={styles.userRole}>{user.calling}</Text>
-              {user.ward && <Text style={styles.userWard}>{user.ward}</Text>}
-            </View>
-          </View>
-        )}
-      </View>
+      <ScreenHeader
+        title="More"
+        subtitle={user?.calling ? `${user.name}${user.ward ? ` \u00B7 ${user.ward}` : ''}` : undefined}
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -277,61 +265,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.light.background,
-  },
-  header: {
-    backgroundColor: Colors.brand.primary,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.brand.white,
-    fontFamily: 'Inter_700Bold',
-    marginBottom: 16,
-  },
-  userRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  avatarText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.brand.white,
-    fontFamily: 'Inter_700Bold',
-  },
-  userInfo: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.brand.white,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  userRole: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.8)',
-    fontFamily: 'Inter_400Regular',
-    marginTop: 1,
-  },
-  userWard: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.6)',
-    fontFamily: 'Inter_400Regular',
   },
   scroll: {
     flex: 1,

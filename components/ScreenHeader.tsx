@@ -2,43 +2,65 @@ import React from 'react';
 import { StyleSheet, View, Text, Pressable, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { WEB_TOP_INSET } from '@/constants/layout';
 
 interface ScreenHeaderProps {
   title: string;
   subtitle?: string;
-  rightAction?: {
-    icon: string;
-    onPress: () => void;
-  };
-  rounded?: boolean;
+  rightElement?: React.ReactNode;
 }
 
-export default function ScreenHeader({ title, subtitle, rightAction, rounded = true }: ScreenHeaderProps) {
+export default function ScreenHeader({ title, subtitle, rightElement }: ScreenHeaderProps) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[
-      styles.header,
-      { paddingTop: insets.top + WEB_TOP_INSET + 12 },
-      rounded && styles.rounded,
-    ]}>
+    <View style={[styles.header, { paddingTop: insets.top + WEB_TOP_INSET + 12 }]}>
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
           <Text style={styles.title}>{title}</Text>
-          {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+          {subtitle ? <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text> : null}
         </View>
-        {rightAction && (
-          <Pressable
-            onPress={rightAction.onPress}
-            style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.7 }]}
-          >
-            <Ionicons name={rightAction.icon as any} size={20} color={Colors.brand.white} />
-          </Pressable>
-        )}
+        {rightElement ?? null}
       </View>
     </View>
+  );
+}
+
+export function HeaderAvatar({ initials, onPress }: { initials: string; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={() => {
+        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onPress();
+      }}
+      style={({ pressed }) => [
+        styles.avatarBtn,
+        pressed && { opacity: 0.8, transform: [{ scale: 0.95 }] },
+      ]}
+      testID="avatar-menu-btn"
+    >
+      <Text style={styles.avatarText}>{initials}</Text>
+    </Pressable>
+  );
+}
+
+export function HeaderIconButton({ icon, onPress, testID }: { icon: string; onPress: () => void; testID?: string }) {
+  return (
+    <Pressable
+      onPress={() => {
+        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onPress();
+      }}
+      style={({ pressed }) => [
+        styles.actionBtn,
+        pressed && { opacity: 0.7 },
+      ]}
+      testID={testID}
+    >
+      <Ionicons name={icon as any} size={20} color={Colors.brand.white} />
+    </Pressable>
   );
 }
 
@@ -46,9 +68,7 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: Colors.brand.primary,
     paddingHorizontal: 20,
-    paddingBottom: 14,
-  },
-  rounded: {
+    paddingBottom: 16,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
@@ -62,16 +82,32 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
     color: Colors.brand.white,
     fontFamily: 'Inter_700Bold',
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: 'rgba(255,255,255,0.7)',
     fontFamily: 'Inter_400Regular',
-    marginTop: 4,
+    marginTop: 3,
+  },
+  avatarBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.35)',
+  },
+  avatarText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.brand.white,
+    fontFamily: 'Inter_700Bold',
   },
   actionBtn: {
     width: 34,

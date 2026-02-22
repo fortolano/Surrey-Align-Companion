@@ -8,13 +8,12 @@ import {
   Alert,
 } from 'react-native';
 import { router } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/lib/auth-context';
 import Colors from '@/constants/colors';
-import { WEB_TOP_INSET, WEB_BOTTOM_INSET } from '@/constants/layout';
+import ScreenHeader from '@/components/ScreenHeader';
 
 interface AddMenuItem {
   id: string;
@@ -84,19 +83,14 @@ function getMenuItems(role: string): AddMenuItem[] {
 }
 
 export default function AddScreen() {
-  const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const webTopInset = WEB_TOP_INSET;
 
   const role = useMemo(() => detectRole(user), [user]);
   const items = useMemo(() => getMenuItems(role), [role]);
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + webTopInset + 12 }]}>
-        <Text style={styles.headerTitle}>Create New</Text>
-        <Text style={styles.headerSubtitle}>What would you like to add?</Text>
-      </View>
+      <ScreenHeader title="Create New" subtitle="What would you like to add?" />
 
       <View style={styles.content}>
         {items.map((item, idx) => (
@@ -134,25 +128,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.light.background,
-  },
-  header: {
-    backgroundColor: Colors.brand.primary,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: Colors.brand.white,
-    fontFamily: 'Inter_700Bold',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
-    fontFamily: 'Inter_400Regular',
-    marginTop: 4,
   },
   content: {
     paddingHorizontal: 20,

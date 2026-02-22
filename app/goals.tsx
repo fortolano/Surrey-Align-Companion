@@ -235,47 +235,6 @@ export default function GoalsScreen() {
           { paddingBottom: insets.bottom + webBottomInset + 24 },
         ]}
         showsVerticalScrollIndicator={false}
-      >
-        <Animated.View entering={FadeIn.duration(300)}>
-        {period && (
-          <View style={styles.periodBanner}>
-            <Ionicons name="calendar-outline" size={15} color={Colors.brand.primary} />
-            <Text style={styles.periodText}>{period.name}</Text>
-            {period.is_current && (
-              <View style={styles.currentBadge}>
-                <Text style={styles.currentText}>Current</Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterRow}
-          style={styles.filterScroll}
-        >
-          {SCOPE_LABELS.map((s) => (
-            <Pressable
-              key={s.key}
-              onPress={() => handleScopeChange(s.key)}
-              style={[
-                styles.filterChip,
-                activeScope === s.key && styles.filterChipActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.filterLabel,
-                  activeScope === s.key && styles.filterLabelActive,
-                ]}
-              >
-                {s.label}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-        </Animated.View>
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}
@@ -284,6 +243,47 @@ export default function GoalsScreen() {
           />
         }
       >
+        <Animated.View entering={FadeIn.duration(300)}>
+          {period && (
+            <View style={styles.periodBanner}>
+              <Ionicons name="calendar-outline" size={15} color={Colors.brand.primary} />
+              <Text style={styles.periodText}>{period.name}</Text>
+              {period.is_current && (
+                <View style={styles.currentBadge}>
+                  <Text style={styles.currentText}>Current</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterRow}
+            style={styles.filterScroll}
+          >
+            {SCOPE_LABELS.map((s) => (
+              <Pressable
+                key={s.key}
+                onPress={() => handleScopeChange(s.key)}
+                style={[
+                  styles.filterChip,
+                  activeScope === s.key && styles.filterChipActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.filterLabel,
+                    activeScope === s.key && styles.filterLabelActive,
+                  ]}
+                >
+                  {s.label}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </Animated.View>
+
         {goals.length === 0 ? (
           <View style={styles.emptyState}>
             <View style={styles.emptyIcon}>

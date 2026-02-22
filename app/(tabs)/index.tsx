@@ -21,6 +21,7 @@ import { useAuth, useLogout } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
 import { WEB_TOP_INSET, WEB_BOTTOM_INSET } from '@/constants/layout';
+import ScreenHeader, { HeaderAvatar } from '@/components/ScreenHeader';
 
 function isHighCouncilor(user: any): boolean {
   return user?.is_high_councilor === true;
@@ -228,31 +229,11 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + webTopInset + 12 }]}>
-        <View style={styles.headerRow}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.greeting}>Hi, {firstName}</Text>
-            {user?.calling && (
-              <Text style={styles.roleText} numberOfLines={1}>
-                {user.calling}{user.ward ? ` \u00B7 ${user.ward}` : ''}
-              </Text>
-            )}
-          </View>
-          <Pressable
-            onPress={() => {
-              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setMenuVisible(true);
-            }}
-            style={({ pressed }) => [
-              styles.avatarBtn,
-              pressed && { opacity: 0.8, transform: [{ scale: 0.95 }] },
-            ]}
-            testID="avatar-menu-btn"
-          >
-            <Text style={styles.avatarText}>{initials}</Text>
-          </Pressable>
-        </View>
-      </View>
+      <ScreenHeader
+        title={`Hi, ${firstName}`}
+        subtitle={user?.calling ? `${user.calling}${user.ward ? ` \u00B7 ${user.ward}` : ''}` : undefined}
+        rightElement={<HeaderAvatar initials={initials} onPress={() => setMenuVisible(true)} />}
+      />
 
       {menuVisible && (
         <Modal
@@ -446,50 +427,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.light.background,
-  },
-  header: {
-    backgroundColor: Colors.brand.primary,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerLeft: {
-    flex: 1,
-    marginRight: 12,
-  },
-  greeting: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: Colors.brand.white,
-    fontFamily: 'Inter_700Bold',
-  },
-  roleText: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.7)',
-    fontFamily: 'Inter_400Regular',
-    marginTop: 3,
-  },
-  avatarBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.35)',
-  },
-  avatarText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.brand.white,
-    fontFamily: 'Inter_700Bold',
   },
   scrollView: {
     flex: 1,

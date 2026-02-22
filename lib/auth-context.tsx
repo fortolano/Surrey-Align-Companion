@@ -198,13 +198,29 @@ export function useAuth() {
 }
 
 export function useLogout() {
-  const { logout } = useAuth();
+  const { logout, token } = useAuth();
 
   const doLogout = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      try {
+        if (token) {
+          const base = getProxyBase();
+          fetch(`${base}api/auth/logout`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+          }).catch(() => {});
+        }
+      } catch {}
+      await AsyncStorage.removeItem('sa_token');
+      await AsyncStorage.removeItem('sa_user');
+      queryClient.clear();
+      window.location.href = '/';
+      return;
+    }
     await logout();
     queryClient.clear();
-    // Navigation is handled by the auth gate in app/_layout.tsx
-  }, [logout]);
+    router.replace('/');
+  }, [logout, token]);
 
   return useCallback(() => {
     if (Platform.OS === 'web') {

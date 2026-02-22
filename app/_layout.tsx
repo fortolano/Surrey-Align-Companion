@@ -1,12 +1,12 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Stack, useRouter, useSegments, useRootNavigationState } from "expo-router";
+import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "@/lib/query-client";
-import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { AuthProvider } from "@/lib/auth-context";
 import {
   useFonts,
   Inter_400Regular,
@@ -19,28 +19,6 @@ import Colors from "@/constants/colors";
 SplashScreen.preventAutoHideAsync();
 
 function RootLayoutNav() {
-  const { isAuthenticated, isLoading } = useAuth();
-  const segments = useSegments();
-  const rootRouter = useRouter();
-  const navigationState = useRootNavigationState();
-  const hasHandledAuth = useRef(false);
-
-  useEffect(() => {
-    // Wait until navigation is ready and auth is resolved
-    if (isLoading || !navigationState?.key) return;
-
-    const inProtectedRoute = segments[0] === '(tabs)';
-
-    if (!isAuthenticated && inProtectedRoute && !hasHandledAuth.current) {
-      // User logged out while on a protected screen → go to login
-      hasHandledAuth.current = true;
-      rootRouter.replace('/');
-    } else if (isAuthenticated) {
-      // Reset the guard when user is authenticated (for next logout)
-      hasHandledAuth.current = false;
-    }
-  }, [isAuthenticated, isLoading]);
-
   return (
     <Stack
       screenOptions={{

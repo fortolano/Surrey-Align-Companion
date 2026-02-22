@@ -1,0 +1,178 @@
+
+  ---
+  Changes to the Laravel Server (surreyalign.org)
+
+  1. app/Http/Controllers/ApiExternal/ReferenceDataController.php
+
+  What changed: The currentHolders() method now accepts an optional ?ward_id=N query parameter. When provided, it filters holders to only that ward. It
+   also returns ward_id in each holder's response payload. Previously it returned holders from ALL wards in the stake with no filtering.
+
+  2. app/Http/Controllers/ApiExternal/AuthController.php
+
+  What changed: The formatUser() method now returns three additional role flags: is_high_councilor, is_bishop, is_bishopric_member. These use existing
+  methods on the User model. Previously only is_stake_admin and is_stake_presidency were returned.
+
+  ---
+  Changes to the Replit Mobile App
+
+  Core Libraries
+
+  3. lib/api.ts — Complete rewrite
+
+  What changed: Replaced the simple authFetch function with a version that:
+  - Detects 401 responses (expired tokens) and clears stored credentials
+  - Calls a global onAuthExpired handler so the auth context can reset state
+  - Exports setAuthExpiredHandler() for the auth provider to register its callback
+  - Imports SecureStore and AsyncStorage to clear credentials on 401
+
+  4. lib/auth-context.tsx
+
+  What changed:
+  - Added is_high_councilor, is_bishop, is_bishopric_member to the SAUser interface
+  - Added import { setAuthExpiredHandler } from '@/lib/api' and a useEffect in AuthProvider that registers a handler to clear user/token state when a
+  401 is detected
+  - Added export function useLogout() hook that clears auth state, clears the React Query cache, then redirects — using window.location.href = '/' on
+  web (hard page reload) and router.replace('/') on native
+  - Added import { router } from 'expo-router' and import { queryClient } from '@/lib/query-client'
+
+  5. lib/query-client.ts
+
+  What changed: Removed the getQueryFn function, apiRequest function, throwIfResNotOk helper, the fetch import from expo/fetch, and the QueryFunction
+  type import. Also removed queryFn: getQueryFn({ on401: "throw" }) from the default query client options. These were all unused — every screen uses
+  authFetch directly.
+
+  New Constants Files
+
+  6. constants/layout.ts — NEW FILE
+
+  What it does: Exports WEB_TOP_INSET (67 on web, 0 on native) and WEB_BOTTOM_INSET (34 on web, 0 on native). Replaces hardcoded Platform.OS === 'web'
+  ? 67 : 0 definitions that were duplicated across 7+ screens.
+
+  7. constants/status-colors.ts — NEW FILE
+
+  What it does: Exports the STATUS_COLORS constant (a map of calling request status → background/text color pairs). This was previously defined
+  identically in both callings.tsx and calling-detail.tsx.
+
+  New Components
+
+  8. components/ScreenHeader.tsx — NEW FILE
+
+  What it does: A shared teal header component with title, optional subtitle, and optional right action button. Provides consistent header styling
+  across screens.
+
+  9. components/SkeletonCard.tsx — NEW FILE
+
+  What it does: Exports SkeletonCard and SkeletonList components with animated shimmer. Ready to replace the <ActivityIndicator> loading states on list
+   screens.
+
+  Tab Screens
+
+  10. app/(tabs)/add.tsx
+
+  What changed:
+  - All broken routes fixed: /create-calling → /calling-create, /create-hc-agenda → /high-council-agenda, /create-sc-agenda → /stake-council-agenda,
+  /create-org-agenda → /assignments, /create-wc-agenda → /assignments, /create-bishopric-agenda → /assignments, /create-note-sp → /assignments,
+  /create-note-bishop → /assignments
+  - Added comingSoon: true flag to all agenda and note items
+  - Added Alert import and a guard in the onPress handler: if item.comingSoon, shows "Coming Soon" alert instead of navigating
+  - detectRole() function rewritten to use structured API flags (user.is_stake_admin, user.is_stake_presidency, user.is_high_councilor, user.is_bishop,
+   user.is_bishopric_member) instead of fragile string matching on user.calling
+  - The function now takes user object instead of user?.calling string
+  - Imported WEB_TOP_INSET and WEB_BOTTOM_INSET from @/constants/layout, replacing inline Platform.OS checks
+
+  11. app/(tabs)/index.tsx (Home screen)
+
+  What changed:
+  - isHighCouncilor() function rewritten from calling.includes('high council') string matching to user?.is_high_councilor === true flag check
+  - Updated call sites to pass user instead of user?.calling
+  - Now imports useLogout from auth-context and uses it instead of a local handleLogout implementation (the local copy was removed)
+  - Changed const { user, token, logout } = useAuth() to const { user, token } = useAuth() since logout is now via the hook
+  - Imported WEB_TOP_INSET and WEB_BOTTOM_INSET from @/constants/layout
+
+  12. app/(tabs)/callings.tsx
+
+  What changed:
+  - Removed inline STATUS_COLORS definition, replaced with import from @/constants/status-colors
+  - Added search functionality: new searchQuery state, TextInput import, a search bar UI above the filter section, and local filtering of items by
+  calling name, individual names, or status label
+  - Added search bar styles (searchRow, searchInput)
+  - Imported WEB_TOP_INSET and WEB_BOTTOM_INSET from @/constants/layout
+
+  13. app/(tabs)/notifications.tsx
+
+  What changed:
+  - Added related_type and related_id to the Notification interface's data property
+  - Expanded handleNotifPress to navigate to /sunday-business when related_type === 'StakeBusiness' (previously only handled calling request
+  navigation)
+  - Replaced if (Platform.OS === 'web') { if (confirm(...)) ... } with a unified Alert.alert() call (removes browser confirm() usage)
+  - Imported WEB_TOP_INSET and WEB_BOTTOM_INSET from @/constants/layout
+
+  14. app/(tabs)/more.tsx
+
+  What changed:
+  - Now imports useLogout from auth-context and uses it instead of a local handleLogout implementation
+  - Changed const { user, logout } = useAuth() to const { user } = useAuth()
+  - Imported WEB_TOP_INSET and WEB_BOTTOM_INSET from @/constants/layout
+
+  15. app/(tabs)/_layout.tsx
+
+  What changed: Fixed authFetch('/api/notifications', token) → authFetch(token, '/api/notifications') (arguments were swapped — the function signature
+  is authFetch(token, path, options)).
+
+  Stack Screens
+
+  16. app/_layout.tsx (Root layout)
+
+  What changed: No functional changes remain — the auth gate useEffect that was added and then removed has been cleaned up. The file is back to its
+  original structure. (An auth gate was briefly added, then removed because window.location.href on web is more reliable.)
+
+  17. app/goals.tsx
+
+  What changed:
+  - Removed import { getApiUrl } from '@/lib/query-client' — no longer used
+  - Added import { authFetch } from '@/lib/api'
+  - Replaced the manual fetch() call in the queryFn with authFetch(token, '/api/goals', { params: {...} })
+  - Removed hardcoded params.set('period_id', '7') — the API defaults to the current cycle automatically
+  - Fixed the render structure: moved the period banner and filter chips INSIDE the <ScrollView> so pull-to-refresh works from any scroll position. The
+   <Animated.View> wrapping the filters is now a child of the ScrollView, and refreshControl is properly passed as a prop on the ScrollView opening
+  tag.
+
+  18. app/calling-create.tsx
+
+  What changed:
+  - Fixed the cross-ward bug (from our first session): wardId auto-sets when allowed_wards has exactly 1 entry, ward_id is passed to the
+  current-holders API query, holder matching uses h.ward_id field instead of broken h.label?.includes(wardId) string matching
+  - Added import { useNavigation } from '@react-navigation/native' and a useEffect with beforeRemove navigation listener that warns users about unsaved
+   changes when they try to navigate away from a partially-filled form
+
+  19. app/calling-detail.tsx
+
+  What changed: Removed inline STATUS_COLORS definition, replaced with import from @/constants/status-colors.
+
+  20. app/sunday-business.tsx
+
+  What changed: Imported WEB_TOP_INSET and WEB_BOTTOM_INSET from @/constants/layout, replacing inline Platform.OS checks.
+
+  21. app/profile.tsx
+
+  What changed: Now imports useLogout from auth-context and uses it instead of a local handleLogout implementation. Changed const { user, logout } =
+  useAuth() to const { user } = useAuth().
+
+  22. app/assignments.tsx — Complete rewrite
+
+  What changed: Replaced the 99-line "coming soon" placeholder with a functional screen that:
+  - Fetches data from /api/calling-requests/action-required (same API the Home screen uses)
+  - Displays action items as cards with role-based icons (vote, review, decide, complete)
+  - Shows calling name, individuals, action label, and scope badge
+  - Tapping a card navigates to the calling detail screen
+  - Has pull-to-refresh, loading state, error state with retry, and "You're all caught up" empty state
+
+  23. app/settings.tsx
+
+  What changed: Replaced disabled <Switch> toggles for Push Notifications and Dark Mode with static "Coming soon" text labels. Removes the false
+  expectation that these features are partially implemented.
+
+  24. components/AvatarMenu.tsx
+
+  What changed: Added a 100ms setTimeout between closing the modal (setMenuVisible(false)) and calling handleLogout(), so the modal dismiss animation
+  completes before auth state changes trigger navigation.

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Platform, StyleSheet, View, Text } from 'react-native';
-import { Tabs } from 'expo-router';
+import { Tabs, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
@@ -17,7 +17,7 @@ function TabBarBadge({ count }: { count: number }) {
 }
 
 export default function TabLayout() {
-  const { token } = useAuth();
+  const { token, isAuthenticated } = useAuth();
 
   const { data: notifData } = useQuery({
     queryKey: ['notifications-badge'],
@@ -36,6 +36,16 @@ export default function TabLayout() {
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
   const tabBarHeight = Platform.OS === 'web' ? 60 + webBottomInset : 64;
   const iconSize = 26;
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.replace('/');
+    }
+  }, [isAuthenticated]);
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <Tabs

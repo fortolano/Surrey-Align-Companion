@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useCall
 import * as SecureStore from 'expo-secure-store';
 import { Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
 import { getApiUrl, queryClient } from '@/lib/query-client';
 import { setAuthExpiredHandler } from '@/lib/api';
 
@@ -200,9 +199,8 @@ export function useAuth() {
 export function useLogout() {
   const { logout } = useAuth();
   const doLogout = useCallback(async () => {
-    await logout();
     queryClient.clear();
-    router.replace('/');
+    await logout();
   }, [logout]);
 
   return useCallback(() => {

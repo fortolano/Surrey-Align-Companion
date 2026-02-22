@@ -124,6 +124,7 @@ const addBtnStyles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1.5,
     borderColor: Colors.brand.lightGray,
+    marginTop: -4,
   },
 });
 

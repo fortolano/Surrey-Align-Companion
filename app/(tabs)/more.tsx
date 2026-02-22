@@ -15,7 +15,8 @@ import * as Haptics from 'expo-haptics';
 import { useAuth, useLogout } from '@/lib/auth-context';
 import Colors from '@/constants/colors';
 import { WEB_TOP_INSET, WEB_BOTTOM_INSET } from '@/constants/layout';
-import ScreenHeader, { HeaderAvatar } from '@/components/ScreenHeader';
+import ScreenHeader from '@/components/ScreenHeader';
+import AvatarMenu from '@/components/AvatarMenu';
 
 interface MenuSection {
   title: string;
@@ -201,6 +202,7 @@ export default function MoreScreen() {
       <ScreenHeader
         title="More"
         subtitle={user?.calling ? `${user.name}${user.ward ? ` \u00B7 ${user.ward}` : ''}` : undefined}
+        rightElement={<AvatarMenu />}
       />
 
       <ScrollView

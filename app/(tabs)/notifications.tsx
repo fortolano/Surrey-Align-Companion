@@ -30,6 +30,7 @@ import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
 import { WEB_TOP_INSET, WEB_BOTTOM_INSET } from '@/constants/layout';
 import ScreenHeader from '@/components/ScreenHeader';
+import AvatarMenu from '@/components/AvatarMenu';
 
 interface Notification {
   id: number;
@@ -354,7 +355,7 @@ export default function NotificationsScreen() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      <ScreenHeader title="Notifications" subtitle="Stay up to date" />
+      <ScreenHeader title="Notifications" subtitle="Stay up to date" rightElement={<AvatarMenu />} />
       <View style={styles.filterBar}>
         {(['all', 'unread', 'read'] as FilterTab[]).map((tab) => (
           <Pressable

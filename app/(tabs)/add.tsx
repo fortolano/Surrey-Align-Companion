@@ -14,6 +14,7 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/lib/auth-context';
 import Colors from '@/constants/colors';
 import ScreenHeader from '@/components/ScreenHeader';
+import AvatarMenu from '@/components/AvatarMenu';
 
 interface AddMenuItem {
   id: string;
@@ -90,7 +91,7 @@ export default function AddScreen() {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title="Create New" subtitle="What would you like to add?" />
+      <ScreenHeader title="Create New" subtitle="What would you like to add?" rightElement={<AvatarMenu />} />
 
       <View style={styles.content}>
         {items.map((item, idx) => (

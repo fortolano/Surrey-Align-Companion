@@ -23,6 +23,7 @@ import Colors from '@/constants/colors';
 import { WEB_TOP_INSET, WEB_BOTTOM_INSET } from '@/constants/layout';
 import { STATUS_COLORS } from '@/constants/status-colors';
 import ScreenHeader, { HeaderIconButton } from '@/components/ScreenHeader';
+import AvatarMenu from '@/components/AvatarMenu';
 
 interface ListIndividual {
   id: number;
@@ -222,11 +223,14 @@ export default function CallingsScreen() {
       <ScreenHeader
         title="Callings & Releases"
         rightElement={
-          <HeaderIconButton
-            icon="add"
-            onPress={() => router.push('/calling-create')}
-            testID="create-calling-btn"
-          />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <HeaderIconButton
+              icon="add"
+              onPress={() => router.push('/calling-create')}
+              testID="create-calling-btn"
+            />
+            <AvatarMenu />
+          </View>
         }
       />
       <Animated.View entering={FadeIn.duration(300)} style={styles.filterSection}>

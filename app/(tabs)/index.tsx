@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -7,21 +7,18 @@ import {
   RefreshControl,
   Pressable,
   Platform,
-  Modal,
-  Alert,
-  Dimensions,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import { useAuth, useLogout } from '@/lib/auth-context';
+import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
 import { WEB_TOP_INSET, WEB_BOTTOM_INSET } from '@/constants/layout';
-import ScreenHeader, { HeaderAvatar } from '@/components/ScreenHeader';
+import ScreenHeader from '@/components/ScreenHeader';
+import AvatarMenu from '@/components/AvatarMenu';
 
 function isHighCouncilor(user: any): boolean {
   return user?.is_high_councilor === true;
@@ -37,10 +34,7 @@ interface QuickLink {
 }
 
 export default function HomeScreen() {
-  const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
-  const handleLogout = useLogout();
-  const [menuVisible, setMenuVisible] = useState(false);
 
   const webTopInset = WEB_TOP_INSET;
   const firstName = user?.name?.split(' ')[0] || 'Leader';
@@ -220,91 +214,14 @@ export default function HomeScreen() {
   ];
 
 
-  const menuItems = [
-    { id: 'profile', label: 'Profile', icon: 'person-outline' as const, route: '/profile' },
-    { id: 'settings', label: 'Settings', icon: 'settings-outline' as const, route: '/settings' },
-    { id: 'align', label: 'About ALIGN', icon: 'compass-outline' as const, route: '/align-info' },
-    { id: 'about', label: 'About This App', icon: 'information-circle-outline' as const, route: '/about-app' },
-  ];
 
   return (
     <View style={styles.container}>
       <ScreenHeader
         title={`Hi, ${firstName}`}
         subtitle={user?.calling ? `${user.calling}${user.ward ? ` \u00B7 ${user.ward}` : ''}` : undefined}
-        rightElement={<HeaderAvatar initials={initials} onPress={() => setMenuVisible(true)} />}
+        rightElement={<AvatarMenu />}
       />
-
-      {menuVisible && (
-        <Modal
-          visible={menuVisible}
-          transparent
-          animationType="none"
-          onRequestClose={() => setMenuVisible(false)}
-        >
-          <Pressable
-            style={menuStyles.overlay}
-            onPress={() => setMenuVisible(false)}
-          >
-            <Pressable
-              onPress={(e) => e.stopPropagation()}
-              style={({ pressed }) => []}
-            >
-              <Animated.View
-                entering={FadeIn.duration(150)}
-                style={[
-                  menuStyles.dropdown,
-                  { top: insets.top + webTopInset + 52, right: 16 },
-                ]}
-              >
-              <View style={menuStyles.profileRow}>
-                <View style={menuStyles.profileAvatar}>
-                  <Text style={menuStyles.profileAvatarText}>{initials}</Text>
-                </View>
-                <View style={menuStyles.profileInfo}>
-                  <Text style={menuStyles.profileName} numberOfLines={1}>{user?.name || 'User'}</Text>
-                  {user?.calling && <Text style={menuStyles.profileRole} numberOfLines={1}>{user.calling}</Text>}
-                </View>
-              </View>
-
-              <View style={menuStyles.divider} />
-
-              {menuItems.map((item, idx) => (
-                <Pressable
-                  key={item.id}
-                  onPress={() => {
-                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setMenuVisible(false);
-                    setTimeout(() => router.push(item.route as any), 150);
-                  }}
-                  style={({ pressed }) => [
-                    menuStyles.menuItem,
-                    idx < menuItems.length - 1 && menuStyles.menuItemBorder,
-                    pressed && menuStyles.menuItemPressed,
-                  ]}
-                >
-                  <Ionicons name={item.icon} size={18} color={Colors.brand.darkGray} />
-                  <Text style={menuStyles.menuLabel}>{item.label}</Text>
-                </Pressable>
-              ))}
-
-              <View style={menuStyles.divider} />
-
-              <Pressable
-                onPress={handleLogout}
-                style={({ pressed }) => [
-                  menuStyles.menuItem,
-                  pressed && menuStyles.menuItemPressed,
-                ]}
-              >
-                <Ionicons name="log-out-outline" size={18} color={Colors.brand.error} />
-                <Text style={[menuStyles.menuLabel, { color: Colors.brand.error }]}>Sign Out</Text>
-              </Pressable>
-              </Animated.View>
-            </Pressable>
-          </Pressable>
-        </Modal>
-      )}
 
       <ScrollView
         style={styles.scrollView}
@@ -618,84 +535,3 @@ const doStyles = StyleSheet.create({
   },
 });
 
-const menuStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.15)',
-  },
-  dropdown: {
-    position: 'absolute',
-    width: 230,
-    backgroundColor: Colors.brand.white,
-    borderRadius: 14,
-    paddingVertical: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    elevation: 12,
-  },
-  profileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  profileAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: Colors.brand.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  profileAvatarText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.brand.white,
-    fontFamily: 'Inter_700Bold',
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  profileName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.brand.dark,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  profileRole: {
-    fontSize: 11,
-    color: Colors.brand.midGray,
-    fontFamily: 'Inter_400Regular',
-    marginTop: 1,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: Colors.brand.lightGray,
-    marginHorizontal: 14,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 11,
-    paddingHorizontal: 14,
-    gap: 10,
-  },
-  menuItemBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.brand.lightGray,
-    marginHorizontal: 0,
-  },
-  menuItemPressed: {
-    backgroundColor: Colors.brand.offWhite,
-  },
-  menuLabel: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '400',
-    color: Colors.brand.dark,
-    fontFamily: 'Inter_400Regular',
-  },
-});

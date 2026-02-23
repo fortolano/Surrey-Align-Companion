@@ -22,7 +22,7 @@ import Animated, {
   withSpring,
   runOnJS,
 } from 'react-native-reanimated';
-import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
@@ -354,7 +354,7 @@ export default function NotificationsScreen() {
   const webTopInset = WEB_TOP_INSET;
 
   return (
-    <GestureHandlerRootView style={styles.container}>
+    <View style={styles.container}>
       <ScreenHeader title="Notifications" subtitle="Stay up to date" rightElement={<AvatarMenu />} />
       <View style={styles.filterBar}>
         {(['all', 'unread', 'read'] as FilterTab[]).map((tab) => (
@@ -445,7 +445,7 @@ export default function NotificationsScreen() {
           </View>
         }
       />
-    </GestureHandlerRootView>
+    </View>
   );
 }
 

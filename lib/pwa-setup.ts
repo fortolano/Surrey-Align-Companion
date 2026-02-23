@@ -169,7 +169,16 @@ export function setupPWA() {
     const style = document.createElement('style');
     style.id = 'pwa-runtime-styles';
     style.textContent = `
-      html, body, #root {
+      html {
+        width: 100% !important;
+        height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        position: relative !important;
+        overscroll-behavior: none !important;
+      }
+      body, #root {
         width: 100% !important;
         height: 100% !important;
         margin: 0 !important;
@@ -177,20 +186,17 @@ export function setupPWA() {
         overflow: hidden !important;
         position: fixed !important;
         overscroll-behavior: none !important;
-        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y !important;
       }
       #root {
-        min-height: 100dvh;
-        max-height: 100dvh;
-      }
-      body {
-        overscroll-behavior: none !important;
-        touch-action: manipulation !important;
+        min-height: 100vh;
+        max-height: 100vh;
       }
       * {
         -webkit-user-select: none;
         user-select: none;
         -webkit-tap-highlight-color: transparent;
+        scrollbar-width: none;
       }
       input, textarea, [contenteditable="true"] {
         -webkit-user-select: auto !important;
@@ -201,9 +207,6 @@ export function setupPWA() {
       }
       ::-webkit-scrollbar {
         display: none !important;
-      }
-      * {
-        scrollbar-width: none;
       }
       *:focus-visible {
         outline: 2px solid #0289B5 !important;

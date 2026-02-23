@@ -84,8 +84,8 @@ self.addEventListener('fetch', function(event) {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(function() {
-        return caches.match('/offline.html').then(function(cachedOffline) {
-          return cachedOffline || caches.match('/');
+        return caches.match('/').then(function(cachedAppShell) {
+          return cachedAppShell || caches.match('/offline.html');
         });
       })
     );

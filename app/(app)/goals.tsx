@@ -106,6 +106,7 @@ const pStyles = StyleSheet.create({
 });
 
 function GoalCard({ goal, index }: { goal: Goal; index: number }) {
+  const [isFocused, setIsFocused] = useState(false);
   const handlePress = () => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -122,7 +123,15 @@ function GoalCard({ goal, index }: { goal: Goal; index: number }) {
     <Animated.View entering={FadeInDown.duration(350).delay(80 + index * 60)}>
       <Pressable
         onPress={handlePress}
-        style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+        style={({ pressed }) => [
+          styles.card,
+          isFocused && styles.cardFocused,
+          pressed && styles.cardPressed,
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={`${goal.title}. ${Math.round(goal.progress)} percent complete.`}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
         testID={`goal-card-${goal.id}`}
       >
         <View style={styles.cardHeader}>
@@ -179,6 +188,7 @@ export default function GoalsScreen() {
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
   const [activeScope, setActiveScope] = useState<ScopeFilter>('all');
+  const [focusedScope, setFocusedScope] = useState<ScopeFilter | null>(null);
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery<GoalsResponse>({
@@ -244,69 +254,76 @@ export default function GoalsScreen() {
           />
         }
       >
-        <Animated.View entering={FadeIn.duration(300)}>
-          {period && (
-            <View style={styles.periodBanner}>
-              <Ionicons name="calendar-outline" size={15} color={Colors.brand.primary} />
-              <Text style={styles.periodText}>{period.name}</Text>
-              {period.is_current && (
-                <View style={styles.currentBadge}>
-                  <Text style={styles.currentText}>Current</Text>
-                </View>
-              )}
-            </View>
-          )}
+        <View style={styles.contentWrap}>
+          <Animated.View entering={FadeIn.duration(300)}>
+            {period && (
+              <View style={styles.periodBanner}>
+                <Ionicons name="calendar-outline" size={15} color={Colors.brand.primary} />
+                <Text style={styles.periodText}>{period.name}</Text>
+                {period.is_current && (
+                  <View style={styles.currentBadge}>
+                    <Text style={styles.currentText}>Current</Text>
+                  </View>
+                )}
+              </View>
+            )}
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterRow}
-            style={styles.filterScroll}
-          >
-            {SCOPE_LABELS.map((s) => (
-              <Pressable
-                key={s.key}
-                onPress={() => handleScopeChange(s.key)}
-                style={[
-                  styles.filterChip,
-                  activeScope === s.key && styles.filterChipActive,
-                ]}
-              >
-                <Text
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterRow}
+              style={styles.filterScroll}
+            >
+              {SCOPE_LABELS.map((s) => (
+                <Pressable
+                  key={s.key}
+                  onPress={() => handleScopeChange(s.key)}
+                  onFocus={() => setFocusedScope(s.key)}
+                  onBlur={() => setFocusedScope((current) => (current === s.key ? null : current))}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: activeScope === s.key }}
                   style={[
-                    styles.filterLabel,
-                    activeScope === s.key && styles.filterLabelActive,
+                    styles.filterChip,
+                    activeScope === s.key && styles.filterChipActive,
+                    focusedScope === s.key && styles.filterChipFocused,
                   ]}
                 >
-                  {s.label}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </Animated.View>
+                  <Text
+                    style={[
+                      styles.filterLabel,
+                      activeScope === s.key && styles.filterLabelActive,
+                    ]}
+                  >
+                    {s.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </Animated.View>
 
-        {goals.length === 0 ? (
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIcon}>
-              <MaterialCommunityIcons name="target" size={36} color={Colors.brand.primary} />
+          {goals.length === 0 ? (
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIcon}>
+                <MaterialCommunityIcons name="target" size={36} color={Colors.brand.primary} />
+              </View>
+              <Text style={styles.emptyTitle}>No goals found</Text>
+              <Text style={styles.emptyDescription}>
+                {activeScope === 'all'
+                  ? 'No active goals for your organizations in this period.'
+                  : `No ${activeScope}-level goals for your entities.`}
+              </Text>
             </View>
-            <Text style={styles.emptyTitle}>No goals found</Text>
-            <Text style={styles.emptyDescription}>
-              {activeScope === 'all'
-                ? 'No active goals for your organizations in this period.'
-                : `No ${activeScope}-level goals for your entities.`}
-            </Text>
-          </View>
-        ) : (
-          <>
-            <Text style={styles.resultsCount}>
-              {goals.length} goal{goals.length !== 1 ? 's' : ''}
-            </Text>
-            {goals.map((goal, index) => (
-              <GoalCard key={goal.id} goal={goal} index={index} />
-            ))}
-          </>
-        )}
+          ) : (
+            <>
+              <Text style={styles.resultsCount}>
+                {goals.length} goal{goals.length !== 1 ? 's' : ''}
+              </Text>
+              {goals.map((goal, index) => (
+                <GoalCard key={goal.id} goal={goal} index={index} />
+              ))}
+            </>
+          )}
+        </View>
       </ScrollView>
     </View>
   );
@@ -397,6 +414,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 20,
     backgroundColor: Colors.brand.sectionBg,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  filterChipFocused: {
+    borderColor: Colors.brand.primaryLight,
   },
   filterChipActive: {
     backgroundColor: Colors.brand.primary,
@@ -415,8 +437,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
     paddingTop: 4,
+  },
+  contentWrap: {
+    width: '100%',
+    maxWidth: 960,
+    alignSelf: 'center',
+    paddingHorizontal: 20,
   },
   resultsCount: {
     fontSize: 12,
@@ -429,8 +456,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
+    borderWidth: 2,
+    borderColor: 'transparent',
     ...webShadowRgba('rgba(15, 23, 42, 0.1)', 0, 4, 12),
     elevation: 3,
+  },
+  cardFocused: {
+    borderColor: Colors.brand.primaryLight,
   },
   cardPressed: {
     transform: [{ scale: 0.98 }],

@@ -19,7 +19,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
-import { WEB_TOP_INSET, WEB_BOTTOM_INSET } from '@/constants/layout';
+import { WEB_BOTTOM_INSET } from '@/constants/layout';
 
 interface Ward {
   id: number;
@@ -440,127 +440,128 @@ export default function SundayBusinessScreen() {
       }
       showsVerticalScrollIndicator={false}
     >
-      {showWardSelector && (
-        <Animated.View entering={FadeIn.duration(300)} style={styles.wardSelector}>
-          <Text style={styles.wardPrompt}>{wardPromptText}</Text>
+      <View style={styles.contentWrap}>
+        {showWardSelector && (
+          <Animated.View entering={FadeIn.duration(300)} style={styles.wardSelector}>
+            <Text style={styles.wardPrompt}>{wardPromptText}</Text>
 
-          {showWardPicker ? (
-            <Animated.View entering={FadeIn.duration(200)} style={styles.wardGrid}>
-              {relevantWards.map(ward => (
+            {showWardPicker ? (
+              <Animated.View entering={FadeIn.duration(200)} style={styles.wardGrid}>
+                {relevantWards.map(ward => (
+                  <Pressable
+                    key={ward.id}
+                    onPress={() => {
+                      setSelectedWardId(ward.id);
+                      setShowWardPicker(false);
+                      if (Platform.OS !== 'web') Haptics.selectionAsync();
+                    }}
+                    style={[
+                      styles.wardChip,
+                      selectedWardId === ward.id && styles.wardChipActive,
+                      ward.allDone && styles.wardChipDone,
+                    ]}
+                  >
+                    <Text style={[
+                      styles.wardChipText,
+                      selectedWardId === ward.id && styles.wardChipTextActive,
+                      ward.allDone && styles.wardChipTextDone,
+                    ]}>
+                      {ward.name}
+                    </Text>
+                    {ward.allDone && (
+                      <Ionicons name="checkmark-circle" size={14} color={Colors.brand.success} />
+                    )}
+                  </Pressable>
+                ))}
+              </Animated.View>
+            ) : (
+              <Pressable
+                onPress={() => setShowWardPicker(true)}
+                style={styles.wardDropdown}
+              >
+                <Text style={[styles.wardDropdownText, !selectedWard && styles.wardPlaceholder]}>
+                  {selectedWard?.name || 'Select Ward...'}
+                </Text>
+                <Ionicons name="chevron-down" size={18} color={Colors.brand.midGray} />
+              </Pressable>
+            )}
+          </Animated.View>
+        )}
+
+        {!selectedWardId && showWardSelector && (
+          <Animated.View entering={FadeInDown.duration(300).delay(100)} style={styles.promptCard}>
+            <MaterialCommunityIcons name="gesture-tap" size={32} color={Colors.brand.midGray} />
+            <Text style={styles.promptText}>Select a ward above to see the releases and sustainings you need to conduct.</Text>
+          </Animated.View>
+        )}
+
+        {noItemsForWard && (
+          <Animated.View entering={FadeInDown.duration(300)} style={styles.promptCard}>
+            <Ionicons name="checkmark-circle-outline" size={32} color={Colors.brand.success} />
+            <Text style={styles.promptText}>No pending business for {selectedWard?.name} at this time.</Text>
+          </Animated.View>
+        )}
+
+        {selectedWardId && wardItems.length > 0 && (
+          <>
+            <View style={styles.wardSummary}>
+              <Text style={styles.wardSummaryText}>
+                {selectedWard?.name} has {wardItems.length} {wardItems.length === 1 ? 'item' : 'items'} to conduct
+              </Text>
+            </View>
+
+            {releaseItems.length > 0 && (
+              <Animated.View entering={FadeInDown.duration(300).delay(100)}>
+                <TypeGroupCard
+                  itemType="release"
+                  items={releaseItems}
+                  selectedWardId={selectedWardId}
+                />
+              </Animated.View>
+            )}
+
+            {sustainingItems.length > 0 && (
+              <Animated.View entering={FadeInDown.duration(300).delay(200)}>
+                <TypeGroupCard
+                  itemType="sustaining"
+                  items={sustainingItems}
+                  selectedWardId={selectedWardId}
+                />
+              </Animated.View>
+            )}
+
+            {allWardItemsConducted ? (
+              <Animated.View entering={FadeInDown.duration(300).delay(300)} style={styles.allDoneCard}>
+                <Ionicons name="checkmark-circle" size={24} color={Colors.brand.success} />
+                <Text style={styles.allDoneCardText}>All business conducted for {selectedWard?.name}</Text>
+              </Animated.View>
+            ) : outstandingWardItems.length > 0 ? (
+              <Animated.View entering={FadeInDown.duration(300).delay(300)}>
                 <Pressable
-                  key={ward.id}
-                  onPress={() => {
-                    setSelectedWardId(ward.id);
-                    setShowWardPicker(false);
-                    if (Platform.OS !== 'web') Haptics.selectionAsync();
-                  }}
-                  style={[
-                    styles.wardChip,
-                    selectedWardId === ward.id && styles.wardChipActive,
-                    ward.allDone && styles.wardChipDone,
-                  ]}
+                  onPress={markAllConducted}
+                  style={styles.masterConductBtn}
+                  disabled={markingAll}
                 >
-                  <Text style={[
-                    styles.wardChipText,
-                    selectedWardId === ward.id && styles.wardChipTextActive,
-                    ward.allDone && styles.wardChipTextDone,
-                  ]}>
-                    {ward.name}
-                  </Text>
-                  {ward.allDone && (
-                    <Ionicons name="checkmark-circle" size={14} color={Colors.brand.success} />
+                  {markingAll ? (
+                    <ActivityIndicator size="small" color={Colors.brand.white} />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark-circle-outline" size={22} color={Colors.brand.white} />
+                      <Text style={styles.masterConductBtnText}>
+                        {outstandingWardItems.length === 1
+                          ? `Mark ${outstandingWardItems[0].item_type === 'release' ? 'Release' : 'Sustaining'} as Conducted`
+                          : `Mark All ${outstandingWardItems.length} Items as Conducted`}
+                      </Text>
+                    </>
                   )}
                 </Pressable>
-              ))}
-            </Animated.View>
-          ) : (
-            <Pressable
-              onPress={() => setShowWardPicker(true)}
-              style={styles.wardDropdown}
-            >
-              <Text style={[styles.wardDropdownText, !selectedWard && styles.wardPlaceholder]}>
-                {selectedWard?.name || 'Select Ward...'}
-              </Text>
-              <Ionicons name="chevron-down" size={18} color={Colors.brand.midGray} />
-            </Pressable>
-          )}
-        </Animated.View>
-      )}
+              </Animated.View>
+            ) : null}
+          </>
+        )}
 
-      {!selectedWardId && showWardSelector && (
-        <Animated.View entering={FadeInDown.duration(300).delay(100)} style={styles.promptCard}>
-          <MaterialCommunityIcons name="gesture-tap" size={32} color={Colors.brand.midGray} />
-          <Text style={styles.promptText}>Select a ward above to see the releases and sustainings you need to conduct.</Text>
-        </Animated.View>
-      )}
-
-      {noItemsForWard && (
-        <Animated.View entering={FadeInDown.duration(300)} style={styles.promptCard}>
-          <Ionicons name="checkmark-circle-outline" size={32} color={Colors.brand.success} />
-          <Text style={styles.promptText}>No pending business for {selectedWard?.name} at this time.</Text>
-        </Animated.View>
-      )}
-
-      {selectedWardId && wardItems.length > 0 && (
-        <>
-          <View style={styles.wardSummary}>
-            <Text style={styles.wardSummaryText}>
-              {selectedWard?.name} has {wardItems.length} {wardItems.length === 1 ? 'item' : 'items'} to conduct
-            </Text>
-          </View>
-
-          {releaseItems.length > 0 && (
-            <Animated.View entering={FadeInDown.duration(300).delay(100)}>
-              <TypeGroupCard
-                itemType="release"
-                items={releaseItems}
-                selectedWardId={selectedWardId}
-              />
-            </Animated.View>
-          )}
-
-          {sustainingItems.length > 0 && (
-            <Animated.View entering={FadeInDown.duration(300).delay(200)}>
-              <TypeGroupCard
-                itemType="sustaining"
-                items={sustainingItems}
-                selectedWardId={selectedWardId}
-              />
-            </Animated.View>
-          )}
-
-          {allWardItemsConducted ? (
-            <Animated.View entering={FadeInDown.duration(300).delay(300)} style={styles.allDoneCard}>
-              <Ionicons name="checkmark-circle" size={24} color={Colors.brand.success} />
-              <Text style={styles.allDoneCardText}>All business conducted for {selectedWard?.name}</Text>
-            </Animated.View>
-          ) : outstandingWardItems.length > 0 ? (
-            <Animated.View entering={FadeInDown.duration(300).delay(300)}>
-              <Pressable
-                onPress={markAllConducted}
-                style={styles.masterConductBtn}
-                disabled={markingAll}
-              >
-                {markingAll ? (
-                  <ActivityIndicator size="small" color={Colors.brand.white} />
-                ) : (
-                  <>
-                    <Ionicons name="checkmark-circle-outline" size={22} color={Colors.brand.white} />
-                    <Text style={styles.masterConductBtnText}>
-                      {outstandingWardItems.length === 1
-                        ? `Mark ${outstandingWardItems[0].item_type === 'release' ? 'Release' : 'Sustaining'} as Conducted`
-                        : `Mark All ${outstandingWardItems.length} Items as Conducted`}
-                    </Text>
-                  </>
-                )}
-              </Pressable>
-            </Animated.View>
-          ) : null}
-        </>
-      )}
-
-      {!showWardSelector && wardItems.length > 0 && (
-        <>
+        {!showWardSelector && wardItems.length > 0 && (
+          <>
           {releaseItems.length > 0 && (
             <Animated.View entering={FadeInDown.duration(300).delay(100)}>
               <TypeGroupCard
@@ -608,46 +609,47 @@ export default function SundayBusinessScreen() {
               </Pressable>
             </Animated.View>
           ) : null}
-        </>
-      )}
+          </>
+        )}
 
-      {showWardSelector && relevantWards.length > 0 && (
-        <Animated.View entering={FadeInDown.duration(300).delay(400)}>
-          <View style={styles.groupHeader}>
-            <MaterialCommunityIcons name="format-list-checks" size={18} color={Colors.brand.primary} />
-            <Text style={styles.groupHeaderText}>Ward Progress</Text>
-          </View>
-          <View style={styles.outstandingCard}>
-            {relevantWards.map(ward => (
-              <Pressable
-                key={ward.id}
-                onPress={() => {
-                  setSelectedWardId(ward.id);
-                  setShowWardPicker(false);
-                  if (Platform.OS !== 'web') Haptics.selectionAsync();
-                }}
-                style={styles.wardCheckRow}
-              >
-                {ward.allDone ? (
-                  <Ionicons name="checkmark-circle" size={20} color={Colors.brand.success} />
-                ) : (
-                  <Ionicons name="ellipse-outline" size={20} color={Colors.brand.midGray} />
-                )}
-                <Text style={[
-                  styles.wardCheckName,
-                  ward.allDone && styles.wardCheckDone,
-                  selectedWardId === ward.id && styles.wardCheckSelected,
-                ]}>
-                  {ward.name}
-                </Text>
-                <Text style={styles.wardCheckCount}>
-                  {ward.doneCount}/{ward.totalCount}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </Animated.View>
-      )}
+        {showWardSelector && relevantWards.length > 0 && (
+          <Animated.View entering={FadeInDown.duration(300).delay(400)}>
+            <View style={styles.groupHeader}>
+              <MaterialCommunityIcons name="format-list-checks" size={18} color={Colors.brand.primary} />
+              <Text style={styles.groupHeaderText}>Ward Progress</Text>
+            </View>
+            <View style={styles.outstandingCard}>
+              {relevantWards.map(ward => (
+                <Pressable
+                  key={ward.id}
+                  onPress={() => {
+                    setSelectedWardId(ward.id);
+                    setShowWardPicker(false);
+                    if (Platform.OS !== 'web') Haptics.selectionAsync();
+                  }}
+                  style={styles.wardCheckRow}
+                >
+                  {ward.allDone ? (
+                    <Ionicons name="checkmark-circle" size={20} color={Colors.brand.success} />
+                  ) : (
+                    <Ionicons name="ellipse-outline" size={20} color={Colors.brand.midGray} />
+                  )}
+                  <Text style={[
+                    styles.wardCheckName,
+                    ward.allDone && styles.wardCheckDone,
+                    selectedWardId === ward.id && styles.wardCheckSelected,
+                  ]}>
+                    {ward.name}
+                  </Text>
+                  <Text style={styles.wardCheckCount}>
+                    {ward.doneCount}/{ward.totalCount}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </Animated.View>
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -656,6 +658,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.light.background,
+  },
+  contentWrap: {
+    width: '100%',
+    maxWidth: 960,
+    alignSelf: 'center',
   },
   centered: {
     justifyContent: 'center',

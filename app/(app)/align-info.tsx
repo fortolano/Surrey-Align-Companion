@@ -44,7 +44,7 @@ export default function AlignInfoScreen() {
           <View style={styles.heroIconRow}>
             <MaterialCommunityIcons name="compass-rose" size={28} color={Colors.brand.primary} />
           </View>
-          <Text style={styles.heroTitle}>
+          <Text style={styles.heroTitle} accessibilityRole="header">
             Hearts Aligned with Christ,{'\n'}Minds Aligned as One
           </Text>
           <View style={styles.divider} />

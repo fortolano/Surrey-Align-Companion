@@ -496,6 +496,36 @@ function updateManifests(manifests, timestamp, baseUrl, assetsByHash) {
   console.log("Manifests updated");
 }
 
+function copyPwaAssetsToStaticBuild() {
+  const publicDir = path.resolve(process.cwd(), "public");
+  if (!fs.existsSync(publicDir)) {
+    return;
+  }
+
+  const pwaAssets = [
+    "sw.js",
+    "manifest.json",
+    "offline.html",
+    "icon-192.png",
+    "icon-512.png",
+    "apple-touch-icon.png",
+  ];
+
+  let copiedCount = 0;
+  for (const fileName of pwaAssets) {
+    const source = path.join(publicDir, fileName);
+    if (!fs.existsSync(source)) continue;
+
+    const destination = path.join("static-build", fileName);
+    fs.copyFileSync(source, destination);
+    copiedCount += 1;
+  }
+
+  if (copiedCount > 0) {
+    console.log(`Copied ${copiedCount} PWA asset(s) into static-build`);
+  }
+}
+
 async function main() {
   console.log("Building static Expo Go deployment...");
 
@@ -545,6 +575,7 @@ async function main() {
 
   console.log("Updating manifests and creating landing page...");
   updateManifests(manifests, timestamp, baseUrl, assetsByHash);
+  copyPwaAssetsToStaticBuild();
 
   console.log("Build complete! Deploy to:", baseUrl);
 

@@ -5,11 +5,9 @@ import {
   View,
   Text,
   Pressable,
-  Alert,
   Platform,
   ScrollView,
 } from 'react-native';
-import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -39,7 +37,7 @@ export default function ProfileScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.profileHeader, { paddingTop: 24 }]}>
+        <View style={[styles.profileHeader, { paddingTop: insets.top + 24 }]}>
           <View style={styles.avatarCircle}>
             <Text style={styles.avatarText}>
               {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U'}

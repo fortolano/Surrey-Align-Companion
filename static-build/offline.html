@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#016183" />
+    <title>SurreyALIGN Offline</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        min-height: 100%;
+        font-family:
+          Inter,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        background: radial-gradient(circle at 20% 0%, #e8f4f8 0%, #f5f6f8 58%, #ffffff 100%);
+        color: #1e293b;
+      }
+
+      body {
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        box-sizing: border-box;
+      }
+
+      main {
+        width: min(520px, 100%);
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 20px;
+        padding: 24px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        color: #016183;
+        font-size: 26px;
+      }
+
+      p {
+        margin: 0 0 12px;
+        line-height: 1.55;
+        color: #475569;
+      }
+
+      .actions {
+        margin-top: 18px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        border: 0;
+        border-radius: 10px;
+        background: #016183;
+        color: #ffffff;
+        font-size: 15px;
+        font-weight: 600;
+        padding: 11px 16px;
+        cursor: pointer;
+      }
+
+      button:focus-visible {
+        outline: 2px solid #0289b5;
+        outline-offset: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>You're Offline</h1>
+      <p>SurreyALIGN could not reach the network. You can continue with previously loaded content and try again once your connection returns.</p>
+      <div class="actions">
+        <button type="button" onclick="location.reload()">Try Again</button>
+      </div>
+    </main>
+  </body>
+</html>

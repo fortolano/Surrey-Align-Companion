@@ -70,7 +70,7 @@ export default function LoginScreen() {
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: insets.top + webTopInset + 60,
+            paddingTop: insets.top + webTopInset + 35,
             paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 20),
           },
         ]}

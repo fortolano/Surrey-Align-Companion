@@ -6,6 +6,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
+import { webShadowRgba } from '@/lib/web-styles';
 
 function TabBarBadge({ count }: { count: number }) {
   if (count <= 0) return null;
@@ -56,10 +57,7 @@ export default function TabLayout() {
           paddingTop: 6,
           paddingBottom: Platform.OS === 'web' ? webBottomInset + 4 : 8,
           elevation: 8,
-          shadowColor: 'rgba(15, 23, 42, 0.08)',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 1,
-          shadowRadius: 8,
+          ...webShadowRgba('rgba(15, 23, 42, 0.08)', 0, -2, 8),
         },
       }}
     >

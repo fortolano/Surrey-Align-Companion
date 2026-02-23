@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { webShadow } from '@/lib/web-styles';
 import { StyleSheet, View, Text, Pressable, Modal, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -117,10 +118,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.brand.white,
     borderRadius: 14,
     paddingVertical: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
+    ...webShadow('#000', 0, 8, 0.18, 24),
     elevation: 12,
   },
   profileRow: {

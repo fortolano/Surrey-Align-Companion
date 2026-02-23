@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { webShadow } from "@/lib/web-styles";
 import { reloadAppAsync } from "expo";
 import {
   StyleSheet,
@@ -222,13 +223,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 24,
     minWidth: 200,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    ...webShadow("#000", 0, 2, 0.1, 4),
     elevation: 3,
   },
   buttonText: {

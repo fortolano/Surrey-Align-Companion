@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { webShadow, webShadowRgba } from '@/lib/web-styles';
 import {
   StyleSheet,
   View,
@@ -102,7 +103,7 @@ const pfStyles = StyleSheet.create({
   dropdown: {
     marginTop: 4, backgroundColor: Colors.brand.white, borderRadius: 10,
     borderWidth: 1, borderColor: Colors.brand.lightGray, overflow: 'hidden',
-    ...Platform.select({ ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8 }, android: { elevation: 4 } }),
+    ...webShadow('#000', 0, 2, 0.1, 8), elevation: 4,
   },
   dropdownScroll: { maxHeight: 220 },
   option: { paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.brand.lightGray },
@@ -584,7 +585,7 @@ const styles = StyleSheet.create({
   scrollContent: { padding: 20 },
   section: {
     backgroundColor: Colors.brand.white, borderRadius: 14, padding: 20, marginBottom: 20,
-    shadowColor: 'rgba(15, 23, 42, 0.08)', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 8, elevation: 2,
+    ...webShadowRgba('rgba(15, 23, 42, 0.08)', 0, 2, 8), elevation: 2,
   },
   fieldsInner: {
     backgroundColor: Colors.brand.sectionBg, borderRadius: 14, padding: 16,

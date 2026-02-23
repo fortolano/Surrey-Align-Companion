@@ -1,4 +1,5 @@
 import React from 'react';
+import { webShadowRgba } from '@/lib/web-styles';
 import {
   StyleSheet,
   View,
@@ -114,10 +115,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     marginBottom: 14,
-    shadowColor: 'rgba(1, 97, 131, 0.06)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
+    ...webShadowRgba('rgba(1, 97, 131, 0.06)', 0, 2, 8),
     elevation: 2,
   },
   cardTitle: {

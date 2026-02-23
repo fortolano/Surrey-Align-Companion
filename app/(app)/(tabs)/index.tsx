@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { webShadowRgba } from '@/lib/web-styles';
 import {
   StyleSheet,
   View,
@@ -374,10 +375,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 14,
     gap: 12,
-    shadowColor: 'rgba(15, 23, 42, 0.06)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
+    ...webShadowRgba('rgba(15, 23, 42, 0.06)', 0, 2, 8),
     elevation: 2,
   },
   primaryLinkIcon: {
@@ -408,10 +406,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     alignItems: 'center',
     gap: 8,
-    shadowColor: 'rgba(15, 23, 42, 0.06)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
+    ...webShadowRgba('rgba(15, 23, 42, 0.06)', 0, 2, 8),
     elevation: 2,
   },
   gridIcon: {
@@ -437,10 +432,7 @@ const doStyles = StyleSheet.create({
     marginBottom: 20,
     borderLeftWidth: 4,
     borderLeftColor: '#F59E0B',
-    shadowColor: 'rgba(15, 23, 42, 0.08)',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 1,
-    shadowRadius: 10,
+    ...webShadowRgba('rgba(15, 23, 42, 0.08)', 0, 3, 10),
     elevation: 3,
     overflow: 'hidden',
   },
@@ -521,10 +513,7 @@ const doStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    shadowColor: 'rgba(15, 23, 42, 0.06)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
+    ...webShadowRgba('rgba(15, 23, 42, 0.06)', 0, 2, 8),
     elevation: 2,
   },
   emptyText: {

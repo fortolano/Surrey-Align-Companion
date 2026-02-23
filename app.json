@@ -27,7 +27,14 @@
       }
     },
     "web": {
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro",
+      "output": "single",
+      "themeColor": "#016183",
+      "backgroundColor": "#016183",
+      "name": "SurreyALIGN",
+      "shortName": "SurreyALIGN",
+      "description": "Leadership Companion for Surrey BC Stake"
     },
     "plugins": [
       [

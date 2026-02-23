@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { webShadowRgba } from '@/lib/web-styles';
 import {
   StyleSheet,
   View,
@@ -543,10 +544,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.brand.white,
     borderRadius: 20,
     padding: 22,
-    shadowColor: Colors.light.cardShadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
+    ...webShadowRgba(Colors.light.cardShadow, 0, 4, 12),
     elevation: 3,
   },
   heroTop: {
@@ -706,10 +704,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 14,
-    shadowColor: Colors.light.cardShadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 1,
-    shadowRadius: 4,
+    ...webShadowRgba(Colors.light.cardShadow, 0, 1, 4),
     elevation: 1,
   },
   entityHeader: {

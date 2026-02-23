@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { webShadow } from '@/lib/web-styles';
 import {
   StyleSheet,
   View,
@@ -201,10 +202,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    ...webShadow('#000', 0, 4, 0.15, 12),
     elevation: 6,
   },
   logoImage: {
@@ -228,10 +226,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.brand.white,
     borderRadius: 20,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
+    ...webShadow('#000', 0, 8, 0.12, 24),
     elevation: 8,
   },
   welcomeText: {
@@ -298,10 +293,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 12,
-    shadowColor: Colors.brand.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    ...webShadow(Colors.brand.primary, 0, 4, 0.3, 8),
     elevation: 4,
   },
   loginButtonPressed: {

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { webShadow, webShadowRgba } from '@/lib/web-styles';
 import {
   StyleSheet,
   View,
@@ -153,10 +154,7 @@ const cardStyles = StyleSheet.create({
     padding: 18,
     marginBottom: 14,
     marginHorizontal: 16,
-    shadowColor: 'rgba(15, 23, 42, 0.1)',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 1,
-    shadowRadius: 10,
+    ...webShadowRgba('rgba(15, 23, 42, 0.1)', 0, 3, 10),
     elevation: 3,
   },
   header: {
@@ -818,10 +816,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 4,
     marginHorizontal: 16,
-    shadowColor: 'rgba(15, 23, 42, 0.1)',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 1,
-    shadowRadius: 10,
+    ...webShadowRgba('rgba(15, 23, 42, 0.1)', 0, 3, 10),
     elevation: 3,
   },
   wardCheckRow: {
@@ -862,10 +857,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 6,
     marginBottom: 8,
-    shadowColor: Colors.brand.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    ...webShadow(Colors.brand.primary, 0, 4, 0.3, 8),
     elevation: 4,
   },
   masterConductBtnText: {

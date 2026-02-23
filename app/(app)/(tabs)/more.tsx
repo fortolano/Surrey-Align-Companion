@@ -1,4 +1,5 @@
 import React from 'react';
+import { webShadowRgba } from '@/lib/web-styles';
 import {
   StyleSheet,
   View,
@@ -289,10 +290,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.brand.white,
     borderRadius: 14,
     overflow: 'hidden',
-    shadowColor: 'rgba(15, 23, 42, 0.06)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
+    ...webShadowRgba('rgba(15, 23, 42, 0.06)', 0, 2, 8),
     elevation: 2,
   },
   menuItem: {

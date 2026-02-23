@@ -1,4 +1,5 @@
 import React from 'react';
+import { webShadowRgba } from '@/lib/web-styles';
 import {
   StyleSheet,
   View,
@@ -101,10 +102,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderLeftWidth: 4,
     borderLeftColor: Colors.brand.primary,
-    shadowColor: 'rgba(1, 97, 131, 0.1)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 16,
+    ...webShadowRgba('rgba(1, 97, 131, 0.1)', 0, 4, 16),
     elevation: 3,
   },
   heroIconRow: {
@@ -152,10 +150,7 @@ const styles = StyleSheet.create({
     padding: 24,
     marginBottom: 16,
     gap: 14,
-    shadowColor: 'rgba(1, 97, 131, 0.06)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
+    ...webShadowRgba('rgba(1, 97, 131, 0.06)', 0, 2, 8),
     elevation: 2,
   },
   bodyText: {

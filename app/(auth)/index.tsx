@@ -17,6 +17,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useAuth } from '@/lib/auth-context';
 import Colors from '@/constants/colors';
+import { WEB_TOP_INSET, WEB_BOTTOM_INSET } from '@/constants/layout';
 
 export default function LoginScreen() {
   const { isLoading, login } = useAuth();
@@ -57,7 +58,7 @@ export default function LoginScreen() {
     setSubmitting(false);
   };
 
-  const webTopInset = Platform.OS === 'web' ? 67 : 0;
+  const webTopInset = WEB_TOP_INSET;
 
   return (
     <View style={[styles.container, { backgroundColor: Colors.brand.primary }]}>
@@ -67,7 +68,7 @@ export default function LoginScreen() {
           styles.scrollContent,
           {
             paddingTop: insets.top + webTopInset + 35,
-            paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 20),
+            paddingBottom: insets.bottom + (Platform.OS === 'web' ? WEB_BOTTOM_INSET : 20),
           },
         ]}
         bottomOffset={40}

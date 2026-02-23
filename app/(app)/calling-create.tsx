@@ -22,6 +22,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
+import { WEB_BOTTOM_INSET } from '@/constants/layout';
 
 interface Ward { id: number; name: string; }
 interface CallingOption { id: number; name: string; level?: string; organization_type?: string; }
@@ -209,7 +210,7 @@ export default function CallingCreateScreen() {
   const { token, user } = useAuth();
   const qClient = useQueryClient();
   const navigation = useNavigation();
-  const webBottomInset = Platform.OS === 'web' ? 34 : 0;
+  const webBottomInset = WEB_BOTTOM_INSET;
 
   const [scope, setScope] = useState<string>('');
   const [wardId, setWardId] = useState<string>('');

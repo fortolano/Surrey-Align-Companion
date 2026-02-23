@@ -13,12 +13,13 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/lib/auth-context';
 import Colors from '@/constants/colors';
+import { WEB_BOTTOM_INSET } from '@/constants/layout';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
 
-  const webBottomInset = Platform.OS === 'web' ? 34 : 0;
+  const webBottomInset = WEB_BOTTOM_INSET;
 
 
   const infoRows = [

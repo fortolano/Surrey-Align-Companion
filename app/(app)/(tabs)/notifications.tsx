@@ -28,7 +28,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
-import { WEB_TOP_INSET, WEB_BOTTOM_INSET } from '@/constants/layout';
+import { WEB_BOTTOM_INSET } from '@/constants/layout';
 import ScreenHeader from '@/components/ScreenHeader';
 import AvatarMenu from '@/components/AvatarMenu';
 
@@ -350,8 +350,6 @@ export default function NotificationsScreen() {
       </View>
     );
   }
-
-  const webTopInset = WEB_TOP_INSET;
 
   return (
     <View style={styles.container}>

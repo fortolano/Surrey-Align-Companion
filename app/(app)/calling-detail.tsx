@@ -21,6 +21,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
+import { WEB_BOTTOM_INSET } from '@/constants/layout';
 import { STATUS_COLORS } from '@/constants/status-colors';
 
 
@@ -721,7 +722,7 @@ export default function CallingDetailScreen() {
   const insets = useSafeAreaInsets();
   const { token, user } = useAuth();
   const qClient = useQueryClient();
-  const webBottomInset = Platform.OS === 'web' ? 34 : 0;
+  const webBottomInset = WEB_BOTTOM_INSET;
   const requestId = Number(id);
 
   const [activeTab, setActiveTab] = useState<'discussion' | 'approvals' | 'steps'>('discussion');

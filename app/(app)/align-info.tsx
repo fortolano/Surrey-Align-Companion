@@ -14,10 +14,11 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
+import { WEB_BOTTOM_INSET } from '@/constants/layout';
 
 export default function AlignInfoScreen() {
   const insets = useSafeAreaInsets();
-  const webBottomInset = Platform.OS === 'web' ? 34 : 0;
+  const webBottomInset = WEB_BOTTOM_INSET;
 
   const handleOpenLink = () => {
     if (Platform.OS !== 'web') {

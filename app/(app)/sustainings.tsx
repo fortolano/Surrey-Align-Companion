@@ -21,6 +21,7 @@ import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-quer
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
+import { WEB_BOTTOM_INSET } from '@/constants/layout';
 
 interface Individual {
   id: number;
@@ -246,7 +247,7 @@ export default function SustainingsScreen() {
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
   const qClient = useQueryClient();
-  const webBottomInset = Platform.OS === 'web' ? 34 : 0;
+  const webBottomInset = WEB_BOTTOM_INSET;
 
   const userIsHC = isHC(user?.calling);
   const userIsSP = user?.is_stake_presidency_member ?? false;

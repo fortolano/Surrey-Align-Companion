@@ -7,7 +7,6 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
-  Platform,
   RefreshControl,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
@@ -18,6 +17,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { getApiUrl } from '@/lib/query-client';
 import Colors from '@/constants/colors';
+import { WEB_BOTTOM_INSET } from '@/constants/layout';
 
 interface ActionItem {
   id: number;
@@ -296,7 +296,7 @@ export default function GoalDetailScreen() {
   const insets = useSafeAreaInsets();
   const { goalId } = useLocalSearchParams<{ goalId: string }>();
   const { token } = useAuth();
-  const webBottomInset = Platform.OS === 'web' ? 34 : 0;
+  const webBottomInset = WEB_BOTTOM_INSET;
   const [drillDown, setDrillDown] = useState<{ entityType: string; entityId: number } | null>(null);
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery<ExecutionResponse>({

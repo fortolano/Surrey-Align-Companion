@@ -6,6 +6,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
+import { WEB_BOTTOM_INSET } from '@/constants/layout';
 import { webShadowRgba } from '@/lib/web-styles';
 
 function TabBarBadge({ count }: { count: number }) {
@@ -34,7 +35,7 @@ export default function TabLayout() {
 
   const unreadCount = notifData?.notifications?.filter((n: any) => !n.is_read)?.length ?? 0;
 
-  const webBottomInset = Platform.OS === 'web' ? 34 : 0;
+  const webBottomInset = WEB_BOTTOM_INSET;
   const tabBarHeight = Platform.OS === 'web' ? 60 + webBottomInset : 64;
   const iconSize = 26;
 

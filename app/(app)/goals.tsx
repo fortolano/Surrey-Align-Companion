@@ -19,6 +19,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
+import { WEB_BOTTOM_INSET } from '@/constants/layout';
 
 interface GoalPeriod {
   id: number;
@@ -189,7 +190,7 @@ export default function GoalsScreen() {
   const { token } = useAuth();
   const [activeScope, setActiveScope] = useState<ScopeFilter>('all');
   const [focusedScope, setFocusedScope] = useState<ScopeFilter | null>(null);
-  const webBottomInset = Platform.OS === 'web' ? 34 : 0;
+  const webBottomInset = WEB_BOTTOM_INSET;
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery<GoalsResponse>({
     queryKey: ['/api/goals', activeScope],

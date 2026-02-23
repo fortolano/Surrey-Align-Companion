@@ -15,7 +15,6 @@ import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/lib/auth-context';
 import Colors from '@/constants/colors';
-import { WEB_TOP_INSET, WEB_BOTTOM_INSET } from '@/constants/layout';
 import ScreenHeader from '@/components/ScreenHeader';
 import AvatarMenu from '@/components/AvatarMenu';
 
@@ -185,8 +184,6 @@ function renderIcon(item: MenuItem, size: number) {
 export default function MoreScreen() {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
-  const webTopInset = WEB_TOP_INSET;
-
 
   const handlePress = (item: MenuItem) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

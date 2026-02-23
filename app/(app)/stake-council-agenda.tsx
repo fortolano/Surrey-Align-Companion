@@ -3,16 +3,16 @@ import {
   StyleSheet,
   View,
   Text,
-  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import Colors from '@/constants/colors';
+import { WEB_BOTTOM_INSET } from '@/constants/layout';
 
 export default function StakeCouncilAgendaScreen() {
   const insets = useSafeAreaInsets();
-  const webBottomInset = Platform.OS === 'web' ? 34 : 0;
+  const webBottomInset = WEB_BOTTOM_INSET;
 
   return (
     <View style={styles.container}>

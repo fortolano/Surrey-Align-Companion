@@ -17,7 +17,6 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import Colors from '@/constants/colors';
-import { WEB_TOP_INSET, WEB_BOTTOM_INSET } from '@/constants/layout';
 import ScreenHeader from '@/components/ScreenHeader';
 import AvatarMenu from '@/components/AvatarMenu';
 
@@ -37,7 +36,6 @@ interface QuickLink {
 export default function HomeScreen() {
   const { user, token } = useAuth();
 
-  const webTopInset = WEB_TOP_INSET;
   const firstName = user?.name?.split(' ')[0] || 'Leader';
   const initials = (user?.name || 'U').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 

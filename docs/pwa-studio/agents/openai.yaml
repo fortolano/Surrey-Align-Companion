@@ -1,0 +1,5 @@
+interface:
+  display_name: "PWA Studio"
+  short_description: "Build polished, app-like PWAs"
+  default_prompt: "Use $pwa-studio to design and implement a production-grade PWA with locked viewport behavior, offline support, and installability."
+  brand_color: "#0F766E"

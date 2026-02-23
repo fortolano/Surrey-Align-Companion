@@ -7,6 +7,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "@/lib/query-client";
 import { AuthProvider } from "@/lib/auth-context";
+import { setupPWA } from "@/lib/pwa-setup";
 import {
   useFonts,
   Inter_400Regular,
@@ -16,6 +17,7 @@ import {
 } from "@expo-google-fonts/inter";
 
 SplashScreen.preventAutoHideAsync();
+setupPWA();
 
 function RootLayoutNav() {
   return (

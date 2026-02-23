@@ -19,7 +19,7 @@ function TabBarBadge({ count }: { count: number }) {
 export default function TabLayout() {
   const { token, isAuthenticated, isLoading } = useAuth();
 
-  if (!isLoading && !isAuthenticated) {
+  if (!isLoading && !isAuthenticated && Platform.OS !== 'web') {
     return <Redirect href="/" />;
   }
 

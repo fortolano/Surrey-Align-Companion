@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useMemo,
 import * as SecureStore from 'expo-secure-store';
 import { Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 import { getApiUrl, queryClient } from '@/lib/query-client';
 import { setAuthExpiredHandler } from '@/lib/api';
 
@@ -73,6 +74,19 @@ async function secureDelete(key: string) {
   }
 }
 
+function fireAndForgetLogoutApi(authToken: string) {
+  try {
+    const base = getProxyBase();
+    fetch(`${base}api/auth/logout`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Accept': 'application/json',
+      },
+    }).catch(() => {});
+  } catch {}
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SAUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -81,33 +95,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   tokenRef.current = token;
 
-  const performLogout = useCallback(async () => {
+  const executeLogout = useCallback(async () => {
     const currentToken = tokenRef.current;
-    try {
-      if (currentToken) {
-        const base = getProxyBase();
-        fetch(`${base}api/auth/logout`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${currentToken}`,
-            'Accept': 'application/json',
-          },
-        }).catch(() => {});
-      }
-    } catch {}
+
+    if (currentToken) {
+      fireAndForgetLogoutApi(currentToken);
+    }
+
+    if (Platform.OS === 'web') {
+      await AsyncStorage.removeItem('sa_token');
+      await AsyncStorage.removeItem('sa_user');
+      queryClient.clear();
+      window.location.href = '/';
+      return;
+    }
+
+    setToken(null);
+    setUser(null);
 
     await secureDelete('sa_token');
     await secureDelete('sa_user');
     queryClient.clear();
-    setToken(null);
-    setUser(null);
+
+    router.replace('/');
   }, []);
 
   useEffect(() => {
     setAuthExpiredHandler(() => {
-      performLogout();
+      executeLogout();
     });
-  }, [performLogout]);
+  }, [executeLogout]);
 
   useEffect(() => {
     validateSession();
@@ -188,14 +205,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     if (Platform.OS === 'web') {
-      performLogout();
+      executeLogout();
       return;
     }
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: () => performLogout() },
+      { text: 'Sign Out', style: 'destructive', onPress: () => executeLogout() },
     ]);
-  }, [performLogout]);
+  }, [executeLogout]);
 
   const value = useMemo(() => ({
     user,

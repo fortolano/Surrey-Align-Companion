@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect, useRef, useMemo,
 import * as SecureStore from 'expo-secure-store';
 import { Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
 import { getApiUrl, queryClient } from '@/lib/query-client';
 import { setAuthExpiredHandler } from '@/lib/api';
 
@@ -92,38 +91,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const tokenRef = useRef<string | null>(null);
+  const logoutInProgressRef = useRef(false);
 
   tokenRef.current = token;
 
   const executeLogout = useCallback(async () => {
+    if (logoutInProgressRef.current) return;
+    logoutInProgressRef.current = true;
+
     const currentToken = tokenRef.current;
 
     if (currentToken) {
       fireAndForgetLogoutApi(currentToken);
     }
 
-    if (Platform.OS === 'web') {
-      await AsyncStorage.removeItem('sa_token');
-      await AsyncStorage.removeItem('sa_user');
-      queryClient.clear();
-      window.location.href = '/';
-      return;
-    }
-
     setToken(null);
     setUser(null);
-
-    await secureDelete('sa_token');
-    await secureDelete('sa_user');
     queryClient.clear();
 
-    router.replace('/');
+    try {
+      await Promise.all([
+        secureDelete('sa_token'),
+        secureDelete('sa_user'),
+      ]);
+    } finally {
+      logoutInProgressRef.current = false;
+    }
   }, []);
 
   useEffect(() => {
     setAuthExpiredHandler(() => {
-      executeLogout();
+      void executeLogout();
     });
+
+    return () => {
+      setAuthExpiredHandler(() => {});
+    };
   }, [executeLogout]);
 
   useEffect(() => {
@@ -205,12 +208,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     if (Platform.OS === 'web') {
-      executeLogout();
+      void executeLogout();
       return;
     }
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: () => executeLogout() },
+      { text: 'Sign Out', style: 'destructive', onPress: () => { void executeLogout(); } },
     ]);
   }, [executeLogout]);
 

@@ -88,6 +88,7 @@ export default function AvatarMenu() {
                     setMenuVisible(false);
                     setTimeout(() => logout(), 100);
                   }}
+                  testID="avatar-menu-signout-button"
                   style={({ pressed }) => [
                     styles.menuItem,
                     pressed && styles.menuItemPressed,

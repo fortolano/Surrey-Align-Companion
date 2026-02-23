@@ -10,6 +10,7 @@
     "expo:static:build": "node scripts/build.js",
     "server:build": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=server_dist",
     "server:prod": "NODE_ENV=production node server_dist/index.js",
+    "e2e:logout:maestro": "maestro test e2e/maestro/logout-regression.yaml",
     "db:push": "drizzle-kit push",
     "start": "npx expo start",
     "lint": "npx expo lint",

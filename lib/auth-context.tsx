@@ -1,8 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback, ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
 import { getApiUrl, queryClient } from '@/lib/query-client';
 import { setAuthExpiredHandler } from '@/lib/api';
 
@@ -38,7 +37,7 @@ interface AuthContextValue {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
-  logout: () => Promise<void>;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -78,14 +77,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SAUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const tokenRef = useRef<string | null>(null);
 
-  // Register global auth expiry handler
+  tokenRef.current = token;
+
+  const performLogout = useCallback(async () => {
+    const currentToken = tokenRef.current;
+    try {
+      if (currentToken) {
+        const base = getProxyBase();
+        fetch(`${base}api/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${currentToken}`,
+            'Accept': 'application/json',
+          },
+        }).catch(() => {});
+      }
+    } catch {}
+
+    await secureDelete('sa_token');
+    await secureDelete('sa_user');
+    queryClient.clear();
+    setToken(null);
+    setUser(null);
+  }, []);
+
   useEffect(() => {
     setAuthExpiredHandler(() => {
-      setToken(null);
-      setUser(null);
+      performLogout();
     });
-  }, []);
+  }, [performLogout]);
 
   useEffect(() => {
     validateSession();
@@ -164,24 +186,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const logout = useCallback(async () => {
-    try {
-      if (token) {
-        const base = getProxyBase();
-        await fetch(`${base}api/auth/logout`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json',
-          },
-        });
-      }
-    } catch {}
-    await secureDelete('sa_token');
-    await secureDelete('sa_user');
-    setToken(null);
-    setUser(null);
-  }, [token]);
+  const logout = useCallback(() => {
+    if (Platform.OS === 'web') {
+      performLogout();
+      return;
+    }
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign Out', style: 'destructive', onPress: () => performLogout() },
+    ]);
+  }, [performLogout]);
 
   const value = useMemo(() => ({
     user,
@@ -203,41 +217,4 @@ export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
-}
-
-export function useLogout() {
-  const { logout, token } = useAuth();
-
-  const doLogout = useCallback(async () => {
-    if (Platform.OS === 'web') {
-      try {
-        if (token) {
-          const base = getProxyBase();
-          fetch(`${base}api/auth/logout`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
-          }).catch(() => {});
-        }
-      } catch {}
-      await AsyncStorage.removeItem('sa_token');
-      await AsyncStorage.removeItem('sa_user');
-      queryClient.clear();
-      window.location.href = '/';
-      return;
-    }
-    await logout();
-    queryClient.clear();
-    router.replace('/');
-  }, [logout, token]);
-
-  return useCallback(() => {
-    if (Platform.OS === 'web') {
-      doLogout();
-    } else {
-      Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign Out', style: 'destructive', onPress: () => doLogout() },
-      ]);
-    }
-  }, [doLogout]);
 }

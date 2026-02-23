@@ -23,7 +23,11 @@ export default function AlignInfoScreen() {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    Linking.openURL('https://surreyalign.org/about?access=surrey2026');
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.open('https://surreyalign.org/about?access=surrey2026', '_blank');
+    } else {
+      Linking.openURL('https://surreyalign.org/about?access=surrey2026');
+    }
   };
 
   return (

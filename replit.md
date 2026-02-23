@@ -71,3 +71,19 @@ Preferred communication style: Simple, everyday language.
 - `express`: Backend server framework.
 - `drizzle-orm`, `drizzle-zod`, `pg`: Database ORM and PostgreSQL client.
 - `react-native-reanimated`, `react-native-gesture-handler`, `react-native-safe-area-context`, `expo-haptics`: UI and interaction components.
+
+## PWA Configuration
+
+The app is configured as a Progressive Web App for easy distribution to church leaders. Key PWA files:
+
+- **`public/manifest.json`**: Web app manifest with standalone display, portrait orientation, theme color `#016183`
+- **`public/sw.js`**: Service worker for caching and offline support
+- **`public/icon-192.png`, `icon-512.png`, `apple-touch-icon.png`**: PWA icons
+- **`lib/pwa-setup.ts`**: Runtime PWA setup injected at app startup — adds meta tags, CSS resets, gesture prevention, and service worker registration (web only)
+- **`lib/web-styles.ts`**: Centralized web shadow utilities (`webShadow`, `webShadowRgba`) replacing deprecated React Native shadow props on web
+
+### PWA Design Principles
+- All PWA changes are behind `Platform.OS === 'web'` guards — native Expo Go is unaffected
+- CSS resets disable: page dragging/bouncing, pinch-to-zoom, text selection, pull-to-refresh, context menus
+- External links open in new browser tabs (not navigate away from PWA)
+- Body is `position: fixed` with `overflow: hidden` to lock the viewport

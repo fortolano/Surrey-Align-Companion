@@ -91,7 +91,7 @@ export default function LoginScreen() {
         <Animated.View entering={FadeInDown.duration(500).delay(200)} style={styles.formCard}>
           <Text style={styles.welcomeText}>Welcome back</Text>
           <Text style={styles.instructionText}>
-            Sign in with your SurreyALIGN credentials
+            Use your SurreyALIGN credentials
           </Text>
 
           {!!error && (

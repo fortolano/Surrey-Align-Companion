@@ -12,7 +12,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useAuth, useLogout } from '@/lib/auth-context';
+import { useAuth } from '@/lib/auth-context';
 import Colors from '@/constants/colors';
 import { WEB_TOP_INSET, WEB_BOTTOM_INSET } from '@/constants/layout';
 import ScreenHeader from '@/components/ScreenHeader';
@@ -183,15 +183,14 @@ function renderIcon(item: MenuItem, size: number) {
 
 export default function MoreScreen() {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
-  const handleLogout = useLogout();
+  const { user, logout } = useAuth();
   const webTopInset = WEB_TOP_INSET;
 
 
   const handlePress = (item: MenuItem) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (item.action === 'logout') {
-      handleLogout();
+      logout();
     } else if (item.route) {
       router.push(item.route as any);
     }
@@ -247,7 +246,7 @@ export default function MoreScreen() {
         ))}
 
         <Pressable
-          onPress={handleLogout}
+          onPress={logout}
           style={({ pressed }) => [
             styles.signOutBtn,
             pressed && { opacity: 0.7 },

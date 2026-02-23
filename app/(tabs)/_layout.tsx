@@ -1,6 +1,6 @@
 import React from 'react';
 import { Platform, StyleSheet, View, Text } from 'react-native';
-import { Tabs } from 'expo-router';
+import { Tabs, Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
@@ -17,7 +17,11 @@ function TabBarBadge({ count }: { count: number }) {
 }
 
 export default function TabLayout() {
-  const { token, isAuthenticated } = useAuth();
+  const { token, isAuthenticated, isLoading } = useAuth();
+
+  if (!isLoading && !isAuthenticated) {
+    return <Redirect href="/" />;
+  }
 
   const { data: notifData } = useQuery({
     queryKey: ['notifications-badge'],

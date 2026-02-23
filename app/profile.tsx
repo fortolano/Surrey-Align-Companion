@@ -12,13 +12,12 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useAuth, useLogout } from '@/lib/auth-context';
+import { useAuth } from '@/lib/auth-context';
 import Colors from '@/constants/colors';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
-  const handleLogout = useLogout();
+  const { user, logout } = useAuth();
 
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
 
@@ -87,7 +86,7 @@ export default function ProfileScreen() {
               if (Platform.OS !== 'web') {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               }
-              handleLogout();
+              logout();
             }}
             style={({ pressed }) => [
               styles.logoutButton,

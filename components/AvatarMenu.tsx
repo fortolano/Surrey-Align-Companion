@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { useAuth, useLogout } from '@/lib/auth-context';
+import { useAuth } from '@/lib/auth-context';
 import Colors from '@/constants/colors';
 import { WEB_TOP_INSET } from '@/constants/layout';
 import { HeaderAvatar } from '@/components/ScreenHeader';
@@ -18,8 +18,7 @@ const MENU_ITEMS = [
 ];
 
 export default function AvatarMenu() {
-  const { user } = useAuth();
-  const handleLogout = useLogout();
+  const { user, logout } = useAuth();
   const insets = useSafeAreaInsets();
   const [menuVisible, setMenuVisible] = useState(false);
 
@@ -87,8 +86,7 @@ export default function AvatarMenu() {
                 <Pressable
                   onPress={() => {
                     setMenuVisible(false);
-                    // Small delay to let modal dismiss before logout
-                    setTimeout(() => handleLogout(), 100);
+                    setTimeout(() => logout(), 100);
                   }}
                   style={({ pressed }) => [
                     styles.menuItem,

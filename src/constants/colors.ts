@@ -1,0 +1,52 @@
+const brand = {
+  primary: "#016183",
+  primaryDark: "#01495f",
+  primaryLight: "#0289B5",
+  accent: "#E8F4F8",
+  accentWarm: "#F0F7FA",
+  white: "#FFFFFF",
+  offWhite: "#F5F6F8",
+  lightGray: "#E2E8F0",
+  midGray: "#94A3B8",
+  darkGray: "#475569",
+  dark: "#1E293B",
+  black: "#0F172A",
+  success: "#10B981",
+  warning: "#F59E0B",
+  error: "#EF4444",
+  errorLight: "#FEF2F2",
+  inputBorder: "#CBD5E1",
+  inputBg: "#FFFFFF",
+  sectionBg: "#F1F5F9",
+  cardBg: "#FFFFFF",
+};
+
+const status = {
+  amber: '#B45309',
+  amberLight: '#FEF3C7',
+  teal: '#0F766E',
+  tealLight: '#D1FAE5',
+  purple: '#7C3AED',
+  purpleLight: '#F3E8FF',
+  blue: '#1E40AF',
+  blueLight: '#DBEAFE',
+  red: '#DC2626',
+  redLight: '#FEE2E2',
+};
+
+export default {
+  brand,
+  status,
+  light: {
+    text: brand.black,
+    textSecondary: brand.darkGray,
+    textMuted: brand.midGray,
+    background: brand.offWhite,
+    surface: brand.white,
+    tint: brand.primary,
+    tabIconDefault: brand.midGray,
+    tabIconSelected: brand.primary,
+    border: brand.lightGray,
+    cardShadow: "rgba(15, 23, 42, 0.08)",
+  },
+};

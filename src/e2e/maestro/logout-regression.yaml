@@ -1,0 +1,22 @@
+appId: com.surreyalign.app
+---
+# Preconditions:
+# - User is already authenticated in the app.
+# - App is on any tab screen where the bottom tab bar is visible.
+#
+# This regression flow verifies:
+# 1) User can sign out from More tab.
+# 2) Native sign-out confirmation is handled.
+# 3) App lands on login screen.
+
+- launchApp
+- tapOn:
+    text: "More"
+- tapOn:
+    id: "more-signout-button"
+- tapOn:
+    text: "Sign Out"
+- assertVisible:
+    id: "login-button"
+- assertVisible:
+    text: "Welcome back"

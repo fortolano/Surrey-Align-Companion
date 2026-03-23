@@ -1,0 +1,35 @@
+# Local agent and editor state
+/.agent-context.json
+/.claude/
+
+# Logs
+/logs/
+*.log
+
+# Deployed web output at repo root
+/_expo/
+/assets/
+/apple-touch-icon.png
+/favicon.ico
+/icon-192.png
+/icon-512.png
+/images/
+/index.html
+/manifest.json
+/metadata.json
+/offline.html
+/sw.js
+
+# Source app dependencies and generated output
+src/.expo/
+src/dist/
+src/node_modules/
+src/static-build/
+src/web-build/
+src/expo-env.d.ts
+
+# Platform and local env noise
+.DS_Store
+.env
+.env*.local
+*.tsbuildinfo

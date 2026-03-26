@@ -21,6 +21,7 @@ import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import { appAlert } from '@/lib/platform-alert';
 import { triggerGlobalRefreshIndicator } from '@/lib/refresh-indicator';
+import { withReturnTarget } from '@/lib/navigation-return-target';
 import Colors from '@/constants/colors';
 import { WEB_BOTTOM_INSET } from '@/constants/layout';
 import AppButton from '@/components/ui/AppButton';
@@ -114,7 +115,7 @@ function InlineVoteCard({
       <Pressable
         onPress={() => {
           if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          router.push({ pathname: '/calling-detail', params: { id: String(item.id) } });
+          router.push(withReturnTarget('/calling-detail', '/sustainings', { id: String(item.id) }));
         }}
         style={({ pressed }) => [
           cardStyles.card,

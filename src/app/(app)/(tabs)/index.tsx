@@ -18,6 +18,7 @@ import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import { useMyAgendaItems } from '@/lib/agenda-api';
 import { triggerGlobalRefreshIndicator } from '@/lib/refresh-indicator';
+import { withReturnTarget } from '@/lib/navigation-return-target';
 import Colors from '@/constants/colors';
 import AppListRow from '@/components/ui/AppListRow';
 import ScreenHeader from '@/components/ScreenHeader';
@@ -306,9 +307,9 @@ export default function HomeScreen() {
             onPress={() => {
               if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               if (topActionItem.isSustaining) {
-                router.push('/sustainings');
+                router.push(withReturnTarget('/sustainings', '/'));
               } else {
-                router.push({ pathname: '/calling-detail', params: { id: String(topActionItem.item.id) } });
+                router.push(withReturnTarget('/calling-detail', '/', { id: String(topActionItem.item.id) }));
               }
             }}
             style={({ pressed }) => [
@@ -368,7 +369,7 @@ export default function HomeScreen() {
                 right={<Ionicons name="chevron-forward" size={18} color={Colors.brand.midGray} />}
                 onPress={() => {
                   if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push(link.route as any);
+                  router.push(withReturnTarget(link.route, '/'));
                 }}
                 testID={`quick-${link.id}`}
               />
@@ -383,7 +384,7 @@ export default function HomeScreen() {
               key={link.id}
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push(link.route as any);
+                router.push(withReturnTarget(link.route, '/'));
               }}
               style={({ pressed }) => [
                 styles.gridItem,

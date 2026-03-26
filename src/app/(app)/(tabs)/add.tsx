@@ -14,6 +14,7 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/lib/auth-context';
 import Colors from '@/constants/colors';
 import { appAlert } from '@/lib/platform-alert';
+import { withReturnTarget } from '@/lib/navigation-return-target';
 import ScreenHeader from '@/components/ScreenHeader';
 import AvatarMenu from '@/components/AvatarMenu';
 
@@ -93,7 +94,7 @@ export default function AddScreen() {
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 if (item.comingSoon) { appAlert('Coming Soon', 'This feature is under development.'); return; }
-                router.push(item.route as any);
+                router.push(withReturnTarget(item.route, '/add'));
               }}
               accessibilityRole="button"
               accessibilityLabel={item.label}

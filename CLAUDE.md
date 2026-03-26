@@ -42,6 +42,24 @@
 - Verify every assumption against the current code.
 - Never say something is done unless it is truly done.
 
+## Communication Rules (Required)
+
+- Final summaries must be explicit and easy to interpret.
+- Separate completed work from remaining work from future recommendations.
+- Use these meanings consistently:
+  - `What Changed`: completed now
+  - `What Still Remains`: required current-scope work not yet done
+  - `Blocked`: current-scope work that cannot proceed yet
+  - `Optional Future Work`: follow-on work after the current scope
+- Never place optional or future recommendations under `What Still Remains`.
+- If nothing required remains in the current scope, say that directly.
+- If `What Still Remains` is present, omit `Optional Future Work`.
+- Do not present required remaining work and optional future work in the same close-out.
+- Do not include `Optional Future Work` in a normal task close-out unless the user explicitly asked what is next, asked for suggestions, or asked for planning.
+- If asked what is next and required work remains, provide the required next work only.
+- If asked what is next and no required work remains, provide a short prioritized list and a single clear recommendation, but make clear it is optional future work rather than unfinished current work.
+- State verification precisely. Do not blur “lint passed”, “browser-tested”, “device-tested”, and “not verified”.
+
 ## Product And UX Rules
 
 - Build for phone-first use.

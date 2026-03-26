@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { webShadow } from '@/lib/web-styles';
 import { StyleSheet, View, Text, Pressable, Modal, Platform } from 'react-native';
-import { router } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn } from 'react-native-reanimated';
@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth-context';
 import Colors from '@/constants/colors';
 import { WEB_TOP_INSET } from '@/constants/layout';
 import { HeaderAvatar } from '@/components/ScreenHeader';
+import { getCurrentTabReturnTarget, withReturnTarget } from '@/lib/navigation-return-target';
 
 const MENU_ITEMS = [
   { id: 'profile', label: 'Profile', icon: 'person-outline' as const, route: '/profile' },
@@ -21,7 +22,9 @@ const MENU_ITEMS = [
 export default function AvatarMenu() {
   const { user, logout } = useAuth();
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
   const [menuVisible, setMenuVisible] = useState(false);
+  const returnTarget = getCurrentTabReturnTarget(pathname);
 
   const initials = (user?.name || 'U').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 
@@ -69,7 +72,7 @@ export default function AvatarMenu() {
                     onPress={() => {
                       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       setMenuVisible(false);
-                      setTimeout(() => router.push(item.route as any), 150);
+                      setTimeout(() => router.push(withReturnTarget(item.route, returnTarget)), 150);
                     }}
                     style={({ pressed }) => [
                       styles.menuItem,

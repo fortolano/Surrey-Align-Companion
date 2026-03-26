@@ -778,7 +778,7 @@ export default function SundayBusinessScreen() {
         onRequestClose={() => setShowReminderSheet(false)}
       >
         <View style={styles.reminderOverlay}>
-          <View style={styles.reminderSheet}>
+          <View style={styles.reminderSheet} testID="sunday-leave-reminder">
             <View style={styles.reminderIconWrap}>
               <Ionicons name="notifications-outline" size={18} color="#92400E" />
             </View>
@@ -792,6 +792,7 @@ export default function SundayBusinessScreen() {
                 size="large"
                 disabled={markingAll}
                 style={styles.reminderSecondaryBtn}
+                testID="sunday-leave-stay"
               />
               <AppButton
                 label="Leave Anyway"
@@ -800,6 +801,7 @@ export default function SundayBusinessScreen() {
                 size="large"
                 disabled={markingAll}
                 style={styles.reminderLeaveBtn}
+                testID="sunday-leave-anyway"
               />
               <AppButton
                 label={remainingCount === 1 ? 'Mark It Now' : 'Mark All Now'}
@@ -809,6 +811,7 @@ export default function SundayBusinessScreen() {
                 loading={markingAll}
                 size="large"
                 style={styles.reminderPrimaryBtn}
+                testID="sunday-leave-mark-now"
               />
             </View>
           </View>
@@ -855,6 +858,7 @@ export default function SundayBusinessScreen() {
                       <Pressable
                         key={ward.id}
                         onPress={() => handleSelectWard(ward.id)}
+                        testID={`sunday-ward-${ward.id}`}
                         style={({ pressed }) => [
                           styles.wardPrimaryChip,
                           active && styles.wardPrimaryChipActive,
@@ -902,6 +906,7 @@ export default function SundayBusinessScreen() {
                         backgroundColor={active ? '#DCFCE7' : '#F0FDF4'}
                         textColor={active ? '#065F46' : '#166534'}
                         style={[styles.completedWardChip, active && styles.completedWardChipActive]}
+                        testID={`sunday-completed-ward-${ward.id}`}
                       />
                     );
                   })}

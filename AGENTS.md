@@ -40,6 +40,25 @@ This folder is the separate SurreyAlign companion PWA at `app.surreyalign.org`. 
 - Do not silently simplify or cut scope.
 - Never claim you verified something you did not verify.
 
+## Communication And Reporting Rules (Strict)
+
+- Be explicit and unambiguous in close-out summaries.
+- Always distinguish between these categories:
+  - `What Changed`: work completed in the current turn
+  - `What Still Remains`: required in-scope work that is unfinished, blocked, or intentionally deferred
+  - `What Is Blocked`: only items that cannot currently be completed because of a real blocker
+  - `Optional Future Work`: follow-on work that is outside the just-finished scope
+- Do not mix future recommendations into `What Still Remains`.
+- If no required in-scope work remains, say that explicitly.
+- If no required in-scope work remains, do not present optional future work as a recommendation, requirement, or implied continuation of the current task.
+- If `What Still Remains` is present, omit `Optional Future Work`.
+- Do not present required remaining work and optional future work in the same close-out.
+- Do not include `Optional Future Work` in a normal task close-out unless the user explicitly asked what is next, asked for suggestions, or asked for follow-on planning.
+- When the user asks “what is next?” and required work remains, answer with the required next work only. Do not include optional future work until the required scope is complete.
+- When the user asks “what is next?” and no required work remains, answer directly with a prioritized next-step list and one clear recommendation, but make clear that it is optional future work rather than unfinished scope.
+- Do not make the user infer whether something is unfinished, optional, blocked, or simply recommended for later.
+- If verification was partial, say exactly what was verified and what was not.
+
 ## Product Direction
 
 - This PWA exists for selected mobile workflows, not as a full copy of the web app.

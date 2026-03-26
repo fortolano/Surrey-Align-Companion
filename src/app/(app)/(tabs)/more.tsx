@@ -18,6 +18,7 @@ import AppListRow from '@/components/ui/AppListRow';
 import ScreenHeader from '@/components/ScreenHeader';
 import AvatarMenu from '@/components/AvatarMenu';
 import { appAlert } from '@/lib/platform-alert';
+import { withReturnTarget } from '@/lib/navigation-return-target';
 import { updateAppNow } from '@/lib/pwa-setup';
 
 const LAST_UPDATE_STORAGE_KEY = 'surreyalign:last_manual_update_ms';
@@ -226,7 +227,7 @@ export default function MoreScreen() {
     if (item.action === 'logout') {
       logout();
     } else if (item.route) {
-      router.push(item.route as any);
+      router.push(withReturnTarget(item.route, '/more'));
     }
   };
 

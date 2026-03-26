@@ -21,6 +21,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import { triggerGlobalRefreshIndicator } from '@/lib/refresh-indicator';
+import { withReturnTarget } from '@/lib/navigation-return-target';
 import Colors from '@/constants/colors';
 import { WEB_BOTTOM_INSET } from '@/constants/layout';
 import { STATUS_COLORS } from '@/constants/status-colors';
@@ -85,7 +86,7 @@ function CallingCard({ item, index }: { item: CallingRequestListItem; index: num
 
   const handlePress = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push({ pathname: '/calling-detail', params: { id: String(item.id) } });
+    router.push(withReturnTarget('/calling-detail', '/callings', { id: String(item.id) }));
   };
 
   const individualsText = item.individuals
@@ -227,7 +228,7 @@ export default function CallingsScreen() {
             <Pressable
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/calling-create');
+                router.push(withReturnTarget('/calling-create', '/callings'));
               }}
               style={{ padding: 6 }}
               testID="create-calling-btn"
@@ -301,7 +302,7 @@ export default function CallingsScreen() {
           <Pressable
             onPress={() => {
               if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              router.push('/calling-create');
+              router.push(withReturnTarget('/calling-create', '/callings'));
             }}
             style={styles.newButton}
           >

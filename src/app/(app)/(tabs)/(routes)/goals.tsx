@@ -19,6 +19,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import { triggerGlobalRefreshIndicator } from '@/lib/refresh-indicator';
+import { withReturnTarget } from '@/lib/navigation-return-target';
 import Colors from '@/constants/colors';
 import { WEB_BOTTOM_INSET } from '@/constants/layout';
 
@@ -136,7 +137,7 @@ function GoalCard({ goal, index }: { goal: Goal; index: number }) {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    router.push({ pathname: '/goal-detail', params: { goalId: String(goal.id) } });
+    router.push(withReturnTarget('/goal-detail', '/goals', { goalId: String(goal.id) }));
   };
 
   const sColor = scopeColor(goal.scope);

@@ -1,22 +1,22 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useGlobalSearchParams, usePathname, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Colors from '@/constants/colors';
 import { requestLeaveGuard } from '@/lib/navigation-leave-guard';
+import { navigateToReturnTarget } from '@/lib/navigation-return-target';
 import { webShadowRgba } from '@/lib/web-styles';
 
 function BackButton({ tintColor }: { tintColor?: string }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const { returnTo } = useGlobalSearchParams<{ returnTo?: string | string[] }>();
+
   return (
     <Pressable
       onPress={() => {
         const continueNavigation = () => {
-          if (router.canGoBack()) {
-            router.back();
-          } else {
-            router.replace('/');
-          }
+          navigateToReturnTarget(router, pathname, returnTo);
         };
 
         const intercepted = requestLeaveGuard({
@@ -30,6 +30,7 @@ function BackButton({ tintColor }: { tintColor?: string }) {
       }}
       style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
       hitSlop={8}
+      testID="route-back-button"
     >
       <Ionicons name="chevron-back" size={20} color={tintColor || Colors.brand.white} />
     </Pressable>

@@ -121,6 +121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Council Agendas
   g(app, "/api/agendas", "agendas");
   g(app, "/api/agendas/my-items", "agendas/my-items");
+  p(app, "/api/agendas/items/:item/respond", (req) => `agendas/items/${req.params.item}/respond`);
   p(app, "/api/agendas/submissions", "agendas/submissions");
 
   // User Settings

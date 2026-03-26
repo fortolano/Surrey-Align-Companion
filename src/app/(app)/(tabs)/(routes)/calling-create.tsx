@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { webShadow, webShadowRgba } from '@/lib/web-styles';
 import {
   StyleSheet,
@@ -13,7 +13,7 @@ import {
   Switch,
   RefreshControl,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams, usePathname } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +23,7 @@ import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import { appAlert } from '@/lib/platform-alert';
 import { triggerGlobalRefreshIndicator } from '@/lib/refresh-indicator';
+import { navigateToReturnTarget } from '@/lib/navigation-return-target';
 import Colors from '@/constants/colors';
 import { WEB_BOTTOM_INSET } from '@/constants/layout';
 
@@ -212,7 +213,10 @@ export default function CallingCreateScreen() {
   const { token } = useAuth();
   const qClient = useQueryClient();
   const navigation = useNavigation();
+  const pathname = usePathname();
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string | string[] }>();
   const webBottomInset = WEB_BOTTOM_INSET;
+  const allowLeaveWithoutPromptRef = useRef(false);
 
   const [scope, setScope] = useState<string>('');
   const [wardId, setWardId] = useState<string>('');
@@ -224,11 +228,17 @@ export default function CallingCreateScreen() {
   const [nominees, setNominees] = useState<NomineeEntry[]>([emptyNominee()]);
   const [submitting, setSubmitting] = useState(false);
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+
+  const navigateBackToOrigin = useCallback(() => {
+    navigateToReturnTarget(router, pathname, returnTo);
+  }, [pathname, returnTo]);
+
   // Warn if navigating away with unsaved changes
   useEffect(() => {
     const hasChanges = !!(callingId || contextNotes.trim() || nominees.some(n => n.name.trim()));
     if (!hasChanges) return;
     const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
+      if (allowLeaveWithoutPromptRef.current) return;
       e.preventDefault();
       appAlert('Discard Changes?', 'You have unsaved changes that will be lost.', [
         { text: 'Keep Editing', style: 'cancel' },
@@ -434,7 +444,8 @@ export default function CallingCreateScreen() {
       qClient.invalidateQueries({ queryKey: ['/api/calling-requests/pending-action-count'] });
 
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.back();
+      allowLeaveWithoutPromptRef.current = true;
+      navigateBackToOrigin();
     } catch (err: any) {
       appAlert('Error', err.message || 'Failed to create request.');
     } finally {
@@ -455,7 +466,7 @@ export default function CallingCreateScreen() {
       <View style={[styles.container, styles.centered]}>
         <Ionicons name="lock-closed-outline" size={40} color={Colors.brand.midGray} />
         <Text style={styles.noAccessText}>You do not have permission to create calling requests.</Text>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable onPress={navigateBackToOrigin} style={styles.backBtn}>
           <Text style={styles.backBtnText}>Go Back</Text>
         </Pressable>
       </View>
@@ -593,7 +604,7 @@ export default function CallingCreateScreen() {
         </View>
 
         <View style={styles.buttonRow}>
-          <Pressable onPress={() => router.back()} style={styles.cancelBtn}>
+          <Pressable onPress={navigateBackToOrigin} style={styles.cancelBtn} testID="calling-create-cancel">
             <Text style={styles.cancelBtnText}>Cancel</Text>
           </Pressable>
           <Pressable

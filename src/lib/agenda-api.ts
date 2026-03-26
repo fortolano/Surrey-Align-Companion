@@ -18,9 +18,11 @@ export interface AgendaItemData {
   item_type_label: string;
   presenter_name: string | null;
   presenter_user_id: number | null;
+  presenter_response: 'accepted' | 'declined' | null;
+  presenter_responded_at: string | null;
   is_mine: boolean;
   duration_minutes: number | null;
-  status: string;
+  status: string | null;
   hymn_number: number | null;
   hymn_title: string | null;
   sort_order: number | null;
@@ -81,6 +83,9 @@ export interface MyAgendaItem {
   meeting_time: string | null;
   council_name: string | null;
   council_slug: string | null;
+  agenda_web_url: string | null;
+  presenter_response: 'accepted' | 'declined' | null;
+  presenter_responded_at: string | null;
   days_until: number | null;
   time_label: string;
 }
@@ -89,6 +94,19 @@ export interface MyAgendaItemsResponse {
   success: boolean;
   items: MyAgendaItem[];
   meta: { total: number };
+}
+
+export type AgendaResponseAction = 'accept' | 'decline';
+
+export interface RespondToAgendaItemPayload {
+  itemId: number;
+  action: AgendaResponseAction;
+}
+
+export interface RespondToAgendaItemResponse {
+  success: boolean;
+  message: string;
+  item: MyAgendaItem;
 }
 
 // ─── Hooks ──────────────────────────────────────
@@ -131,6 +149,23 @@ export function useSubmitAgendaItem() {
       }),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/agendas', variables.council_slug] });
+    },
+  });
+}
+
+export function useRespondToAgendaItem() {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation<RespondToAgendaItemResponse, Error, RespondToAgendaItemPayload>({
+    mutationFn: ({ itemId, action }) =>
+      authFetch(token, `/api/agendas/items/${itemId}/respond`, {
+        method: 'POST',
+        body: { action },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agenda-my-items'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
     },
   });
 }

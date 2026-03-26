@@ -24,9 +24,11 @@
 src/.expo/
 src/dist/
 src/node_modules/
+src/server_dist/
 src/static-build/
 src/web-build/
 src/expo-env.d.ts
+src/output/playwright/
 
 # Platform and local env noise
 .DS_Store

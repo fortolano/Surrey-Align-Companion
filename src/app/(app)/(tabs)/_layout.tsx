@@ -202,6 +202,7 @@ export default function TabLayout() {
           listeners={buildTabLeaveListeners('index')}
           options={{
             title: 'Home',
+            tabBarButtonTestID: 'tab-home',
             tabBarLabel: ({ focused, color }) => (
               <TabLabel label="Home" focused={focused} color={color} />
             ),
@@ -215,6 +216,7 @@ export default function TabLayout() {
           listeners={buildTabLeaveListeners('add')}
           options={{
             title: 'Add',
+            tabBarButtonTestID: 'tab-add',
             tabBarLabel: ({ focused, color }) => (
               <TabLabel label="Add" focused={focused} color={color} />
             ),
@@ -230,6 +232,7 @@ export default function TabLayout() {
           listeners={buildTabLeaveListeners('notifications')}
           options={{
             title: 'Notifications',
+            tabBarButtonTestID: 'tab-notifications',
             tabBarLabel: ({ focused, color }) => (
               <TabLabel label="Notifications" focused={focused} color={color} />
             ),
@@ -246,6 +249,7 @@ export default function TabLayout() {
           listeners={buildTabLeaveListeners('more')}
           options={{
             title: 'More',
+            tabBarButtonTestID: 'tab-more',
             tabBarLabel: ({ focused, color }) => (
               <TabLabel label="More" focused={focused} color={color} />
             ),

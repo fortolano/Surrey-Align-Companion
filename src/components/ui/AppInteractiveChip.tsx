@@ -10,6 +10,7 @@ interface AppInteractiveChipProps {
   textColor?: string;
   backgroundColor?: string;
   disabled?: boolean;
+  testID?: string;
 }
 
 export default function AppInteractiveChip({
@@ -19,6 +20,7 @@ export default function AppInteractiveChip({
   textColor = Colors.brand.dark,
   backgroundColor = Colors.brand.white,
   disabled = false,
+  testID,
 }: AppInteractiveChipProps) {
   return (
     <Pressable
@@ -26,6 +28,7 @@ export default function AppInteractiveChip({
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={label}
+      testID={testID}
       style={({ pressed }) => [
         styles.base,
         { backgroundColor, opacity: disabled ? 0.5 : pressed ? 0.8 : 1 },

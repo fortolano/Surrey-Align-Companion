@@ -21,6 +21,7 @@ import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import { appAlert } from '@/lib/platform-alert';
 import { triggerGlobalRefreshIndicator } from '@/lib/refresh-indicator';
+import { buildPathWithParams, getSingleParam, withReturnTarget } from '@/lib/navigation-return-target';
 import Colors from '@/constants/colors';
 import { WEB_BOTTOM_INSET } from '@/constants/layout';
 import { STATUS_COLORS } from '@/constants/status-colors';
@@ -113,9 +114,10 @@ const tlStyles = StyleSheet.create({
   currentBadge: { fontSize: 14, color: Colors.brand.primary, fontWeight: '600' as const, marginTop: 2, fontFamily: 'Inter_600SemiBold' },
 });
 
-function StepsSection({ steps, canManage, requestId, token, onRefresh, sundayBusinessGate }: {
+function StepsSection({ steps, canManage, requestId, token, onRefresh, sundayBusinessGate, onOpenSundayBusiness }: {
   steps: any[]; canManage: boolean; requestId: number; token: string | null; onRefresh: () => void;
   sundayBusinessGate: { active: boolean; total_items: number; completed_items: number; message: string } | null;
+  onOpenSundayBusiness: () => void;
 }) {
   const [updatingStep, setUpdatingStep] = useState<number | null>(null);
   const completed = steps.filter(s => s.status === 'completed').length;
@@ -162,7 +164,7 @@ function StepsSection({ steps, canManage, requestId, token, onRefresh, sundayBus
         <React.Fragment key={step.id}>
           {sundayBusinessGate?.active && idx === firstGatedIndex && firstGatedIndex >= 0 && (
             <Pressable
-              onPress={() => router.push('/sunday-business')}
+              onPress={onOpenSundayBusiness}
               style={ssStyles.gateBanner}
             >
               <Ionicons name="time-outline" size={18} color="#155E75" />
@@ -667,9 +669,10 @@ const dsStyles = StyleSheet.create({
   decisionBtnText: { fontSize: 14, fontWeight: '600' as const, color: Colors.brand.white, fontFamily: 'Inter_600SemiBold' },
 });
 
-function NextActionBanner({ nextAction, onActionPress }: {
+function NextActionBanner({ nextAction, onActionPress, onOpenSundayBusiness }: {
   nextAction: { type: string; heading: string; description: string; context: string | null; style: string; is_terminal: boolean; is_waiting: boolean };
   onActionPress: (type: string) => void;
+  onOpenSundayBusiness: () => void;
 }) {
   const STYLE_COLORS: Record<string, { bg: string; accent: string; text: string }> = {
     primary: { bg: '#E8F4F8', accent: '#016183', text: '#016183' },
@@ -721,7 +724,7 @@ function NextActionBanner({ nextAction, onActionPress }: {
         </View>
       )}
       {showSundayBusinessLink && (
-        <Pressable onPress={() => router.push('/sunday-business')} style={naBannerStyles.linkRow}>
+        <Pressable onPress={onOpenSundayBusiness} style={naBannerStyles.linkRow} testID="calling-detail-sunday-business-link">
           <Text style={[naBannerStyles.linkText, { color: colors.accent }]}>View Sunday Business</Text>
           <Ionicons name="arrow-forward" size={14} color={colors.accent} />
         </Pressable>
@@ -743,16 +746,25 @@ const naBannerStyles = StyleSheet.create({
 });
 
 export default function CallingDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, returnTo } = useLocalSearchParams<{ id: string; returnTo?: string | string[] }>();
   const insets = useSafeAreaInsets();
   const { token, user } = useAuth();
   const qClient = useQueryClient();
   const webBottomInset = WEB_BOTTOM_INSET;
   const requestId = Number(id);
+  const returnTarget = getSingleParam(returnTo);
+  const callingDetailPath = buildPathWithParams('/calling-detail', {
+    id,
+    ...(returnTarget ? { returnTo: returnTarget } : {}),
+  });
 
   const [activeTab, setActiveTab] = useState<'discussion' | 'approvals' | 'steps'>('discussion');
   const [hasSetInitialTab, setHasSetInitialTab] = useState(false);
   const [actionLoading, setActionLoading] = useState('');
+
+  const handleOpenSundayBusiness = useCallback(() => {
+    router.push(withReturnTarget('/sunday-business', callingDetailPath));
+  }, [callingDetailPath]);
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery<{
     calling_request: any;
@@ -888,6 +900,7 @@ export default function CallingDetailScreen() {
       {nextAction && (
         <NextActionBanner
           nextAction={nextAction}
+          onOpenSundayBusiness={handleOpenSundayBusiness}
           onActionPress={(type) => {
             if (['vote', 'voted'].includes(type)) setActiveTab('approvals');
             else if (['decide', 'decide_after_voting', 'decide_or_vote', 'provide_recommendation', 'respond_feedback'].includes(type)) setActiveTab('discussion');
@@ -1032,6 +1045,7 @@ export default function CallingDetailScreen() {
                 token={token}
                 onRefresh={handleRefresh}
                 sundayBusinessGate={detail.sunday_business_gate || null}
+                onOpenSundayBusiness={handleOpenSundayBusiness}
               />
             )}
           </View>

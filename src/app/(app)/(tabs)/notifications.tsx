@@ -7,6 +7,7 @@ import {
   FlatList,
   Pressable,
   ActivityIndicator,
+  Linking,
   Platform,
   RefreshControl,
 } from 'react-native';
@@ -20,6 +21,7 @@ import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
 import { appAlert } from '@/lib/platform-alert';
 import { triggerGlobalRefreshIndicator } from '@/lib/refresh-indicator';
+import { withReturnTarget } from '@/lib/navigation-return-target';
 import Colors from '@/constants/colors';
 import { WEB_BOTTOM_INSET } from '@/constants/layout';
 import AppButton from '@/components/ui/AppButton';
@@ -32,14 +34,11 @@ interface Notification {
   type: string;
   title: string;
   message: string;
+  action_url?: string | null;
+  related_type?: string | null;
+  related_id?: number | null;
   is_read: boolean;
   created_at: string;
-  data?: {
-    calling_request_id?: number;
-    related_type?: string;
-    related_id?: number;
-    [key: string]: any;
-  };
 }
 
 type FilterTab = 'all' | 'unread' | 'read';
@@ -56,6 +55,10 @@ const NOTIF_ICONS: Record<string, { name: string; color: string; bg: string }> =
   feedback_received: { name: 'chatbubble-ellipses-outline', color: '#065f46', bg: '#d1fae5' },
   step_completed: { name: 'checkbox-outline', color: '#065f46', bg: '#d1fae5' },
   reminder: { name: 'alarm-outline', color: '#B45309', bg: '#FEF3C7' },
+  agenda_assignment: { name: 'calendar-outline', color: '#1E40AF', bg: '#DBEAFE' },
+  agenda_published: { name: 'calendar-clear-outline', color: '#065F46', bg: '#D1FAE5' },
+  agenda_unassignment: { name: 'calendar-clear-outline', color: '#B45309', bg: '#FEF3C7' },
+  agenda_response_declined: { name: 'alert-circle-outline', color: '#991B1B', bg: '#FEE2E2' },
   default: { name: 'notifications-outline', color: Colors.brand.primary, bg: '#E8F4F8' },
 };
 
@@ -95,6 +98,13 @@ function SwipeableNotifRow({
 }) {
   const swipeableRef = useRef<any>(null);
   const icon = NOTIF_ICONS[item.type] || NOTIF_ICONS.default;
+  const isActionable = Boolean(
+    item.action_url ||
+    item.related_type ||
+    item.type === 'agenda_assignment' ||
+    item.type === 'agenda_published' ||
+    item.type === 'agenda_unassignment'
+  );
 
   const handleToggleRead = useCallback(() => {
     swipeableRef.current?.close();
@@ -149,6 +159,7 @@ function SwipeableNotifRow({
             !item.is_read && styles.notifRowUnread,
             pressed && { opacity: 0.9 },
           ]}
+          testID={`notification-row-${item.id}`}
         >
           <View style={[styles.iconCircle, { backgroundColor: icon.bg }]}>
             <Ionicons name={icon.name as any} size={18} color={icon.color} />
@@ -167,16 +178,16 @@ function SwipeableNotifRow({
             )}
             <View style={styles.notifMeta}>
               <Text style={styles.notifTime}>{timeAgo(item.created_at)}</Text>
-              {item.data?.calling_request_id && (
+              {isActionable && (
                 <View style={styles.linkChip}>
                   <Ionicons name="open-outline" size={11} color={Colors.brand.primary} />
-                  <Text style={styles.linkChipText}>View</Text>
+                  <Text style={styles.linkChipText}>Open</Text>
                 </View>
               )}
             </View>
           </View>
           {!item.is_read && <View style={styles.unreadDot} />}
-          {item.data?.calling_request_id && (
+          {isActionable && (
             <Ionicons
               name="chevron-forward"
               size={16}
@@ -267,15 +278,26 @@ export default function NotificationsScreen() {
   }, [token, invalidateAll]);
 
   const handleNotifPress = useCallback(
-    (notif: Notification) => {
+    async (notif: Notification) => {
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       if (!notif.is_read) markReadMut.mutate(notif.id);
-      const crId = notif.data?.calling_request_id;
-      const relatedType = notif.data?.related_type;
-      if (crId) {
-        router.push({ pathname: '/calling-detail', params: { id: String(crId) } });
+
+      const relatedType = notif.related_type;
+      const relatedId = notif.related_id;
+      if (relatedType === 'CallingRequest' && relatedId) {
+        router.push(withReturnTarget('/calling-detail', '/notifications', { id: String(relatedId) }));
       } else if (relatedType === 'StakeBusiness') {
-        router.push('/sunday-business');
+        router.push(withReturnTarget('/sunday-business', '/notifications'));
+      } else if (
+        relatedType === 'agenda' ||
+        relatedType === 'agenda_item' ||
+        notif.type === 'agenda_assignment' ||
+        notif.type === 'agenda_published' ||
+        notif.type === 'agenda_unassignment'
+      ) {
+        router.push(withReturnTarget('/assignments', '/notifications'));
+      } else if (notif.action_url) {
+        await Linking.openURL(notif.action_url);
       }
     },
     [markReadMut]
@@ -314,7 +336,7 @@ export default function NotificationsScreen() {
   const emptySubtitle = useMemo(() => {
     if (activeFilter === 'unread') return "You're all caught up!";
     if (activeFilter === 'read') return 'Notifications you read will appear here.';
-    return "You'll see updates here when there's activity on your calling requests.";
+    return "You'll see updates here when there's new activity to review.";
   }, [activeFilter]);
 
   if (isLoading) {

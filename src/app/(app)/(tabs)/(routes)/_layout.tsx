@@ -76,6 +76,14 @@ export default function TabRoutesLayout() {
         options={{ title: 'High Council Agenda' }}
       />
       <Stack.Screen
+        name="agenda-entity"
+        options={{ title: 'Agenda' }}
+      />
+      <Stack.Screen
+        name="agenda-submit"
+        options={{ title: 'Submit Topic' }}
+      />
+      <Stack.Screen
         name="stake-council-agenda"
         options={{ title: 'Stake Council Agenda' }}
       />

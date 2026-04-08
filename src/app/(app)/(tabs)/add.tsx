@@ -12,6 +12,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/lib/auth-context';
+import { useAgendaSubmissionDestinations } from '@/lib/agenda-api';
 import Colors from '@/constants/colors';
 import { appAlert } from '@/lib/platform-alert';
 import { withReturnTarget } from '@/lib/navigation-return-target';
@@ -25,6 +26,7 @@ interface AddMenuItem {
   icon: string;
   iconSet: 'ionicons' | 'mci';
   route: string;
+  routeParams?: Record<string, string | number | boolean | string[] | undefined | null>;
   color: string;
   bgColor: string;
   comingSoon?: boolean;
@@ -33,7 +35,6 @@ interface AddMenuItem {
 function detectRole(user: any): 'high_councilor' | 'stake_council' | 'bishopric' | 'ward_org_president' | 'other' {
   if (!user) return 'other';
 
-  // Use structured API flags instead of string matching
   if (user.is_stake_admin || user.is_stake_presidency_member) return 'stake_council';
   if (user.is_high_councilor) return 'high_councilor';
   if (user.is_bishop || user.is_bishopric_member) return 'bishopric';
@@ -43,58 +44,92 @@ function detectRole(user: any): 'high_councilor' | 'stake_council' | 'bishopric'
   return 'other';
 }
 
-function getMenuItems(role: string): AddMenuItem[] {
+function getBaseMenuItems(role: string): AddMenuItem[] {
   switch (role) {
     case 'high_councilor':
-      return [
-        { id: 'hc-agenda', label: 'HC Agenda Item', subtitle: 'Submit an item for the next High Council meeting', icon: 'clipboard-text-outline', iconSet: 'mci', route: '/high-council-agenda', color: Colors.brand.primary, bgColor: '#E8F0F8' },
-        { id: 'sc-agenda', label: 'SC Agenda Item', subtitle: 'Submit an item for the next Stake Council meeting', icon: 'document-text-outline', iconSet: 'ionicons', route: '/stake-council-agenda', color: Colors.brand.primary, bgColor: '#E8F8F0' },
-        { id: 'calling-request', label: 'Calling Request', subtitle: 'Start a new calling or release request', icon: 'people-outline', iconSet: 'ionicons', route: '/calling-create', color: '#B45309', bgColor: '#FEF3C7' },
-      ];
     case 'stake_council':
-      return [
-        { id: 'sc-agenda', label: 'SC Agenda Item', subtitle: 'Submit an item for the next Stake Council meeting', icon: 'document-text-outline', iconSet: 'ionicons', route: '/stake-council-agenda', color: Colors.brand.primary, bgColor: '#E8F8F0' },
-        { id: 'calling-request', label: 'Calling Request', subtitle: 'Start a new calling or release request', icon: 'people-outline', iconSet: 'ionicons', route: '/calling-create', color: '#B45309', bgColor: '#FEF3C7' },
-        { id: 'my-org-agenda', label: 'My Org Agenda', subtitle: 'Submit an item for your organization meeting', icon: 'clipboard-text-outline', iconSet: 'mci', route: '/assignments', color: Colors.brand.primary, bgColor: '#E8F0F8', comingSoon: true },
-      ];
     case 'bishopric':
       return [
-        { id: 'calling-request', label: 'Calling Request', subtitle: 'Start a new calling or release request', icon: 'people-outline', iconSet: 'ionicons', route: '/calling-create', color: '#B45309', bgColor: '#FEF3C7' },
-        { id: 'bishopric-agenda', label: 'Bishopric Agenda', subtitle: 'Submit an item for your next bishopric meeting', icon: 'clipboard-text-outline', iconSet: 'mci', route: '/assignments', color: Colors.brand.primary, bgColor: '#E8F0F8', comingSoon: true },
-        { id: 'wc-agenda', label: 'Ward Council Agenda', subtitle: 'Submit an item for the next ward council', icon: 'document-text-outline', iconSet: 'ionicons', route: '/assignments', color: Colors.brand.primary, bgColor: '#E8F8F0', comingSoon: true },
+        {
+          id: 'calling-request',
+          label: 'Calling Request',
+          subtitle: 'Start a new calling or release request',
+          icon: 'people-outline',
+          iconSet: 'ionicons',
+          route: '/calling-create',
+          color: '#B45309',
+          bgColor: '#FEF3C7',
+        },
       ];
     case 'ward_org_president':
       return [
-        { id: 'calling-request', label: 'Calling Request', subtitle: 'Start a new calling or release request', icon: 'people-outline', iconSet: 'ionicons', route: '/calling-create', color: '#B45309', bgColor: '#FEF3C7' },
-        { id: 'wc-agenda', label: 'Ward Council Agenda', subtitle: 'Submit an item for the next ward council', icon: 'document-text-outline', iconSet: 'ionicons', route: '/assignments', color: Colors.brand.primary, bgColor: '#E8F8F0', comingSoon: true },
-        { id: 'my-org-agenda', label: 'My Org Agenda', subtitle: 'Submit an item for your organization meeting', icon: 'clipboard-text-outline', iconSet: 'mci', route: '/assignments', color: Colors.brand.primary, bgColor: '#E8F0F8', comingSoon: true },
-        { id: 'note-bishop', label: 'Note to Bishop', subtitle: 'Send a note to your bishop', icon: 'mail-outline', iconSet: 'ionicons', route: '/assignments', color: '#7C3AED', bgColor: '#F0E8F8', comingSoon: true },
+        {
+          id: 'calling-request',
+          label: 'Calling Request',
+          subtitle: 'Start a new calling or release request',
+          icon: 'people-outline',
+          iconSet: 'ionicons',
+          route: '/calling-create',
+          color: '#B45309',
+          bgColor: '#FEF3C7',
+        },
+        {
+          id: 'note-bishop',
+          label: 'Note to Bishop',
+          subtitle: 'Send a note to your bishop',
+          icon: 'mail-outline',
+          iconSet: 'ionicons',
+          route: '/assignments',
+          color: '#7C3AED',
+          bgColor: '#F0E8F8',
+          comingSoon: true,
+        },
       ];
     default:
-      return [
-        { id: 'my-org-agenda', label: 'My Org Agenda', subtitle: 'Submit an item for your organization meeting', icon: 'clipboard-text-outline', iconSet: 'mci', route: '/assignments', color: Colors.brand.primary, bgColor: '#E8F0F8', comingSoon: true },
-      ];
+      return [];
   }
 }
 
 export default function AddScreen() {
   const { user } = useAuth();
+  const { data: agendaDestinationsData } = useAgendaSubmissionDestinations();
 
   const role = useMemo(() => detectRole(user), [user]);
-  const items = useMemo(() => getMenuItems(role), [role]);
+  const items = useMemo(() => {
+    const destinationCount = agendaDestinationsData?.meta.total ?? 0;
+    const agendaItems: AddMenuItem[] = destinationCount > 0
+      ? [{
+          id: 'agenda-submit',
+          label: 'Submit Item to Agenda',
+          subtitle: destinationCount === 1
+            ? 'Choose the meeting inbox you can submit to'
+            : `Choose from ${destinationCount} meeting inboxes you can submit to`,
+          icon: 'clipboard-text-outline',
+          iconSet: 'mci',
+          route: '/agenda-submit',
+          color: Colors.brand.primary,
+          bgColor: '#E8F8F0',
+        }]
+      : [];
+
+    return [...agendaItems, ...getBaseMenuItems(role)];
+  }, [agendaDestinationsData, role]);
 
   return (
     <View style={styles.container}>
       <ScreenHeader title="Create New" subtitle="What would you like to add?" rightElement={<AvatarMenu />} />
 
       <View style={styles.content}>
-        {items.map((item, idx) => (
+        {items.length > 0 ? items.map((item, idx) => (
           <Animated.View key={item.id} entering={FadeInDown.duration(300).delay(idx * 60)}>
             <Pressable
               onPress={() => {
                 if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                if (item.comingSoon) { appAlert('Coming Soon', 'This feature is under development.'); return; }
-                router.push(withReturnTarget(item.route, '/add'));
+                if (item.comingSoon) {
+                  appAlert('Coming Soon', 'This feature is under development.');
+                  return;
+                }
+                router.push(withReturnTarget(item.route, '/add', item.routeParams));
               }}
               accessibilityRole="button"
               accessibilityLabel={item.label}
@@ -125,7 +160,13 @@ export default function AddScreen() {
               )}
             </Pressable>
           </Animated.View>
-        ))}
+        )) : (
+        <View style={styles.emptyCard}>
+            <MaterialCommunityIcons name="clipboard-clock-outline" size={30} color={Colors.brand.primary} />
+            <Text style={styles.emptyTitle}>Nothing to add right now</Text>
+            <Text style={styles.emptySubtitle}>Agenda submission options and other create actions will appear here when they are available.</Text>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -188,5 +229,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.brand.midGray,
     fontFamily: 'Inter_600SemiBold',
+  },
+  emptyCard: {
+    backgroundColor: Colors.brand.white,
+    borderRadius: 16,
+    padding: 22,
+    alignItems: 'center',
+    ...webShadowRgba('rgba(15, 23, 42, 0.06)', 0, 2, 8),
+    elevation: 2,
+  },
+  emptyTitle: {
+    marginTop: 12,
+    fontSize: 18,
+    color: Colors.brand.dark,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  emptySubtitle: {
+    marginTop: 6,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_400Regular',
   },
 });

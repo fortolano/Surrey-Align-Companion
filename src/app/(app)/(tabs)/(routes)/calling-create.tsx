@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { webShadow, webShadowRgba } from '@/lib/web-styles';
 import {
   StyleSheet,
@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Switch,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { router, useLocalSearchParams, usePathname } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
@@ -27,13 +28,22 @@ import { navigateToReturnTarget } from '@/lib/navigation-return-target';
 import Colors from '@/constants/colors';
 import { WEB_BOTTOM_INSET } from '@/constants/layout';
 
-interface Ward { id: number; name: string; }
-interface CallingOption { id: number; name: string; level?: string; organization_type?: string; }
-interface OrgOption { id: number; name: string; type?: string; }
+interface LocalUnit { id: number; name: string; code?: string | null; unit_type?: 'ward' | 'branch' | string; }
+interface CallingOption { id: number; name: string; level?: string; category?: string; organization_type?: string; }
+interface AssignmentOption {
+  id: number;
+  name: string;
+  kind: 'organization' | 'council' | string;
+  level?: string | null;
+  ward_id?: number | null;
+  type?: string | null;
+}
 interface Holder { user_id: number; user_name: string; label: string; ward_id?: number | null; }
 interface SubmissionContext {
   allowed_scopes: ('stake' | 'ward')[];
-  allowed_wards: Ward[] | null;
+  allowed_levels?: ('stake' | 'local_unit')[];
+  allowed_local_units?: LocalUnit[] | null;
+  allowed_wards: LocalUnit[] | null;
   can_create: boolean;
 }
 
@@ -41,12 +51,286 @@ interface NomineeEntry {
   name: string;
   ward_id: string;
   current_calling_id: string;
+  current_calling_text: string;
   requires_release: boolean;
   recommendation: string;
 }
 
+interface SearchOption {
+  value: string;
+  label: string;
+  subtitle?: string;
+}
+
+interface AssignmentResponse {
+  organizations?: AssignmentOption[];
+  councils?: AssignmentOption[];
+  assignment_options?: AssignmentOption[];
+  uses_local_unit_context?: boolean;
+  data?: AssignmentOption[];
+}
+
+function formatUnitLabel(unitType?: string | null, code?: string | null): string | undefined {
+  const unitLabel = unitType ? unitType.charAt(0).toUpperCase() + unitType.slice(1) : null;
+  if (unitLabel && code) return `${unitLabel} · ${code}`;
+  if (unitLabel) return unitLabel;
+  if (code) return code;
+
+  return undefined;
+}
+
 function emptyNominee(): NomineeEntry {
-  return { name: '', ward_id: '', current_calling_id: '', requires_release: true, recommendation: '' };
+  return { name: '', ward_id: '', current_calling_id: '', current_calling_text: '', requires_release: true, recommendation: '' };
+}
+
+function isStakeReviewedLocalCalling(calling?: CallingOption | null): boolean {
+  if (!calling || calling.level === 'stake') return false;
+
+  if (calling.category === 'elders_quorum') {
+    return /president|counselor/i.test(calling.name);
+  }
+
+  return [
+    'Bishopric First Counselor',
+    'Bishopric Second Counselor',
+    'Branch Presidency First Counselor',
+    'Branch Presidency Second Counselor',
+    'Ward Clerk',
+  ].includes(calling.name);
+}
+
+function callingMatchesCurrentContext(
+  calling: CallingOption,
+  scope: string,
+  localUnitType: string,
+): boolean {
+  if (scope === 'stake') {
+    if (calling.level === 'stake') return true;
+    if (!isStakeReviewedLocalCalling(calling)) return false;
+    if (!localUnitType) return true;
+    if (localUnitType === 'branch') {
+      return calling.level === 'branch' || calling.level === 'ward';
+    }
+    return calling.level === 'ward';
+  }
+
+  if (!localUnitType) return false;
+  if (calling.name === 'Bishop' || calling.name === 'Branch President') return false;
+
+  if (localUnitType === 'branch') {
+    return calling.level === 'branch' || calling.level === 'ward';
+  }
+
+  return calling.level === 'ward';
+}
+
+function formatAssignmentSubtitle(option: AssignmentOption): string | undefined {
+  if (option.kind === 'council') {
+    return option.type === 'committee' ? 'Stake committee' : 'Stake council';
+  }
+
+  const levelLabel = option.level ? option.level.charAt(0).toUpperCase() + option.level.slice(1) : null;
+  const typeLabel = option.type ? option.type.replace(/_/g, ' ') : null;
+
+  if (levelLabel && typeLabel) return `${levelLabel} · ${typeLabel}`;
+  if (levelLabel) return levelLabel;
+  if (typeLabel) return typeLabel;
+
+  return undefined;
+}
+
+function SearchSheetField({
+  label,
+  value,
+  options,
+  onChange,
+  placeholder,
+  disabled,
+  searchPlaceholder,
+  emptyText,
+}: {
+  label: string;
+  value: string;
+  options: SearchOption[];
+  onChange: (v: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  searchPlaceholder?: string;
+  emptyText?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const selectedOption = options.find((option) => option.value === value) || null;
+  const filteredOptions = useMemo(() => {
+    const trimmed = query.trim().toLowerCase();
+    if (!trimmed) return options;
+
+    return options.filter((option) => {
+      const labelMatch = option.label.toLowerCase().includes(trimmed);
+      const subtitleMatch = option.subtitle?.toLowerCase().includes(trimmed);
+      return labelMatch || subtitleMatch;
+    });
+  }, [options, query]);
+
+  useEffect(() => {
+    if (!open) {
+      setQuery('');
+    }
+  }, [open]);
+
+  return (
+    <View style={pfStyles.container}>
+      <Text style={pfStyles.label}>{label}</Text>
+      <Pressable
+        onPress={() => !disabled && setOpen(true)}
+        style={[pfStyles.trigger, disabled && pfStyles.disabled]}
+      >
+        <Text
+          style={[pfStyles.triggerText, !selectedOption && pfStyles.placeholder]}
+          numberOfLines={1}
+        >
+          {selectedOption?.label || placeholder || 'Select...'}
+        </Text>
+        <Ionicons name="search-outline" size={16} color={disabled ? Colors.brand.lightGray : Colors.brand.primary} />
+      </Pressable>
+      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+        <View style={sheetStyles.backdrop}>
+          <Pressable style={sheetStyles.dismissArea} onPress={() => setOpen(false)} />
+          <View style={sheetStyles.card}>
+            <View style={sheetStyles.handle} />
+            <View style={sheetStyles.header}>
+              <Text style={sheetStyles.title}>{label}</Text>
+              <Pressable onPress={() => setOpen(false)} hitSlop={8}>
+                <Ionicons name="close" size={20} color={Colors.brand.midGray} />
+              </Pressable>
+            </View>
+            <TextInput
+              style={sheetStyles.searchInput}
+              value={query}
+              onChangeText={setQuery}
+              placeholder={searchPlaceholder || `Search ${label.toLowerCase()}`}
+              placeholderTextColor={Colors.brand.midGray}
+              autoCapitalize="words"
+            />
+            <ScrollView style={sheetStyles.results} keyboardShouldPersistTaps="handled">
+              {filteredOptions.map((option) => (
+                <Pressable
+                  key={option.value}
+                  onPress={() => {
+                    onChange(option.value);
+                    setOpen(false);
+                  }}
+                  style={[sheetStyles.resultItem, value === option.value && sheetStyles.resultItemActive]}
+                >
+                  <View style={sheetStyles.resultInfo}>
+                    <Text style={[sheetStyles.resultTitle, value === option.value && sheetStyles.resultTitleActive]}>
+                      {option.label}
+                    </Text>
+                    {option.subtitle ? <Text style={sheetStyles.resultSubtitle}>{option.subtitle}</Text> : null}
+                  </View>
+                  <Ionicons
+                    name={value === option.value ? 'checkmark-circle' : 'ellipse-outline'}
+                    size={20}
+                    color={value === option.value ? Colors.brand.primary : Colors.brand.lightGray}
+                  />
+                </Pressable>
+              ))}
+              {filteredOptions.length === 0 && (
+                <Text style={sheetStyles.emptyText}>{emptyText || 'No matches found.'}</Text>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+function SearchAssistButton({
+  label,
+  options,
+  onSelect,
+  buttonText,
+  searchPlaceholder,
+  emptyText,
+}: {
+  label: string;
+  options: SearchOption[];
+  onSelect: (option: SearchOption) => void;
+  buttonText: string;
+  searchPlaceholder?: string;
+  emptyText?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const filteredOptions = useMemo(() => {
+    const trimmed = query.trim().toLowerCase();
+    if (!trimmed) return options;
+
+    return options.filter((option) => {
+      const labelMatch = option.label.toLowerCase().includes(trimmed);
+      const subtitleMatch = option.subtitle?.toLowerCase().includes(trimmed);
+      return labelMatch || subtitleMatch;
+    });
+  }, [options, query]);
+
+  useEffect(() => {
+    if (!open) {
+      setQuery('');
+    }
+  }, [open]);
+
+  return (
+    <View style={styles.assistWrap}>
+      <Pressable onPress={() => setOpen(true)} style={styles.assistButton}>
+        <Ionicons name="list-outline" size={16} color={Colors.brand.primary} />
+        <Text style={styles.assistButtonText}>{buttonText}</Text>
+      </Pressable>
+      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+        <View style={sheetStyles.backdrop}>
+          <Pressable style={sheetStyles.dismissArea} onPress={() => setOpen(false)} />
+          <View style={sheetStyles.card}>
+            <View style={sheetStyles.handle} />
+            <View style={sheetStyles.header}>
+              <Text style={sheetStyles.title}>{label}</Text>
+              <Pressable onPress={() => setOpen(false)} hitSlop={8}>
+                <Ionicons name="close" size={20} color={Colors.brand.midGray} />
+              </Pressable>
+            </View>
+            <TextInput
+              style={sheetStyles.searchInput}
+              value={query}
+              onChangeText={setQuery}
+              placeholder={searchPlaceholder || `Search ${label.toLowerCase()}`}
+              placeholderTextColor={Colors.brand.midGray}
+              autoCapitalize="words"
+            />
+            <ScrollView style={sheetStyles.results} keyboardShouldPersistTaps="handled">
+              {filteredOptions.map((option) => (
+                <Pressable
+                  key={option.value}
+                  onPress={() => {
+                    onSelect(option);
+                    setOpen(false);
+                  }}
+                  style={sheetStyles.resultItem}
+                >
+                  <View style={sheetStyles.resultInfo}>
+                    <Text style={sheetStyles.resultTitle}>{option.label}</Text>
+                    {option.subtitle ? <Text style={sheetStyles.resultSubtitle}>{option.subtitle}</Text> : null}
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={Colors.brand.midGray} />
+                </Pressable>
+              ))}
+              {filteredOptions.length === 0 && (
+                <Text style={sheetStyles.emptyText}>{emptyText || 'No matches found.'}</Text>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
 }
 
 function PickerField({ label, value, options, onChange, placeholder, disabled }: {
@@ -116,11 +400,62 @@ const pfStyles = StyleSheet.create({
   optionTextActive: { color: Colors.brand.primary, fontFamily: 'Inter_600SemiBold' },
 });
 
+const sheetStyles = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.45)', justifyContent: 'flex-end' },
+  dismissArea: { flex: 1 },
+  card: {
+    backgroundColor: Colors.brand.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    paddingBottom: 24,
+    maxHeight: '82%',
+  },
+  handle: {
+    width: 46,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: Colors.brand.lightGray,
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  title: { fontSize: 16, color: Colors.brand.dark, fontFamily: 'Inter_700Bold' },
+  searchInput: {
+    backgroundColor: Colors.brand.inputBg,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.brand.inputBorder,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: Colors.brand.dark,
+    fontFamily: 'Inter_400Regular',
+    marginBottom: 12,
+  },
+  results: { maxHeight: 320 },
+  resultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.brand.lightGray,
+  },
+  resultItemActive: { backgroundColor: '#F8FAFC' },
+  resultInfo: { flex: 1 },
+  resultTitle: { fontSize: 14, color: Colors.brand.dark, fontFamily: 'Inter_600SemiBold' },
+  resultTitleActive: { color: Colors.brand.primary },
+  resultSubtitle: { fontSize: 13, color: Colors.brand.midGray, fontFamily: 'Inter_400Regular', marginTop: 2 },
+  emptyText: { fontSize: 13, color: Colors.brand.midGray, textAlign: 'center', paddingVertical: 18, fontFamily: 'Inter_400Regular' },
+});
+
 function IndividualCard({ entry, index, wards, callings, onUpdate, onToggleRelease, onRemove, canRemove }: {
   entry: NomineeEntry;
   index: number;
-  wards: { value: string; label: string }[];
-  callings: { value: string; label: string }[];
+  wards: SearchOption[];
+  callings: CallingOption[];
   onUpdate: (field: keyof NomineeEntry, value: string) => void;
   onToggleRelease: (value: boolean) => void;
   onRemove: () => void;
@@ -146,21 +481,50 @@ function IndividualCard({ entry, index, wards, callings, onUpdate, onToggleRelea
           placeholderTextColor={Colors.brand.midGray}
         />
       </View>
-      <PickerField
-        label="Ward"
+      <SearchSheetField
+        label="Local Unit"
         value={entry.ward_id}
         options={wards}
         onChange={v => onUpdate('ward_id', v)}
-        placeholder="Select Ward"
+        placeholder="Select Local Unit"
+        searchPlaceholder="Search local units"
+        emptyText="No local units matched that search."
       />
-      <PickerField
-        label="Current Calling"
-        value={entry.current_calling_id}
-        options={callings}
-        onChange={v => onUpdate('current_calling_id', v)}
-        placeholder="Select Calling"
-      />
-      {!!entry.current_calling_id && (
+      <View style={icStyles.field}>
+        <Text style={icStyles.label}>Current Calling</Text>
+        <TextInput
+          style={icStyles.input}
+          value={entry.current_calling_text}
+          onChangeText={v => onUpdate('current_calling_text', v)}
+          placeholder="Type a calling title or leave blank"
+          placeholderTextColor={Colors.brand.midGray}
+          autoCapitalize="words"
+          onBlur={() => {
+            const match = callings.find((calling) => calling.name.toLowerCase() === entry.current_calling_text.trim().toLowerCase());
+            if (match) {
+              onUpdate('current_calling_text', match.name);
+            }
+          }}
+        />
+        <Text style={styles.hintText}>Exact matches stay linked to the catalog. Other titles are saved as typed.</Text>
+        {callings.length > 0 && (
+          <SearchAssistButton
+            label="Current Calling"
+            options={callings.map((calling) => ({
+              value: String(calling.id),
+              label: calling.name,
+            }))}
+            onSelect={(option) => {
+              onUpdate('current_calling_text', option.label);
+              onUpdate('current_calling_id', option.value);
+            }}
+            buttonText="Browse full calling list"
+            searchPlaceholder="Search current callings"
+            emptyText="No current callings matched that search."
+          />
+        )}
+      </View>
+      {!!entry.current_calling_text.trim() && (
         <View style={icStyles.releaseRow}>
           <View style={icStyles.releaseInfo}>
             <Text style={icStyles.releaseLabel}>Needs release from current calling</Text>
@@ -219,11 +583,14 @@ export default function CallingCreateScreen() {
   const allowLeaveWithoutPromptRef = useRef(false);
 
   const [scope, setScope] = useState<string>('');
+  const [localUnitType, setLocalUnitType] = useState<string>('');
   const [wardId, setWardId] = useState<string>('');
   const [callingId, setCallingId] = useState<string>('');
-  const [orgId, setOrgId] = useState<string>('');
+  const [callingText, setCallingText] = useState<string>('');
+  const [assignmentValue, setAssignmentValue] = useState<string>('');
   const [currentHolderUserId, setCurrentHolderUserId] = useState<string>('');
   const [currentHolderName, setCurrentHolderName] = useState<string>('');
+  const [holderManuallyEdited, setHolderManuallyEdited] = useState(false);
   const [contextNotes, setContextNotes] = useState('');
   const [nominees, setNominees] = useState<NomineeEntry[]>([emptyNominee()]);
   const [submitting, setSubmitting] = useState(false);
@@ -235,7 +602,7 @@ export default function CallingCreateScreen() {
 
   // Warn if navigating away with unsaved changes
   useEffect(() => {
-    const hasChanges = !!(callingId || contextNotes.trim() || nominees.some(n => n.name.trim()));
+    const hasChanges = !!(callingText.trim() || contextNotes.trim() || nominees.some(n => n.name.trim()));
     if (!hasChanges) return;
     const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
       if (allowLeaveWithoutPromptRef.current) return;
@@ -246,7 +613,7 @@ export default function CallingCreateScreen() {
       ]);
     });
     return unsubscribe;
-  }, [navigation, callingId, contextNotes, nominees]);
+  }, [navigation, callingText, contextNotes, nominees]);
 
 
   const { data: ctx, isLoading: ctxLoading, refetch: refetchSubmissionContext } = useQuery<SubmissionContext>({
@@ -255,40 +622,65 @@ export default function CallingCreateScreen() {
     enabled: !!token,
   });
 
-  const { data: allWards, refetch: refetchWards } = useQuery<{ wards?: Ward[]; data?: Ward[] }>({
+  const { data: allWards, refetch: refetchWards } = useQuery<{ wards?: LocalUnit[]; data?: LocalUnit[] }>({
     queryKey: ['/api/reference/wards'],
     queryFn: () => authFetch(token, '/api/reference/wards'),
     enabled: !!token,
-  });
-
-  const { data: callingsData, refetch: refetchCallings } = useQuery<{ callings?: CallingOption[]; data?: CallingOption[] }>({
-    queryKey: ['/api/reference/callings', scope],
-    queryFn: () => authFetch(token, '/api/reference/callings', { params: scope ? { scope } : {} }),
-    enabled: !!token && !!scope,
-  });
-
-  const { data: orgsData, refetch: refetchOrganizations } = useQuery<{ organizations?: OrgOption[]; data?: OrgOption[] }>({
-    queryKey: ['/api/reference/organizations', scope, wardId],
-    queryFn: () => authFetch(token, '/api/reference/organizations', {
-      params: scope === 'stake'
-        ? { level: 'stake' }
-        : { level: 'ward', ward_id: wardId },
-    }),
-    enabled: !!token && !!scope && (scope === 'stake' || !!wardId),
-  });
-
-  const { data: holdersData, refetch: refetchCurrentHolders } = useQuery<{ holders?: Holder[]; data?: Holder[] }>({
-    queryKey: ['/api/reference/current-holders', callingId, wardId],
-    queryFn: () => authFetch(token, `/api/reference/current-holders/${callingId}`, {
-      params: wardId ? { ward_id: wardId } : {},
-    }),
-    enabled: !!token && !!callingId,
   });
 
   const { data: allCallingsData, refetch: refetchAllCallings } = useQuery<{ callings?: CallingOption[]; data?: CallingOption[] }>({
     queryKey: ['/api/reference/callings', 'all'],
     queryFn: () => authFetch(token, '/api/reference/callings'),
     enabled: !!token,
+  });
+
+  const { data: callingsData, refetch: refetchCallings } = useQuery<{ callings?: CallingOption[]; data?: CallingOption[] }>({
+    queryKey: ['/api/reference/callings', scope, localUnitType],
+    queryFn: () => authFetch(token, '/api/reference/callings', {
+      params: scope === 'stake'
+        ? { scope: 'stake', unit_type: localUnitType || undefined, importable_only: 1 }
+        : { scope: 'ward', unit_type: localUnitType, importable_only: 1 },
+    }),
+    enabled: !!token && !!scope && (scope === 'stake' || !!localUnitType),
+  });
+
+  const allCallings = useMemo(() => allCallingsData?.callings || allCallingsData?.data || [], [allCallingsData]);
+  const callings = useMemo(() => callingsData?.callings || callingsData?.data || [], [callingsData]);
+  const selectedCalling = useMemo(() => {
+    if (!callingId) {
+      return null;
+    }
+
+    return callings.find((calling) => String(calling.id) === callingId)
+      || allCallings.find((calling) => String(calling.id) === callingId)
+      || null;
+  }, [allCallings, callingId, callings]);
+
+  const { data: assignmentsData, refetch: refetchOrganizations } = useQuery<AssignmentResponse>({
+    queryKey: ['/api/reference/organizations', 'calling_request', scope, localUnitType, wardId, callingId],
+    queryFn: () => authFetch(token, '/api/reference/organizations', {
+      params: {
+        mode: 'calling_request',
+        scope,
+        unit_type: localUnitType || undefined,
+        ward_id: wardId || undefined,
+        target_calling_id: callingId || undefined,
+      },
+    }),
+    enabled: !!token && !!scope && (scope === 'stake' || !!localUnitType),
+  });
+
+  const selectedCallingNeedsLocalUnitContext = scope === 'stake' && isStakeReviewedLocalCalling(selectedCalling);
+  const serverUsesLocalUnitContext = assignmentsData?.uses_local_unit_context === true;
+  const requestUsesLocalUnitContext = scope === 'ward' || selectedCallingNeedsLocalUnitContext || serverUsesLocalUnitContext;
+  const showLocalUnitControls = scope === 'ward' || selectedCallingNeedsLocalUnitContext || serverUsesLocalUnitContext;
+
+  const { data: holdersData, refetch: refetchCurrentHolders } = useQuery<{ holders?: Holder[]; data?: Holder[] }>({
+    queryKey: ['/api/reference/current-holders', callingId, wardId],
+    queryFn: () => authFetch(token, `/api/reference/current-holders/${callingId}`, {
+      params: requestUsesLocalUnitContext && wardId ? { ward_id: wardId } : {},
+    }),
+    enabled: !!token && !!callingId && (!requestUsesLocalUnitContext || !!wardId),
   });
 
   const handleRefresh = useCallback(async () => {
@@ -304,7 +696,7 @@ export default function CallingCreateScreen() {
       if (scope) {
         tasks.push(refetchCallings());
       }
-      if (scope && (scope === 'stake' || !!wardId)) {
+      if (scope && (scope === 'stake' || !!localUnitType)) {
         tasks.push(refetchOrganizations());
       }
       if (callingId) {
@@ -323,7 +715,7 @@ export default function CallingCreateScreen() {
     refetchOrganizations,
     refetchCurrentHolders,
     scope,
-    wardId,
+    localUnitType,
     callingId,
   ]);
 
@@ -331,23 +723,64 @@ export default function CallingCreateScreen() {
     if (ctx?.allowed_scopes?.length === 1) {
       setScope(ctx.allowed_scopes[0]);
     }
-    if (ctx?.allowed_wards?.length === 1) {
-      setWardId(String(ctx.allowed_wards[0].id));
+    if (ctx?.allowed_local_units?.length === 1) {
+      setWardId(String(ctx.allowed_local_units[0].id));
+      setLocalUnitType(String(ctx.allowed_local_units[0].unit_type || 'ward'));
     }
   }, [ctx]);
 
   useEffect(() => {
+    if (scope === 'stake') {
+      setLocalUnitType('');
+    }
+    setWardId('');
+    setCallingText('');
     setCallingId('');
-    setOrgId('');
+    setAssignmentValue('');
     setCurrentHolderUserId('');
     setCurrentHolderName('');
-  }, [scope, wardId]);
+    setHolderManuallyEdited(false);
+  }, [scope]);
+
+  useEffect(() => {
+    const currentCalling = callingId
+      ? callings.find((calling) => String(calling.id) === callingId)
+        || allCallings.find((calling) => String(calling.id) === callingId)
+        || null
+      : null;
+
+    setWardId('');
+    setAssignmentValue('');
+    setCurrentHolderUserId('');
+    setCurrentHolderName('');
+    setHolderManuallyEdited(false);
+
+    if (currentCalling && !callingMatchesCurrentContext(currentCalling, scope, localUnitType)) {
+      setCallingText('');
+      setCallingId('');
+    }
+  }, [localUnitType, allCallings, callingId, callings, scope]);
+
+  useEffect(() => {
+    setAssignmentValue('');
+    setCurrentHolderUserId('');
+    if (!holderManuallyEdited) {
+      setCurrentHolderName('');
+    }
+  }, [wardId, holderManuallyEdited]);
 
   useEffect(() => {
     setCurrentHolderUserId('');
-    setCurrentHolderName('');
+    if (!holderManuallyEdited) {
+      setCurrentHolderName('');
+    }
+
+    if (requestUsesLocalUnitContext && !wardId) {
+      return;
+    }
+
     const holders = holdersData?.holders || holdersData?.data || [];
-    if (holders.length > 0) {
+    if (!holderManuallyEdited && holders.length > 0) {
       const matched = wardId
         ? holders.find((h) => String(h.ward_id) === wardId)
         : holders[0];
@@ -356,39 +789,156 @@ export default function CallingCreateScreen() {
         setCurrentHolderName(matched.user_name);
       }
     }
-  }, [holdersData, wardId]);
+  }, [holdersData, requestUsesLocalUnitContext, wardId, holderManuallyEdited]);
 
   useEffect(() => {
-    const callings = callingsData?.callings || callingsData?.data || [];
-    const orgs = orgsData?.organizations || orgsData?.data || [];
-    if (callingId && orgs.length > 0) {
-      const calling = callings.find(c => String(c.id) === callingId);
-      if (calling?.organization_type) {
-        const match = orgs.find(o => o.type === calling.organization_type);
-        if (match) setOrgId(String(match.id));
+    const options = assignmentsData?.assignment_options || assignmentsData?.data || [];
+    if (!selectedCalling || options.length === 0) {
+      return;
+    }
+
+    if (requestUsesLocalUnitContext && !wardId) {
+      if (assignmentValue) {
+        setAssignmentValue('');
+      }
+      return;
+    }
+
+    let organizationType = selectedCalling.organization_type || '';
+    if (selectedCalling.category === 'bishopric' && requestUsesLocalUnitContext) {
+      organizationType = localUnitType === 'branch' ? 'presidency' : 'bishopric';
+    }
+
+    if (!organizationType) {
+      return;
+    }
+
+    const current = options.find((option) => `${option.kind}_${option.id}` === assignmentValue) || null;
+    if (current) {
+      const currentMatchesContext = requestUsesLocalUnitContext
+        ? current.kind === 'organization'
+          && current.level === localUnitType
+          && (!wardId || String(current.ward_id || '') === wardId)
+        : current.kind === 'council' || current.level === 'stake';
+
+      if (currentMatchesContext) {
+        return;
       }
     }
-  }, [callingId, orgsData, callingsData]);
 
-  const wardsForForm = ctx?.allowed_wards || allWards?.wards || allWards?.data || [];
-  const callings = callingsData?.callings || callingsData?.data || [];
-  const orgs = orgsData?.organizations || orgsData?.data || [];
-  const allCallings = allCallingsData?.callings || allCallingsData?.data || [];
+    const bestMatch = options.find((option) => {
+      if (option.kind !== 'organization' || option.type !== organizationType) {
+        return false;
+      }
 
-  const wardOptions = wardsForForm.map(w => ({ value: String(w.id), label: w.name }));
-  const callingOptions = callings.map(c => ({ value: String(c.id), label: c.name }));
-  const orgOptions = orgs.map(o => ({ value: String(o.id), label: o.name }));
-  const individualCallingOptions = [{ value: '', label: 'None' }, ...allCallings.map(c => ({ value: String(c.id), label: c.name }))];
-  const individualWardOptions = wardsForForm.map(w => ({ value: String(w.id), label: w.name }));
+      if (requestUsesLocalUnitContext) {
+        if (option.level !== localUnitType) return false;
+        return !wardId || String(option.ward_id || '') === wardId;
+      }
+
+      return option.level === 'stake';
+    });
+
+    if (bestMatch) {
+      setAssignmentValue(`${bestMatch.kind}_${bestMatch.id}`);
+    }
+  }, [assignmentValue, assignmentsData, localUnitType, requestUsesLocalUnitContext, selectedCalling, wardId]);
+
+  const allLocalUnits = ctx?.allowed_local_units || allWards?.wards || allWards?.data || [];
+  const localUnitsForForm = localUnitType
+    ? allLocalUnits.filter((unit) => unit.unit_type === localUnitType)
+    : [];
+  const assignmentOptions = useMemo(
+    () => {
+      const options = assignmentsData?.assignment_options || assignmentsData?.data || [];
+
+      if (requestUsesLocalUnitContext && (!localUnitType || !wardId)) {
+        return [];
+      }
+
+      return options;
+    },
+    [assignmentsData, localUnitType, requestUsesLocalUnitContext, wardId],
+  );
+
+  const wardOptions: SearchOption[] = localUnitsForForm.map((unit) => ({
+    value: String(unit.id),
+    label: unit.name,
+    subtitle: formatUnitLabel(unit.unit_type, unit.code),
+  }));
+  const assignmentSearchOptions: SearchOption[] = assignmentOptions.map((option) => ({
+    value: `${option.kind}_${option.id}`,
+    label: option.name,
+    subtitle: formatAssignmentSubtitle(option),
+  }));
+  const individualWardOptions: SearchOption[] = allLocalUnits.map((unit) => ({
+    value: String(unit.id),
+    label: unit.name,
+    subtitle: formatUnitLabel(unit.unit_type, unit.code),
+  }));
+  const levelOptions = (ctx?.allowed_scopes || []).map(s => ({ value: s, label: s === 'stake' ? 'Stake' : 'Local Unit' }));
+  const localUnitTypeOptions = [
+    { value: 'ward', label: 'Ward' },
+    { value: 'branch', label: 'Branch' },
+  ].filter((option) => allLocalUnits.some((unit) => unit.unit_type === option.value));
+  const selectedAssignment = assignmentSearchOptions.find((option) => option.value === assignmentValue) || null;
+
+  const linkCallingText = useCallback((text: string) => {
+    const trimmed = text.trim();
+    const match = callings.find((calling) => calling.name.toLowerCase() === trimmed.toLowerCase());
+    if (match) {
+      setCallingText(match.name);
+      setCallingId(String(match.id));
+      return match;
+    }
+    setCallingText(trimmed);
+    setCallingId('');
+    return null;
+  }, [callings]);
+
+  useEffect(() => {
+    if (scope !== 'stake') {
+      return;
+    }
+
+    if (selectedCallingNeedsLocalUnitContext || !localUnitType) {
+      return;
+    }
+
+    setLocalUnitType('');
+    setWardId('');
+    setAssignmentValue('');
+    setCurrentHolderUserId('');
+    if (!holderManuallyEdited) {
+      setCurrentHolderName('');
+    }
+  }, [holderManuallyEdited, localUnitType, scope, selectedCallingNeedsLocalUnitContext]);
+
+  useEffect(() => {
+    if (!selectedCallingNeedsLocalUnitContext) {
+      return;
+    }
+
+    setAssignmentValue('');
+    setCurrentHolderUserId('');
+    if (!holderManuallyEdited) {
+      setCurrentHolderName('');
+    }
+  }, [holderManuallyEdited, selectedCallingNeedsLocalUnitContext]);
 
   const updateNominee = useCallback((idx: number, field: keyof NomineeEntry, value: string) => {
     setNominees(prev => prev.map((n, i) => {
       if (i !== idx) return n;
       const updated = { ...n, [field]: value };
-      if (field === 'current_calling_id') updated.requires_release = !!value;
+      if (field === 'current_calling_text') {
+        const trimmed = value.trim();
+        const match = allCallings.find((calling) => calling.name.toLowerCase() === trimmed.toLowerCase());
+        updated.current_calling_id = match ? String(match.id) : '';
+        updated.requires_release = !!trimmed;
+      }
       return updated;
     }));
-  }, []);
+  }, [allCallings]);
 
   const removeNominee = useCallback((idx: number) => {
     setNominees(prev => prev.filter((_, i) => i !== idx));
@@ -404,8 +954,20 @@ export default function CallingCreateScreen() {
       appAlert('Required', 'Please add at least one individual.');
       return;
     }
-    if (!callingId) {
-      appAlert('Required', 'Please select a calling.');
+    if (requestUsesLocalUnitContext && !localUnitType) {
+      appAlert('Required', 'Choose whether this request belongs to a ward or a branch.');
+      return;
+    }
+    if (requestUsesLocalUnitContext && !wardId) {
+      appAlert('Required', 'Choose the local unit this request belongs to.');
+      return;
+    }
+    if (!callingText.trim()) {
+      appAlert('Required', 'Please enter the calling title.');
+      return;
+    }
+    if (!callingId && !assignmentValue) {
+      appAlert('Required', 'Choose the organization or council before using a custom calling title.');
       return;
     }
     setSubmitting(true);
@@ -413,22 +975,31 @@ export default function CallingCreateScreen() {
       const payload: Record<string, unknown> = {
         request_type: 'calling',
         scope,
-        target_calling_id: Number(callingId),
+        local_unit_type: requestUsesLocalUnitContext ? localUnitType : undefined,
+        target_calling_id: callingId ? Number(callingId) : null,
+        target_calling_text: callingText.trim(),
         nominees: validNominees.map(n => ({
           name: n.name.trim(),
           user_id: null,
           ward_id: n.ward_id ? Number(n.ward_id) : null,
           current_calling_id: n.current_calling_id ? Number(n.current_calling_id) : null,
-          requires_release: n.current_calling_id ? n.requires_release : undefined,
+          current_calling_text: n.current_calling_text.trim() || null,
+          requires_release: n.current_calling_text.trim() ? n.requires_release : undefined,
           recommendation: n.recommendation.trim() || null,
         })),
       };
-      if (orgId) payload.target_organization_id = Number(orgId);
-      if (wardId) {
+      if (assignmentValue.startsWith('org_')) {
+        payload.target_organization_id = Number(assignmentValue.replace('org_', ''));
+      }
+      if (assignmentValue.startsWith('council_')) {
+        payload.target_council_id = Number(assignmentValue.replace('council_', ''));
+      }
+      if (requestUsesLocalUnitContext && wardId) {
         payload.target_ward_id = Number(wardId);
         payload.ward_id = Number(wardId);
       }
       if (currentHolderUserId) payload.current_holder_user_id = Number(currentHolderUserId);
+      if (currentHolderName.trim()) payload.current_holder_name = currentHolderName.trim();
       if (contextNotes.trim()) payload.context_notes = contextNotes.trim();
 
       const result = await authFetch(token, '/api/calling-requests', { method: 'POST', body: payload });
@@ -505,61 +1076,144 @@ export default function CallingCreateScreen() {
             />
             {ctx && ctx.allowed_scopes.length > 1 ? (
               <PickerField
-                label="Scope"
+                label="Level"
                 value={scope}
-                options={ctx.allowed_scopes.map(s => ({ value: s, label: s === 'stake' ? 'Stake' : 'Ward' }))}
-                onChange={v => { setScope(v); setWardId(''); }}
-                placeholder="Select Scope"
+                options={levelOptions}
+                onChange={v => { setScope(v); }}
+                placeholder="Select Level"
               />
             ) : (
               <View style={pfStyles.container}>
-                <Text style={pfStyles.label}>Scope</Text>
+                <Text style={pfStyles.label}>Level</Text>
                 <View style={[pfStyles.trigger, pfStyles.disabled]}>
-                  <Text style={pfStyles.triggerText}>{scope === 'stake' ? 'Stake' : 'Ward'}</Text>
+                  <Text style={pfStyles.triggerText}>{scope === 'stake' ? 'Stake' : 'Local Unit'}</Text>
                 </View>
               </View>
             )}
-            {scope === 'ward' && (
-              <PickerField
-                label="Ward"
-                value={wardId}
-                options={wardOptions}
-                onChange={setWardId}
-                placeholder="Select Ward"
-              />
+            {showLocalUnitControls && (
+              <>
+                <PickerField
+                  label="Local Unit Type"
+                  value={localUnitType}
+                  options={localUnitTypeOptions}
+                  onChange={setLocalUnitType}
+                  placeholder="Select Type"
+                />
+                <SearchSheetField
+                  label="Local Unit"
+                  value={wardId}
+                  options={wardOptions}
+                  onChange={setWardId}
+                  placeholder={localUnitType ? 'Select Local Unit' : 'Select type first'}
+                  disabled={!localUnitType}
+                  searchPlaceholder="Search local units"
+                  emptyText="No local units matched that search."
+                />
+              </>
             )}
+            {scope === 'stake' && !showLocalUnitControls ? (
+              <Text style={styles.helperCallout}>
+                Stake-wide requests can use stake organizations and stake councils. Ward or branch fields appear automatically when the selected calling needs local-unit context.
+              </Text>
+            ) : null}
+            {selectedCallingNeedsLocalUnitContext ? (
+              <Text style={styles.helperCallout}>
+                This calling still belongs to a ward or branch even though the approval starts at the stake level. Choose the local unit so the right organization and holder options appear.
+              </Text>
+            ) : null}
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Calling</Text>
+          <Text style={styles.sectionTitle}>Proposed Calling</Text>
           <View style={styles.fieldsInner}>
-            <PickerField
-              label="Calling"
-              value={callingId}
-              options={callingOptions}
-              onChange={setCallingId}
-              placeholder={scope ? 'Select Calling' : 'Select scope first'}
-              disabled={!scope}
-            />
-            <PickerField
-              label="Organization"
-              value={orgId}
-              options={orgOptions}
-              onChange={setOrgId}
-              placeholder="Select Organization"
-              disabled={orgs.length === 0}
-            />
-            <View style={pfStyles.container}>
-              <Text style={pfStyles.label}>Current Holder</Text>
-              <View style={[pfStyles.trigger, pfStyles.disabled]}>
-                <Text style={[pfStyles.triggerText, !currentHolderName && pfStyles.placeholder]}>
-                  {currentHolderName || (callingId ? 'Calling is currently vacant' : 'Select a calling first')}
-                </Text>
-              </View>
-              {currentHolderName ? (
-                <Text style={styles.hintText}>Auto-detected</Text>
+            <View style={icStyles.field}>
+              <Text style={icStyles.label}>Proposed Calling</Text>
+              <TextInput
+                style={icStyles.input}
+                value={callingText}
+                onChangeText={(value) => {
+                  setCallingText(value);
+                  setCallingId('');
+                  setAssignmentValue('');
+                }}
+                placeholder={scope === 'stake' || localUnitType ? 'Type a calling title' : 'Choose ward or branch first'}
+                placeholderTextColor={Colors.brand.midGray}
+                autoCapitalize="words"
+                onBlur={() => {
+                  linkCallingText(callingText);
+                }}
+              />
+              <Text style={styles.hintText}>Exact matches stay linked to the catalog. Other titles are saved as typed.</Text>
+              {selectedCalling ? (
+                <Text style={styles.selectionSummary}>Catalog calling selected: {selectedCalling.name}</Text>
               ) : null}
+              {callings.length > 0 && (
+                <SearchAssistButton
+                  label="Proposed Calling"
+                  options={callings.map((calling) => ({
+                    value: String(calling.id),
+                    label: calling.name,
+                    subtitle: calling.organization_type ? calling.organization_type.replace(/_/g, ' ') : undefined,
+                  }))}
+                  onSelect={(option) => {
+                    setCallingText(option.label);
+                    setCallingId(option.value);
+                  }}
+                  buttonText="Browse full calling list"
+                  searchPlaceholder="Search proposed callings"
+                  emptyText="No callings matched that search."
+                />
+              )}
+            </View>
+            <SearchSheetField
+              label="Organization or Council"
+              value={assignmentValue}
+              options={assignmentSearchOptions}
+              onChange={setAssignmentValue}
+              placeholder={
+                requestUsesLocalUnitContext
+                  ? (wardId ? 'Select Organization' : (localUnitType ? 'Select Local Unit first' : 'Select ward or branch first'))
+                  : 'Select Organization or Council'
+              }
+              disabled={assignmentOptions.length === 0 || (requestUsesLocalUnitContext && !wardId)}
+              searchPlaceholder="Search organizations and councils"
+              emptyText="No matching organizations or councils were found."
+            />
+            {selectedAssignment ? (
+              <Text style={styles.selectionSummary}>{selectedAssignment.label}</Text>
+            ) : null}
+            <Text style={styles.hintText}>
+              {requestUsesLocalUnitContext
+                ? 'Only organizations from the selected ward or branch are available here.'
+                : 'Stake-wide requests can use either a stake organization or a stake council or committee.'}
+            </Text>
+            <View style={icStyles.field}>
+              <Text style={icStyles.label}>Current Holder</Text>
+              <TextInput
+                style={icStyles.input}
+                value={currentHolderName}
+                onChangeText={(value) => {
+                  setHolderManuallyEdited(true);
+                  setCurrentHolderUserId('');
+                  setCurrentHolderName(value);
+                }}
+                placeholder={callingText ? 'Type a name or leave blank if vacant' : 'Choose the calling first'}
+                placeholderTextColor={Colors.brand.midGray}
+                autoCapitalize="words"
+                onBlur={() => {
+                  if (!currentHolderName.trim()) {
+                    setHolderManuallyEdited(false);
+                  }
+                }}
+              />
+              <Text style={styles.hintText}>
+                {callingId
+                  ? (requestUsesLocalUnitContext
+                    ? 'Linked callings try to match the current holder inside the selected ward or branch. You can still adjust it manually.'
+                    : 'Linked callings try to auto-detect the current holder. You can still adjust it manually.')
+                  : 'Custom calling titles need a manual current-holder entry when one exists.'}
+              </Text>
             </View>
           </View>
         </View>
@@ -572,7 +1226,7 @@ export default function CallingCreateScreen() {
               entry={entry}
               index={idx}
               wards={individualWardOptions}
-              callings={individualCallingOptions}
+              callings={allCallings}
               onUpdate={(field, value) => updateNominee(idx, field, value)}
               onToggleRelease={(val) => setNominees(prev => prev.map((n, i) => i === idx ? { ...n, requires_release: val } : n))}
               onRemove={() => removeNominee(idx)}
@@ -654,6 +1308,31 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold', borderLeftWidth: 3, borderLeftColor: Colors.brand.primary, paddingLeft: 10,
   },
   hintText: { fontSize: 15, color: Colors.brand.midGray, marginTop: 4, fontFamily: 'Inter_400Regular', fontStyle: 'italic' as const },
+  helperCallout: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.brand.darkGray,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontFamily: 'Inter_500Medium',
+  },
+  assistWrap: { marginTop: 10 },
+  assistButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  assistButtonText: { fontSize: 13, color: '#1D4ED8', fontFamily: 'Inter_600SemiBold' },
+  selectionSummary: { fontSize: 13, color: Colors.brand.primary, marginTop: 8, fontFamily: 'Inter_500Medium' },
   addButton: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
   addButtonText: { fontSize: 14, color: Colors.brand.primary, fontFamily: 'Inter_600SemiBold' },
   contextInput: {

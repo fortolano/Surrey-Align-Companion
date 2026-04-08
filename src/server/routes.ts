@@ -118,11 +118,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   g(app, "/api/reports/align-pulse", "reports/align-pulse");
   p(app, "/api/pulse", "pulse");
 
-  // Council Agendas
+  // Agendas
   g(app, "/api/agendas", "agendas");
   g(app, "/api/agendas/my-items", "agendas/my-items");
+  g(app, "/api/agendas/submission-destinations", "agendas/submission-destinations");
+  g(app, "/api/agendas/submission-destinations/:entityType/:entityId", (req) => `agendas/submission-destinations/${req.params.entityType}/${req.params.entityId}`);
+  g(app, "/api/agendas/entities", "my-agendas/entities");
+  g(app, "/api/agendas/entities/:entityType/:entityId", (req) => `my-agendas/entities/${req.params.entityType}/${req.params.entityId}`);
+  g(app, "/api/agendas/:agendaId", (req) => `my-agendas/${req.params.agendaId}`);
   p(app, "/api/agendas/items/:item/respond", (req) => `agendas/items/${req.params.item}/respond`);
   p(app, "/api/agendas/submissions", "agendas/submissions");
+  p(app, "/api/agendas/entities/:entityType/:entityId/submissions", (req) => `my-agendas/entities/${req.params.entityType}/${req.params.entityId}/submissions`);
 
   // User Settings
   g(app, "/api/user/settings", "user/settings");

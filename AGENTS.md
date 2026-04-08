@@ -21,6 +21,15 @@ This folder is the separate SurreyAlign companion PWA at `app.surreyalign.org`. 
 - The top-level root contains built output and hosting files such as `index.html`, `manifest.json`, `sw.js`, `_expo/`, and static assets.
 - **Do not edit built output files by default.** Only touch root-level built files when the task is specifically about deployment output, hosting behavior, manifest/service worker behavior, or static asset delivery.
 
+## Deployment Domain And Production Build (Required For PWA Deploys)
+
+- The canonical production PWA domain is `app.surreyalign.org`.
+- Shells on this machine should expose both `SURREYALIGN_PWA_DEPLOY_DOMAIN=app.surreyalign.org` and `EXPO_PUBLIC_DOMAIN=app.surreyalign.org`.
+- The correct production deploy build command is:
+  - `cd /var/www/app.surreyalign.org/src && npm run expo:static:build`
+- That command builds the PWA web export and syncs the generated deployment files back into `/var/www/app.surreyalign.org/`.
+- Do not hand-edit root deployment output files as a substitute for running the build.
+
 ## UI Pattern Source Of Truth (Required For PWA Frontend Work)
 
 - Before changing any screen, component, token, navigation shell, form flow, tab bar, header, install prompt, or mobile layout behavior, read `docs/pwa-ui-patterns.md`.
@@ -150,6 +159,16 @@ After changes in this PWA, run the checks that match the task:
 ```bash
 cd /var/www/app.surreyalign.org/src && npm run lint
 ```
+
+For meaningful PWA runtime changes, also run the real authenticated Playwright smoke test:
+
+```bash
+cd /var/www/app.surreyalign.org/src && npm run e2e:playwright:live-smoke
+```
+
+Use the permanent SurreyAlign browser-test accounts from `/home/webadmin/.codex/memories/surreyalign-test-credentials.md`.
+Do not copy those credentials into the repo.
+The default live Playwright account is the stake test account unless `PWA_E2E_ACCOUNT` is set to `ward` or `branch`.
 
 If the task touches auth or logout flow, also use the existing regression reference:
 

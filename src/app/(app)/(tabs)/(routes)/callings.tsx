@@ -41,6 +41,7 @@ interface CallingRequestListItem {
   status_label: string;
   target_calling: string | null;
   target_ward: string | null;
+  target_ward_unit_type?: 'ward' | 'branch' | null;
   target_organization: string | null;
   approval_authority: string;
   approval_authority_label: string;
@@ -83,6 +84,9 @@ function relativeTime(dateStr: string): string {
 
 function CallingCard({ item, index }: { item: CallingRequestListItem; index: number }) {
   const colors = STATUS_COLORS[item.status] || STATUS_COLORS.draft;
+  const localUnitTypeLabel = item.target_ward_unit_type
+    ? item.target_ward_unit_type.charAt(0).toUpperCase() + item.target_ward_unit_type.slice(1)
+    : null;
 
   const handlePress = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -121,9 +125,16 @@ function CallingCard({ item, index }: { item: CallingRequestListItem; index: num
           </View>
           <View style={[styles.scopeChip, { backgroundColor: item.scope === 'stake' ? '#016183' + '15' : '#0F766E15' }]}>
             <Text style={[styles.scopeChipText, { color: item.scope === 'stake' ? '#016183' : '#0F766E' }]}>
-              {item.scope === 'stake' ? 'Stake' : 'Ward'}
+              {item.scope === 'stake' ? 'Stake' : 'Local Unit'}
             </Text>
           </View>
+          {item.scope !== 'stake' && localUnitTypeLabel ? (
+            <View style={[styles.scopeChip, styles.unitTypeChip]}>
+              <Text style={[styles.scopeChipText, styles.unitTypeChipText]}>
+                {localUnitTypeLabel}
+              </Text>
+            </View>
+          ) : null}
           <Text style={styles.timeText}>{relativeTime(item.updated_at)}</Text>
         </View>
 
@@ -281,7 +292,7 @@ export default function CallingsScreen() {
                 style={[styles.scopeToggle, scopeFilter === s && styles.scopeToggleActive]}
               >
                 <Text style={[styles.scopeToggleText, scopeFilter === s && styles.scopeToggleTextActive]}>
-                  {s === 'stake' ? 'Stake' : 'Ward'}
+                  {s === 'stake' ? 'Stake' : 'Local Unit'}
                 </Text>
               </Pressable>
             ))}
@@ -616,6 +627,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600' as const,
     fontFamily: 'Inter_600SemiBold',
+  },
+  unitTypeChip: {
+    backgroundColor: '#E0F2FE',
+  },
+  unitTypeChipText: {
+    color: '#0369A1',
   },
   timeText: {
     fontSize: 15,

@@ -5,6 +5,7 @@ const { Readable } = require("stream");
 const { pipeline } = require("stream/promises");
 
 let metroProcess = null;
+const DEFAULT_PWA_DEPLOYMENT_DOMAIN = "app.surreyalign.org";
 
 function exitWithError(message) {
   console.error(message);
@@ -44,18 +45,22 @@ function getDeploymentDomain() {
     return stripProtocol(process.env.REPLIT_INTERNAL_APP_DOMAIN);
   }
 
-  if (process.env.REPLIT_DEV_DOMAIN) {
-    return stripProtocol(process.env.REPLIT_DEV_DOMAIN);
+  if (process.env.SURREYALIGN_PWA_DEPLOY_DOMAIN) {
+    return stripProtocol(process.env.SURREYALIGN_PWA_DEPLOY_DOMAIN);
   }
 
   if (process.env.EXPO_PUBLIC_DOMAIN) {
     return stripProtocol(process.env.EXPO_PUBLIC_DOMAIN);
   }
 
-  console.error(
-    "ERROR: No deployment domain found. Set REPLIT_INTERNAL_APP_DOMAIN, REPLIT_DEV_DOMAIN, or EXPO_PUBLIC_DOMAIN",
+  if (process.env.REPLIT_DEV_DOMAIN) {
+    return stripProtocol(process.env.REPLIT_DEV_DOMAIN);
+  }
+
+  console.log(
+    `No deployment domain env var found. Falling back to ${DEFAULT_PWA_DEPLOYMENT_DOMAIN}.`,
   );
-  process.exit(1);
+  return DEFAULT_PWA_DEPLOYMENT_DOMAIN;
 }
 
 function prepareDirectories(timestamp) {
@@ -83,9 +88,9 @@ function clearMetroCache() {
   console.log("Clearing Metro cache...");
 
   const cacheDirs = [
-    ...fs.globSync(".metro-cache"),
-    ...fs.globSync("node_modules/.cache/metro"),
-  ];
+    ".metro-cache",
+    path.join("node_modules", ".cache", "metro"),
+  ].filter((dir) => fs.existsSync(dir));
 
   for (const dir of cacheDirs) {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -526,6 +531,42 @@ function copyPwaAssetsToStaticBuild() {
   }
 }
 
+function syncDirectoryContents(sourceDir, destinationDir, label) {
+  if (!fs.existsSync(sourceDir)) {
+    return;
+  }
+
+  fs.mkdirSync(destinationDir, { recursive: true });
+
+  const entries = fs.readdirSync(sourceDir, { withFileTypes: true });
+  for (const entry of entries) {
+    fs.cpSync(
+      path.join(sourceDir, entry.name),
+      path.join(destinationDir, entry.name),
+      { recursive: true, force: true },
+    );
+  }
+
+  console.log(`Synced ${label} into ${destinationDir}`);
+}
+
+function syncBuildOutputsToDeploymentRoot() {
+  const currentDir = process.cwd();
+  const deploymentRoot = path.resolve(currentDir, "..");
+
+  if (deploymentRoot === currentDir) {
+    return;
+  }
+
+  const deploymentSrcDir = path.join(deploymentRoot, "src");
+  if (!fs.existsSync(deploymentSrcDir)) {
+    return;
+  }
+
+  syncDirectoryContents(path.resolve(currentDir, "static-build"), deploymentRoot, "static build");
+  syncDirectoryContents(path.resolve(currentDir, "dist"), deploymentRoot, "web export");
+}
+
 async function buildWebExport() {
   if (metroProcess) {
     metroProcess.kill();
@@ -636,6 +677,7 @@ async function main() {
 
   console.log("Building Expo web export...");
   await buildWebExport();
+  syncBuildOutputsToDeploymentRoot();
 
   console.log("Build complete! Deploy to:", baseUrl);
 

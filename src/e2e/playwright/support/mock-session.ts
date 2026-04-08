@@ -33,6 +33,100 @@ const CALLING_REQUEST_ID = 301;
 const PRIMARY_WARD_ID = 10;
 const COMPLETED_WARD_ID = 11;
 
+const REFERENCE_CALLINGS = [
+  {
+    id: 501,
+    name: 'Stake Assistant Executive Secretary',
+    level: 'stake',
+    category: 'stake_presidency',
+    organization_type: 'stake_presidency',
+  },
+  {
+    id: 502,
+    name: 'Stake Relief Society Secretary',
+    level: 'stake',
+    category: 'relief_society',
+    organization_type: 'relief_society',
+  },
+  {
+    id: 503,
+    name: 'Bishopric First Counselor',
+    level: 'ward',
+    category: 'bishopric',
+    organization_type: 'bishopric',
+  },
+  {
+    id: 504,
+    name: 'Ward Clerk',
+    level: 'ward',
+    category: 'administration',
+    organization_type: 'bishopric',
+  },
+  {
+    id: 505,
+    name: 'Elders Quorum President',
+    level: 'ward',
+    category: 'elders_quorum',
+    organization_type: 'elders_quorum',
+  },
+  {
+    id: 506,
+    name: 'Ward Choir Director',
+    level: 'ward',
+    category: 'music',
+    organization_type: 'music',
+  },
+  {
+    id: 507,
+    name: 'Branch Presidency First Counselor',
+    level: 'branch',
+    category: 'bishopric',
+    organization_type: 'presidency',
+  },
+  {
+    id: 508,
+    name: 'Branch Clerk',
+    level: 'branch',
+    category: 'administration',
+    organization_type: 'presidency',
+  },
+];
+
+const STAKE_ASSIGNMENTS = {
+  organizations: [
+    { id: 700, name: 'Stake Presidency', kind: 'organization', level: 'stake', ward_id: null, type: 'stake_presidency' },
+    { id: 701, name: 'Stake Relief Society', kind: 'organization', level: 'stake', ward_id: null, type: 'relief_society' },
+  ],
+  councils: [
+    { id: 801, name: 'High Council', kind: 'council', level: 'stake', ward_id: null, type: 'council' },
+    { id: 802, name: 'Stake Communication Council', kind: 'council', level: 'stake', ward_id: null, type: 'council' },
+    { id: 803, name: 'Stake Youth Leadership Committee', kind: 'council', level: 'stake', ward_id: null, type: 'committee' },
+  ],
+};
+
+const LOCAL_ASSIGNMENTS = [
+  { id: 710, name: 'Cloverdale Bishopric', kind: 'organization', level: 'ward', ward_id: PRIMARY_WARD_ID, type: 'bishopric' },
+  { id: 711, name: 'Cloverdale Elders Quorum', kind: 'organization', level: 'ward', ward_id: PRIMARY_WARD_ID, type: 'elders_quorum' },
+  { id: 712, name: 'Cloverdale Ward Music', kind: 'organization', level: 'ward', ward_id: PRIMARY_WARD_ID, type: 'music' },
+  { id: 720, name: 'Fleetwood Branch Presidency', kind: 'organization', level: 'branch', ward_id: COMPLETED_WARD_ID, type: 'presidency' },
+  { id: 721, name: 'Fleetwood Branch Elders Quorum', kind: 'organization', level: 'branch', ward_id: COMPLETED_WARD_ID, type: 'elders_quorum' },
+];
+
+const MOCK_HOLDERS_BY_CALLING: Record<string, Array<{ user_id: number; user_name: string; label: string; ward_id: number | null }>> = {
+  '501': [
+    { user_id: 201, user_name: 'Stake Executive Secretary Holder', label: 'Stake Executive Secretary Holder', ward_id: null },
+  ],
+  '503': [
+    { user_id: 202, user_name: 'Cloverdale Counselor', label: 'Cloverdale Counselor', ward_id: PRIMARY_WARD_ID },
+  ],
+  '504': [
+    { user_id: 203, user_name: 'Cloverdale Clerk', label: 'Cloverdale Clerk', ward_id: PRIMARY_WARD_ID },
+  ],
+  '507': [
+    { user_id: 204, user_name: 'Fleetwood Counselor', label: 'Fleetwood Counselor', ward_id: COMPLETED_WARD_ID },
+  ],
+};
+
 const CALLING_LIST_RESPONSE = {
   calling_requests: [
     {
@@ -44,6 +138,7 @@ const CALLING_LIST_RESPONSE = {
       status_label: 'Under Consideration',
       target_calling: 'Ward Choir Director',
       target_ward: 'Cloverdale Ward',
+      target_ward_unit_type: 'ward',
       target_organization: 'Ward Music',
       approval_authority: 'bishopric',
       approval_authority_label: 'Bishopric',
@@ -78,6 +173,12 @@ const CALLING_DETAIL_RESPONSE = {
     target_ward: {
       id: PRIMARY_WARD_ID,
       name: 'Cloverdale Ward',
+      unit_type: 'ward',
+    },
+    ward: {
+      id: PRIMARY_WARD_ID,
+      name: 'Cloverdale Ward',
+      unit_type: 'ward',
     },
     target_organization: {
       id: 700,
@@ -129,6 +230,7 @@ const CALLING_DETAIL_RESPONSE = {
     can_decide: false,
     can_manage: false,
     can_select_individual: false,
+    can_request_feedback: true,
   },
   next_action: {
     type: 'waiting_sunday_business',
@@ -374,10 +476,138 @@ function parseJsonBody(request: ReturnType<Route['request']>) {
   }
 }
 
+function isStakeReviewedLocalCallingMock(callingId?: string | null) {
+  return ['503', '504', '505', '507'].includes(String(callingId || ''));
+}
+
+function buildMockCallingResponse(scope: string | null, unitType: string | null) {
+  if (!scope) {
+    return REFERENCE_CALLINGS;
+  }
+
+  if (scope === 'stake') {
+    return REFERENCE_CALLINGS.filter((calling) => {
+      if (calling.level === 'stake') {
+        return true;
+      }
+
+      if (!isStakeReviewedLocalCallingMock(String(calling.id))) {
+        return false;
+      }
+
+      if (unitType === 'ward') {
+        return calling.level === 'ward';
+      }
+
+      if (unitType === 'branch') {
+        return calling.level === 'branch' || calling.level === 'ward';
+      }
+
+      return true;
+    });
+  }
+
+  if (scope === 'ward') {
+    if (unitType === 'branch') {
+      return REFERENCE_CALLINGS.filter((calling) => calling.level === 'branch' || calling.level === 'ward');
+    }
+
+    return REFERENCE_CALLINGS.filter((calling) => calling.level === 'ward');
+  }
+
+  return REFERENCE_CALLINGS;
+}
+
+function buildMockAssignmentResponse(
+  scope: string | null,
+  unitType: string | null,
+  wardId: string | null,
+  targetCallingId: string | null,
+) {
+  const usesLocalUnitContext = scope === 'ward' || (scope === 'stake' && isStakeReviewedLocalCallingMock(targetCallingId));
+
+  if (!usesLocalUnitContext) {
+    const assignmentOptions = [...STAKE_ASSIGNMENTS.councils, ...STAKE_ASSIGNMENTS.organizations];
+
+    return {
+      success: true,
+      uses_local_unit_context: false,
+      organizations: STAKE_ASSIGNMENTS.organizations,
+      councils: STAKE_ASSIGNMENTS.councils,
+      assignment_options: assignmentOptions,
+    };
+  }
+
+  if (!unitType) {
+    return {
+      success: true,
+      uses_local_unit_context: true,
+      organizations: [],
+      councils: [],
+      assignment_options: [],
+    };
+  }
+
+  const organizations = LOCAL_ASSIGNMENTS.filter((option) => {
+    if (option.level !== unitType) {
+      return false;
+    }
+
+    return !wardId || String(option.ward_id) === String(wardId);
+  });
+
+  return {
+    success: true,
+    uses_local_unit_context: true,
+    organizations,
+    councils: [],
+    assignment_options: organizations,
+  };
+}
+
 function createMockApiHandler() {
   const currentSundayBusinessResponse = cloneJson(SUNDAY_BUSINESS_RESPONSE);
   const currentNotifications = cloneJson(NOTIFICATIONS_RESPONSE.notifications);
   const currentSettingsResponse = cloneJson(SETTINGS_RESPONSE);
+  const currentCallingListResponse = cloneJson(CALLING_LIST_RESPONSE);
+  const currentCallingDetailResponse = cloneJson(CALLING_DETAIL_RESPONSE);
+  const feedbackCandidates = [
+    {
+      id: 301,
+      name: 'Emilio Silva Jr.',
+      label: 'Emilio Silva Jr. — Surrey 4th, Stake High Councilor',
+      priority: 'high',
+      is_quick_pick: true,
+    },
+    {
+      id: 302,
+      name: 'Nathan Brown',
+      label: 'Nathan Brown — Cloverdale Ward, Bishop',
+      priority: 'high',
+      is_quick_pick: true,
+    },
+    {
+      id: 303,
+      name: 'Maria Lopez',
+      label: 'Maria Lopez — Stake Relief Society President',
+      priority: 'medium',
+      is_quick_pick: true,
+    },
+    {
+      id: 304,
+      name: 'David Hall',
+      label: 'David Hall — Stake Executive Secretary',
+      priority: 'medium',
+      is_quick_pick: true,
+    },
+    {
+      id: 305,
+      name: 'Peter Chan',
+      label: 'Peter Chan — Fleetwood Branch Presidency Counselor',
+      priority: 'medium',
+      is_quick_pick: false,
+    },
+  ];
 
   return async function handleMockApi(route: Route) {
   const request = route.request();
@@ -469,8 +699,13 @@ function createMockApiHandler() {
 
   if (path === '/api/calling-requests/submission-context' && method === 'GET') {
     return json(route, {
-      allowed_scopes: ['ward'],
-      allowed_wards: [{ id: PRIMARY_WARD_ID, name: 'Cloverdale Ward' }],
+      allowed_levels: ['stake', 'local_unit'],
+      allowed_scopes: ['stake', 'ward'],
+      allowed_local_units: [
+        { id: PRIMARY_WARD_ID, name: 'Cloverdale Ward', unit_type: 'ward' },
+        { id: COMPLETED_WARD_ID, name: 'Fleetwood Branch', unit_type: 'branch' },
+      ],
+      allowed_wards: [{ id: PRIMARY_WARD_ID, name: 'Cloverdale Ward', unit_type: 'ward' }],
       can_create: true,
     });
   }
@@ -478,58 +713,52 @@ function createMockApiHandler() {
   if (path === '/api/reference/wards' && method === 'GET') {
     return json(route, {
       wards: [
-        { id: PRIMARY_WARD_ID, name: 'Cloverdale Ward' },
-        { id: COMPLETED_WARD_ID, name: 'Fleetwood Ward' },
+        { id: PRIMARY_WARD_ID, name: 'Cloverdale Ward', unit_type: 'ward' },
+        { id: COMPLETED_WARD_ID, name: 'Fleetwood Branch', unit_type: 'branch' },
       ],
     });
   }
 
   if (path === '/api/reference/callings' && method === 'GET') {
+    const scope = url.searchParams.get('scope');
+    const unitType = url.searchParams.get('unit_type');
+
     return json(route, {
-      callings: [
-        {
-          id: 501,
-          name: 'Ward Choir Director',
-          level: 'ward',
-          organization_type: 'music',
-        },
-        {
-          id: 502,
-          name: 'Ward Music Chair',
-          level: 'ward',
-          organization_type: 'music',
-        },
-      ],
+      callings: buildMockCallingResponse(scope, unitType),
     });
   }
 
   if (path === '/api/reference/organizations' && method === 'GET') {
+    if (url.searchParams.get('mode') === 'calling_request') {
+      return json(
+        route,
+        buildMockAssignmentResponse(
+          url.searchParams.get('scope'),
+          url.searchParams.get('unit_type'),
+          url.searchParams.get('ward_id'),
+          url.searchParams.get('target_calling_id'),
+        ),
+      );
+    }
+
     return json(route, {
-      organizations: [
-        {
-          id: 700,
-          name: 'Ward Music',
-          type: 'music',
-        },
-      ],
+      organizations: [...STAKE_ASSIGNMENTS.organizations, ...LOCAL_ASSIGNMENTS],
     });
   }
 
   if (/^\/api\/reference\/current-holders\/\d+$/.test(path) && method === 'GET') {
+    const callingId = path.match(/^\/api\/reference\/current-holders\/(\d+)$/)?.[1] || '';
+    const wardId = url.searchParams.get('ward_id');
+
     return json(route, {
-      holders: [
-        {
-          user_id: 201,
-          user_name: 'Existing Holder',
-          label: 'Existing Holder',
-          ward_id: PRIMARY_WARD_ID,
-        },
-      ],
+      holders: (MOCK_HOLDERS_BY_CALLING[callingId] || []).filter((holder) => (
+        !wardId || String(holder.ward_id || '') === wardId
+      )),
     });
   }
 
   if (path === '/api/calling-requests' && method === 'GET') {
-    return json(route, CALLING_LIST_RESPONSE);
+    return json(route, currentCallingListResponse);
   }
 
   if (path === '/api/calling-requests' && method === 'POST') {
@@ -541,11 +770,106 @@ function createMockApiHandler() {
   }
 
   if (path === `/api/calling-requests/${CALLING_REQUEST_ID}` && method === 'GET') {
-    return json(route, CALLING_DETAIL_RESPONSE);
+    return json(route, currentCallingDetailResponse);
   }
 
   if (/^\/api\/calling-requests\/\d+\/submit$/.test(path) && method === 'POST') {
     return json(route, { success: true });
+  }
+
+  if (path === `/api/calling-requests/${CALLING_REQUEST_ID}/feedback-candidates` && method === 'GET') {
+    return json(route, {
+      success: true,
+      candidates: feedbackCandidates,
+      quick_picks: feedbackCandidates.filter((candidate) => candidate.is_quick_pick),
+    });
+  }
+
+  if (path === `/api/calling-requests/${CALLING_REQUEST_ID}/request-feedback` && method === 'POST') {
+    const body = parseJsonBody(request);
+    const requestedOfUserId = Number(body.requested_of_user_id ?? 0);
+    const requestedLeader = feedbackCandidates.find((candidate) => candidate.id === requestedOfUserId);
+    const newFeedbackRequest = {
+      id: Date.now(),
+      requested_by: { id: MOCK_USER.id, name: MOCK_USER.name },
+      requested_of: requestedLeader ? { id: requestedLeader.id, name: requestedLeader.name } : null,
+      reason: typeof body.reason === 'string' ? body.reason : null,
+      response: null,
+      responded_at: null,
+      is_pending: true,
+    };
+
+    currentCallingDetailResponse.calling_request.feedback_requests = [
+      ...(currentCallingDetailResponse.calling_request.feedback_requests || []),
+      newFeedbackRequest,
+    ];
+
+    return json(route, { success: true, feedback_request: newFeedbackRequest }, 201);
+  }
+
+  if (/^\/api\/calling-requests\/\d+\/respond-feedback\/\d+$/.test(path) && method === 'POST') {
+    const feedbackRequestId = Number(path.match(/^\/api\/calling-requests\/\d+\/respond-feedback\/(\d+)$/)?.[1] ?? 0);
+    const body = parseJsonBody(request);
+    const feedbackRequests = currentCallingDetailResponse.calling_request.feedback_requests || [];
+    const targetFeedback = feedbackRequests.find((feedbackRequest) => feedbackRequest.id === feedbackRequestId);
+
+    if (targetFeedback) {
+      targetFeedback.response = typeof body.response === 'string' ? body.response : '';
+      targetFeedback.responded_at = FIXED_NOW_ISO;
+      targetFeedback.is_pending = false;
+    }
+
+    return json(route, { success: true, feedback_request: targetFeedback ?? null });
+  }
+
+  if (path === `/api/calling-requests/${CALLING_REQUEST_ID}/presidency-recommendation` && method === 'POST') {
+    const body = parseJsonBody(request);
+    const recommendation = body.recommendation === 'not_approve' ? 'Not Approved' : 'Approve';
+    const commentBody = typeof body.comment === 'string' && body.comment.trim().length > 0 ? `\n${body.comment.trim()}` : '';
+    const recommendationComment = {
+      id: Date.now(),
+      author: { id: MOCK_USER.id, name: MOCK_USER.name },
+      comment: `Recommendation: ${recommendation}${commentBody}`,
+      phase: 'presidency_recommendation',
+      created_at: FIXED_NOW_ISO,
+    };
+    const comments = currentCallingDetailResponse.calling_request.comments || [];
+    const existingIndex = comments.findIndex((comment) => comment.phase === 'presidency_recommendation' && comment.author?.id === MOCK_USER.id);
+    if (existingIndex >= 0) {
+      comments[existingIndex] = recommendationComment;
+    } else {
+      comments.push(recommendationComment);
+    }
+    currentCallingDetailResponse.calling_request.comments = comments;
+
+    return json(route, { success: true, recommendation: recommendationComment });
+  }
+
+  if (path === `/api/calling-requests/${CALLING_REQUEST_ID}/comments` && method === 'POST') {
+    const body = parseJsonBody(request);
+    const newComment = {
+      id: Date.now(),
+      author: { id: MOCK_USER.id, name: MOCK_USER.name },
+      comment: typeof body.comment === 'string' ? body.comment : '',
+      phase: 'discussion',
+      created_at: FIXED_NOW_ISO,
+    };
+    currentCallingDetailResponse.calling_request.comments = [
+      ...(currentCallingDetailResponse.calling_request.comments || []),
+      newComment,
+    ];
+
+    return json(route, { success: true, comment: newComment }, 201);
+  }
+
+  if (path === `/api/calling-requests/${CALLING_REQUEST_ID}/decide` && method === 'POST') {
+    const body = parseJsonBody(request);
+    currentCallingDetailResponse.calling_request.status = body.decision === 'not_approve' ? 'not_approved' : 'approved';
+    currentCallingDetailResponse.calling_request.status_label = body.decision === 'not_approve' ? 'Not Approved' : 'Approved';
+    currentCallingDetailResponse.calling_request.decision_feedback = typeof body.feedback === 'string' ? body.feedback : null;
+    currentCallingDetailResponse.calling_request.decided_at = FIXED_NOW_ISO;
+
+    return json(route, { success: true, calling_request: currentCallingDetailResponse.calling_request });
   }
 
   if (path === '/api/sunday-business/sunday' && method === 'GET') {

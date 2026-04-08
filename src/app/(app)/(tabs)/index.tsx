@@ -16,7 +16,7 @@ import * as Haptics from 'expo-haptics';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
-import { useMyAgendaItems } from '@/lib/agenda-api';
+import { useAgendaEntities, useMyAgendaItems, type AgendaEntityCard } from '@/lib/agenda-api';
 import { triggerGlobalRefreshIndicator } from '@/lib/refresh-indicator';
 import { withReturnTarget } from '@/lib/navigation-return-target';
 import Colors from '@/constants/colors';
@@ -36,6 +36,152 @@ interface QuickLink {
   color: string;
   bgColor: string;
   badge?: number;
+}
+
+function agendaPrimaryTitle(entity: AgendaEntityCard): string {
+  const currentTitle = entity.current_agenda_title?.trim();
+
+  if (entity.has_current_agenda && currentTitle) {
+    return currentTitle;
+  }
+
+  return entity.entity_name;
+}
+
+function agendaContextLabel(entity: AgendaEntityCard, primaryTitle: string): string | null {
+  return primaryTitle.trim() === entity.entity_name.trim() ? null : entity.entity_name;
+}
+
+function agendaMetaLabel(entity: AgendaEntityCard): string {
+  if (entity.has_current_agenda) {
+    const parts: string[] = [];
+
+    if (entity.current_agenda_status === 'draft') {
+      parts.push('Draft');
+    } else if (entity.current_agenda_status === 'published') {
+      parts.push('Published');
+    }
+
+    if (entity.current_agenda_date_label) {
+      parts.push(entity.current_agenda_date_label);
+    }
+
+    return parts.join(' · ') || 'Meeting agenda';
+  }
+
+  if (entity.past_count > 0) {
+    const parts = [`${entity.past_count} past agenda${entity.past_count === 1 ? '' : 's'}`];
+
+    if (entity.latest_past_agenda_date_label) {
+      parts.push(`Latest ${entity.latest_past_agenda_date_label}`);
+    }
+
+    return parts.join(' · ');
+  }
+
+  return 'Agenda inbox available';
+}
+
+function agendaDateSortValue(date: string | null | undefined): number | null {
+  if (!date) return null;
+
+  const parsed = Date.parse(date);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function agendaSortGroup(entity: AgendaEntityCard): number {
+  if (entity.has_current_agenda && entity.current_agenda_status === 'published') {
+    return 0;
+  }
+
+  if (entity.has_current_agenda && entity.current_agenda_status === 'draft') {
+    return 1;
+  }
+
+  return 2;
+}
+
+function AgendaHomeRow({ entity, isLast }: { entity: AgendaEntityCard; isLast: boolean }) {
+  const canQuickAdd = Boolean(
+    entity.can_submit
+      && entity.has_current_agenda
+      && entity.current_agenda_status === 'draft'
+      && entity.current_agenda_id,
+  );
+  const primaryTitle = agendaPrimaryTitle(entity);
+  const contextLabel = agendaContextLabel(entity, primaryTitle);
+  const metaLabel = agendaMetaLabel(entity);
+
+  return (
+    <View>
+      <View style={styles.agendaCardRow}>
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push(withReturnTarget('/agenda-entity', '/', {
+              entityType: entity.entity_type,
+              entityId: String(entity.entity_id),
+              tab: entity.has_current_agenda ? 'current' : 'past',
+              agendaId: entity.has_current_agenda
+                ? (entity.current_agenda_id ?? undefined)
+                : (entity.latest_past_agenda_id ?? undefined),
+            }));
+          }}
+          style={({ pressed }) => [
+            styles.agendaCardMain,
+            pressed && styles.agendaCardMainPressed,
+          ]}
+          accessibilityRole="button"
+          testID={`agenda-card-${entity.entity_type}-${entity.entity_id}`}
+        >
+          <View style={[
+            styles.primaryLinkIcon,
+            { backgroundColor: entity.entity_kind === 'organization' ? '#F3E8FF' : '#E8F8F0' },
+          ]}>
+            <MaterialCommunityIcons
+              name={entity.entity_kind === 'organization' ? 'account-group-outline' : 'clipboard-text-outline'}
+              size={20}
+              color={Colors.brand.primary}
+            />
+          </View>
+          <View style={styles.agendaCardBody}>
+            {contextLabel ? (
+              <Text style={styles.agendaCardContext} numberOfLines={1}>{contextLabel}</Text>
+            ) : null}
+            <Text style={styles.agendaCardTitle}>{primaryTitle}</Text>
+            <Text style={styles.agendaCardMeta} numberOfLines={1}>{metaLabel}</Text>
+          </View>
+          <View style={styles.agendaRowRight}>
+            <Ionicons name="chevron-forward" size={18} color={Colors.brand.midGray} />
+          </View>
+        </Pressable>
+
+        {canQuickAdd ? (
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push(withReturnTarget('/agenda-submit', '/', {
+                entityType: entity.entity_type,
+                entityId: String(entity.entity_id),
+                agendaId: entity.current_agenda_id ?? undefined,
+                mode: 'specific',
+              }));
+            }}
+            style={({ pressed }) => [
+              styles.agendaQuickAddBtn,
+              pressed && styles.agendaQuickAddBtnPressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={`Add topic to ${entity.entity_name}`}
+            testID={`agenda-quick-add-${entity.entity_type}-${entity.entity_id}`}
+          >
+            <Ionicons name="add" size={18} color={Colors.brand.primary} />
+          </Pressable>
+        ) : null}
+      </View>
+      {!isLast ? <View style={styles.agendaCardDivider} /> : null}
+    </View>
+  );
 }
 
 export default function HomeScreen() {
@@ -89,6 +235,29 @@ export default function HomeScreen() {
 
   const { data: agendaItemsData, refetch: refetchAgendaItems } = useMyAgendaItems();
   const agendaItemCount = agendaItemsData?.items?.length ?? 0;
+  const { data: agendaEntitiesData, refetch: refetchAgendaEntities } = useAgendaEntities();
+  const sortedAgendaEntities = useMemo(() => {
+    return (agendaEntitiesData?.entities ?? [])
+      .map((entity, index) => ({ entity, index }))
+      .sort((left, right) => {
+        const groupDifference = agendaSortGroup(left.entity) - agendaSortGroup(right.entity);
+        if (groupDifference !== 0) {
+          return groupDifference;
+        }
+
+        const leftDate = agendaDateSortValue(left.entity.current_agenda_date);
+        const rightDate = agendaDateSortValue(right.entity.current_agenda_date);
+
+        if (leftDate != null || rightDate != null) {
+          if (leftDate == null) return 1;
+          if (rightDate == null) return -1;
+          if (leftDate !== rightDate) return leftDate - rightDate;
+        }
+
+        return left.index - right.index;
+      })
+      .map(({ entity }) => entity);
+  }, [agendaEntitiesData?.entities]);
 
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
   const handleManualRefresh = useCallback(async () => {
@@ -99,20 +268,22 @@ export default function HomeScreen() {
         refetchActionRequired(),
         refetchNotifications(),
         refetchAgendaItems(),
+        refetchAgendaEntities(),
         ...(canSeeSpeaking ? [refetchSpeakingBadge()] : []),
       ]);
     } finally {
       setIsManualRefreshing(false);
     }
-  }, [refetchActionRequired, refetchNotifications, refetchAgendaItems, canSeeSpeaking, refetchSpeakingBadge]);
+  }, [refetchActionRequired, refetchNotifications, refetchAgendaItems, refetchAgendaEntities, canSeeSpeaking, refetchSpeakingBadge]);
 
   useFocusEffect(
     React.useCallback(() => {
       refetchActionRequired();
       refetchNotifications();
       refetchAgendaItems();
+      refetchAgendaEntities();
       if (canSeeSpeaking) refetchSpeakingBadge();
-    }, [refetchActionRequired, refetchNotifications, refetchAgendaItems, canSeeSpeaking, refetchSpeakingBadge])
+    }, [refetchActionRequired, refetchNotifications, refetchAgendaItems, refetchAgendaEntities, canSeeSpeaking, refetchSpeakingBadge])
   );
 
   const actionItems = useMemo(() => {
@@ -223,29 +394,6 @@ export default function HomeScreen() {
 
   const secondaryLinks: QuickLink[] = useMemo(() => {
     const links: QuickLink[] = [];
-    const canSeeHCAgenda = (user?.is_stake_presidency_member ?? false) || (user?.is_high_councilor ?? false);
-    const canSeeSCAgenda = (user?.is_stake_presidency_member ?? false) || (user?.is_stake_council_member ?? false);
-
-    if (canSeeHCAgenda) {
-      links.push({
-        id: 'hc-agenda',
-        label: 'HC Agenda',
-        icon: <MaterialCommunityIcons name="clipboard-text-outline" size={20} color={Colors.brand.primary} />,
-        route: '/high-council-agenda',
-        color: Colors.brand.primary,
-        bgColor: '#E8F0F8',
-      });
-    }
-    if (canSeeSCAgenda) {
-      links.push({
-        id: 'sc-agenda',
-        label: 'SC Agenda',
-        icon: <Ionicons name="document-text-outline" size={20} color={Colors.brand.primary} />,
-        route: '/stake-council-agenda',
-        color: Colors.brand.primary,
-        bgColor: '#E8F8F0',
-      });
-    }
     if (canSeeSpeaking) {
       links.push({
         id: 'speaking',
@@ -277,7 +425,7 @@ export default function HomeScreen() {
       },
     );
     return links;
-  }, [user, actionItems, canSeeSpeaking, speakingBadgeCount, agendaItemCount]);
+  }, [actionItems, canSeeSpeaking, speakingBadgeCount, agendaItemCount]);
 
 
 
@@ -378,6 +526,21 @@ export default function HomeScreen() {
           ))}
         </View>
 
+        {sortedAgendaEntities.length > 0 ? (
+          <>
+            <Text style={styles.sectionLabel}>Meeting Agendas</Text>
+            <View style={styles.primaryLinksCard}>
+              {sortedAgendaEntities.map((entity, index) => (
+                <AgendaHomeRow
+                  key={`${entity.entity_type}-${entity.entity_id}`}
+                  entity={entity}
+                  isLast={index === sortedAgendaEntities.length - 1}
+                />
+              ))}
+            </View>
+          </>
+        ) : null}
+
         <View style={styles.gridContainer}>
           {secondaryLinks.map((link) => (
             <Pressable
@@ -446,6 +609,74 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     backgroundColor: Colors.brand.lightGray,
     marginLeft: 70,
+  },
+  agendaRowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  agendaCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  agendaCardMain: {
+    flex: 1,
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    borderRadius: 14,
+  },
+  agendaCardMainPressed: {
+    backgroundColor: Colors.brand.offWhite,
+    opacity: 0.92,
+  },
+  agendaCardBody: {
+    flex: 1,
+  },
+  agendaCardContext: {
+    fontSize: 13,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_500Medium',
+    marginBottom: 2,
+  },
+  agendaCardTitle: {
+    fontSize: 16,
+    lineHeight: 22,
+    color: Colors.brand.dark,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  agendaCardMeta: {
+    marginTop: 4,
+    fontSize: 14,
+    lineHeight: 19,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_400Regular',
+  },
+  agendaQuickAddBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.brand.offWhite,
+    borderWidth: 1,
+    borderColor: Colors.brand.lightGray,
+  },
+  agendaQuickAddBtnPressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.96 }],
+  },
+  agendaCardDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.brand.lightGray,
+    marginLeft: 78,
+    marginRight: 16,
   },
   primaryLinkIcon: {
     width: 42,

@@ -15,6 +15,8 @@ Config:
 Current coverage:
 - `e2e/playwright/login-shell.spec.ts`
   Verifies the public login shell renders.
+- `e2e/playwright/live-auth-smoke.spec.ts`
+  Verifies a real browser can sign in with the permanent SurreyAlign test account and land on the authenticated home shell.
 - `e2e/playwright/navigation-back.spec.ts`
   Verifies the shared route back button returns to the logical parent flow for key mobile paths, using a mocked signed-in browser session and deterministic fixture data.
 - `e2e/playwright/sunday-business-leave-reminder.spec.ts`
@@ -24,21 +26,31 @@ Current coverage:
 - `e2e/playwright/detail-screens-and-modal-states.spec.ts`
   Verifies high-risk detail screens remain stable and that Notifications and Settings preserve key browser behaviors.
 
-Required environment for authenticated tests:
+Authenticated test account source:
 ```bash
-export PWA_E2E_EMAIL="your-test-user@example.com"
-export PWA_E2E_PASSWORD="your-password"
+The default account is the permanent stake test account stored in:
+/home/webadmin/.codex/memories/surreyalign-test-credentials.md
+```
+
+Optional overrides:
+```bash
+export PWA_E2E_ACCOUNT="stake"   # or ward / branch
+export PWA_E2E_EMAIL="override@example.com"
+export PWA_E2E_PASSWORD="override-password"
 ```
 
 Notes on auth posture:
 - `navigation-back.spec.ts` does not need live credentials. It seeds web auth state locally and mocks the `/api/...` responses needed for stable navigation regression coverage.
-- `support/auth.ts` is still available for future live-account Playwright specs when we intentionally want to exercise real authentication and production-like data.
+- `live-auth-smoke.spec.ts` is the default real-account browser check for Codex after meaningful PWA app changes.
+- `support/auth.ts` now reads the permanent secure note automatically unless explicit override env vars are provided.
 
 Useful commands:
 ```bash
 npm run e2e:playwright:list
 npm run e2e:playwright
 npm run e2e:playwright:headed
+npm run e2e:playwright:live-smoke
+npm run e2e:playwright:live-smoke:headed
 npx playwright test e2e/playwright/mobile-shell-visual.spec.ts --update-snapshots
 ```
 

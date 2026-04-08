@@ -289,13 +289,13 @@ export default function AssignmentsScreen() {
   const handleOpenAgenda = useCallback(async (item: MyAgendaItem) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    if (item.council_slug === 'high-council') {
-      router.push(withReturnTarget('/high-council-agenda', '/assignments'));
-      return;
-    }
-
-    if (item.council_slug === 'stake-council') {
-      router.push(withReturnTarget('/stake-council-agenda', '/assignments'));
+    if (item.entity_type && item.entity_id) {
+      router.push(withReturnTarget('/agenda-entity', '/assignments', {
+        entityType: item.entity_type,
+        entityId: item.entity_id,
+        agendaId: item.agenda_id ?? undefined,
+        tab: item.days_until !== null && item.days_until >= 0 ? 'current' : 'past',
+      }));
       return;
     }
 

@@ -13,6 +13,8 @@
     "e2e:logout:maestro": "maestro test e2e/maestro/logout-regression.yaml",
     "e2e:playwright": "playwright test",
     "e2e:playwright:headed": "playwright test --headed",
+    "e2e:playwright:live-smoke": "playwright test e2e/playwright/live-auth-smoke.spec.ts",
+    "e2e:playwright:live-smoke:headed": "playwright test e2e/playwright/live-auth-smoke.spec.ts --headed",
     "e2e:playwright:list": "playwright test --list",
     "e2e:playwright:prepare": "npx expo export --platform web --output-dir dist && npm run server:build",
     "playwright:install": "npx playwright install chromium",

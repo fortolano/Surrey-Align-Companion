@@ -13,6 +13,7 @@ import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/lib/auth-context';
 import Colors from '@/constants/colors';
+import { useAgendaEntities, type AgendaEntityCard } from '@/lib/agenda-api';
 import AppButton from '@/components/ui/AppButton';
 import AppListRow from '@/components/ui/AppListRow';
 import ScreenHeader from '@/components/ScreenHeader';
@@ -64,6 +65,7 @@ interface MenuItem {
   iconColor?: string;
   iconBg?: string;
   route?: string;
+  routeParams?: Record<string, string | number | boolean | string[] | undefined | null>;
   action?: 'logout';
   destructive?: boolean;
   comingSoon?: boolean;
@@ -112,28 +114,6 @@ const ALL_FEATURE_ITEMS: (MenuItem & { visibleTo?: (user: any) => boolean })[] =
     iconColor: Colors.brand.primary,
     iconBg: '#E8F8EE',
     route: '/goals',
-  },
-  {
-    id: 'hc-agenda',
-    label: 'High Council Agenda',
-    subtitle: 'Meeting agendas and notes',
-    icon: 'clipboard-text-outline',
-    iconSet: 'mci',
-    iconColor: Colors.brand.primary,
-    iconBg: '#E8F0F8',
-    route: '/high-council-agenda',
-    visibleTo: (u) => u?.is_stake_presidency_member || u?.is_high_councilor,
-  },
-  {
-    id: 'sc-agenda',
-    label: 'Stake Council Agenda',
-    subtitle: 'Council meeting management',
-    icon: 'document-text-outline',
-    iconSet: 'ionicons',
-    iconColor: Colors.brand.primary,
-    iconBg: '#E8F8F0',
-    route: '/stake-council-agenda',
-    visibleTo: (u) => u?.is_stake_presidency_member || u?.is_stake_council_member,
   },
   {
     id: 'assignments',
@@ -203,9 +183,23 @@ function renderIcon(item: MenuItem, size: number) {
   return <Ionicons name={item.icon as any} size={size} color={color} />;
 }
 
+function agendaSubtitle(entity: AgendaEntityCard): string {
+  if (entity.has_current_agenda) {
+    const prefix = entity.current_agenda_status === 'draft' ? 'Draft agenda' : 'Current agenda';
+    return entity.current_agenda_date_label ? `${prefix} ${entity.current_agenda_date_label}` : prefix;
+  }
+
+  if (entity.past_count > 0) {
+    return `${entity.past_count} past agenda${entity.past_count === 1 ? '' : 's'}`;
+  }
+
+  return 'Agenda inbox available';
+}
+
 export default function MoreScreen() {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
+  const { data: agendaEntitiesData } = useAgendaEntities();
   const [isUpdating, setIsUpdating] = useState(false);
   const [lastUpdateLabel, setLastUpdateLabel] = useState<string | null>(() => readLastUpdateLabel());
 
@@ -215,19 +209,39 @@ export default function MoreScreen() {
       .map(({ visibleTo, ...rest }) => rest);
 
     const sections: MenuSection[] = [];
+    const agendaItems = (agendaEntitiesData?.entities ?? []).map((entity) => ({
+      id: `agenda-${entity.entity_type}-${entity.entity_id}`,
+      label: entity.entity_name,
+      subtitle: agendaSubtitle(entity),
+      icon: entity.entity_kind === 'organization' ? 'account-group-outline' : 'clipboard-text-outline',
+      iconSet: 'mci' as const,
+      iconColor: Colors.brand.primary,
+      iconBg: entity.entity_kind === 'organization' ? '#F3E8FF' : '#E8F8F0',
+      route: '/agenda-entity',
+      routeParams: {
+        entityType: entity.entity_type,
+        entityId: entity.entity_id,
+        tab: entity.has_current_agenda ? 'current' : 'past',
+        agendaId: entity.has_current_agenda ? (entity.current_agenda_id ?? undefined) : (entity.latest_past_agenda_id ?? undefined),
+      },
+    }));
+
+    if (agendaItems.length > 0) {
+      sections.push({ title: 'Meeting Agendas', items: agendaItems });
+    }
     if (featureItems.length > 0) {
       sections.push({ title: 'Features', items: featureItems });
     }
     sections.push(ABOUT_SECTION);
     return sections;
-  }, [user]);
+  }, [user, agendaEntitiesData]);
 
   const handlePress = (item: MenuItem) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (item.action === 'logout') {
       logout();
     } else if (item.route) {
-      router.push(withReturnTarget(item.route, '/more'));
+      router.push(withReturnTarget(item.route, '/more', item.routeParams));
     }
   };
 

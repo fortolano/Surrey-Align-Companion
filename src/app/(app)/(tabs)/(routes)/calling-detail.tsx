@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { webShadowRgba } from '@/lib/web-styles';
 import {
   StyleSheet,
@@ -10,6 +10,7 @@ import {
   TextInput,
   Platform,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,6 +28,122 @@ import { WEB_BOTTOM_INSET } from '@/constants/layout';
 import { STATUS_COLORS } from '@/constants/status-colors';
 import { UI_BUTTON_HEIGHT, UI_FONT_INTERACTIVE_MIN, UI_TOUCH_MIN } from '@/constants/ui';
 
+interface DetailPerson {
+  id: number;
+  name: string;
+}
+
+interface DetailUnit {
+  id: number;
+  name: string;
+  unit_type?: 'ward' | 'branch' | string | null;
+}
+
+interface DetailComment {
+  id: number;
+  author: DetailPerson | null;
+  comment: string;
+  phase: string;
+  created_at: string;
+}
+
+interface DetailFeedbackRequest {
+  id: number;
+  requested_by: DetailPerson | null;
+  requested_of: DetailPerson | null;
+  reason: string | null;
+  response: string | null;
+  responded_at: string | null;
+  is_pending: boolean;
+}
+
+interface DetailIndividual {
+  id: number;
+  name: string;
+  is_selected: boolean;
+  recommendation?: string | null;
+  requires_release_from_current?: boolean;
+  current_calling?: { id: number; name: string } | null;
+}
+
+interface FeedbackCandidate {
+  id: number;
+  name: string;
+  label: string;
+  priority?: string | null;
+  is_quick_pick?: boolean;
+}
+
+interface CallingRequestPermissions {
+  can_vote?: boolean;
+  can_decide?: boolean;
+  can_comment?: boolean;
+  can_request_feedback?: boolean;
+  can_manage_steps?: boolean;
+  can_manage?: boolean;
+  can_move_to_discussion?: boolean;
+  can_move_to_voting?: boolean;
+  can_complete?: boolean;
+  can_cancel?: boolean;
+  can_select_individual?: boolean;
+}
+
+interface CallingRequestDetail {
+  id: number;
+  request_type_label: string;
+  scope: 'stake' | 'ward';
+  status: string;
+  status_label: string;
+  target_calling: { id: number; name: string } | string | null;
+  target_ward: DetailUnit | string | null;
+  target_organization: { id: number; name: string } | string | null;
+  ward?: DetailUnit | null;
+  approval_authority: string;
+  approval_authority_label?: string | null;
+  individuals: DetailIndividual[];
+  current_holder?: { id: number; name: string } | null;
+  context_notes?: string | null;
+  timeline?: any[];
+  steps_progress?: number | null;
+  steps?: any[];
+  comments?: DetailComment[];
+  feedback_requests?: DetailFeedbackRequest[];
+  vote_tally?: any;
+  votes?: any[];
+  pending_voters?: DetailPerson[];
+  sunday_business_gate?: { active: boolean; total_items: number; completed_items: number; message: string } | null;
+  submitted_by?: DetailPerson | string | null;
+  submitted_at?: string | null;
+  decided_by?: DetailPerson | string | null;
+  decided_at?: string | null;
+  decision_feedback?: string | null;
+  interviewer?: DetailPerson | null;
+  updated_at: string;
+}
+
+interface NextAction {
+  type: string;
+  heading: string;
+  description: string;
+  context: string | null;
+  style: 'primary' | 'success' | 'warning' | 'info' | 'muted' | 'danger';
+  is_terminal: boolean;
+  is_waiting: boolean;
+}
+
+function formatUnitType(unitType?: string | null): string | null {
+  if (!unitType) return null;
+
+  return unitType.charAt(0).toUpperCase() + unitType.slice(1);
+}
+
+function parseRecommendationLabel(comment: string): string {
+  const firstLine = comment.split('\n')[0]?.trim() || '';
+  if (firstLine === 'Recommendation: Approve') return 'Approve';
+  if (firstLine === 'Recommendation: Not Approved') return 'Not Approved';
+
+  return 'Recommendation';
+}
 
 function ActionButton({ label, icon, onPress, variant = 'primary', loading = false }: {
   label: string; icon: string; onPress: () => void; variant?: 'primary' | 'danger' | 'outline';
@@ -251,7 +368,7 @@ const ssStyles = StyleSheet.create({
 });
 
 function VotingSection({ detail, permissions, requestId, token, userId, onRefresh }: {
-  detail: any; permissions: any; requestId: number; token: string | null; userId: number; onRefresh: () => void;
+  detail: CallingRequestDetail; permissions: CallingRequestPermissions; requestId: number; token: string | null; userId: number; onRefresh: () => void;
 }) {
   const [vote, setVote] = useState<'approve' | 'disapprove' | ''>('');
   const [nomineeId, setNomineeId] = useState<number | null>(null);
@@ -395,7 +512,7 @@ function VotingSection({ detail, permissions, requestId, token, userId, onRefres
 
       {permissions.can_vote && !myVote && (
         <View style={vsStyles.formSection}>
-          <Text style={vsStyles.formTitle}>Provide Your Sustaining</Text>
+          <Text style={vsStyles.formTitle}>Provide Your Recommendation</Text>
           {individuals.length > 1 && (
             <View style={vsStyles.radioGroup}>
               <Text style={vsStyles.radioLabel}>Which individual do you feel inspired to support?</Text>
@@ -499,17 +616,62 @@ const vsStyles = StyleSheet.create({
   submitBtnText: { fontSize: 14, fontWeight: '600' as const, color: Colors.brand.white, fontFamily: 'Inter_600SemiBold' },
 });
 
-function DiscussionSection({ detail, permissions, requestId, token, onRefresh }: {
-  detail: any; permissions: any; requestId: number; token: string | null; onRefresh: () => void;
+function DiscussionSection({ detail, permissions, requestId, token, userId, nextAction, onRefresh }: {
+  detail: CallingRequestDetail;
+  permissions: CallingRequestPermissions;
+  requestId: number;
+  token: string | null;
+  userId: number;
+  nextAction: NextAction | null;
+  onRefresh: () => void;
 }) {
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
-  const [decideVote, setDecideVote] = useState<'approved' | 'not_approved' | ''>('');
-  const [decideFeedback, setDecideFeedback] = useState('');
+  const [decision, setDecision] = useState<'approve' | 'not_approve' | ''>('');
+  const [decisionFeedback, setDecisionFeedback] = useState('');
   const [submittingDecision, setSubmittingDecision] = useState(false);
+  const [feedbackSheetVisible, setFeedbackSheetVisible] = useState(false);
+  const [feedbackSearch, setFeedbackSearch] = useState('');
+  const [feedbackReason, setFeedbackReason] = useState('');
+  const [selectedFeedbackCandidateId, setSelectedFeedbackCandidateId] = useState<number | null>(null);
+  const [submittingFeedbackRequest, setSubmittingFeedbackRequest] = useState(false);
+  const [feedbackResponses, setFeedbackResponses] = useState<Record<number, string>>({});
+  const [submittingFeedbackResponseId, setSubmittingFeedbackResponseId] = useState<number | null>(null);
+  const [recommendation, setRecommendation] = useState<'approve' | 'not_approve' | ''>('');
+  const [recommendationComment, setRecommendationComment] = useState('');
+  const [submittingRecommendation, setSubmittingRecommendation] = useState(false);
 
-  const comments = (detail.comments || []).filter((c: any) => c.phase !== 'presidency_recommendation');
+  const comments = (detail.comments || []).filter((comment) => comment.phase !== 'presidency_recommendation');
+  const presidencyComments = (detail.comments || []).filter((comment) => comment.phase === 'presidency_recommendation');
   const feedbackRequests = detail.feedback_requests || [];
+  const canProvideRecommendation = nextAction?.type === 'provide_recommendation'
+    || presidencyComments.some((comment) => comment.author?.id === userId);
+
+  const { data: feedbackCandidateData, isFetching: feedbackCandidatesLoading } = useQuery<{
+    candidates?: FeedbackCandidate[];
+    quick_picks?: FeedbackCandidate[];
+  }>({
+    queryKey: ['/api/calling-requests', requestId, 'feedback-candidates'],
+    queryFn: () => authFetch(token, `/api/calling-requests/${requestId}/feedback-candidates`),
+    enabled: !!token && feedbackSheetVisible && !!permissions.can_request_feedback,
+    staleTime: 30000,
+  });
+
+  const feedbackCandidates = useMemo(() => feedbackCandidateData?.candidates || [], [feedbackCandidateData]);
+  const quickPicks = (feedbackCandidateData?.quick_picks || []).slice(0, 4);
+  const filteredCandidates = useMemo(() => {
+    const query = feedbackSearch.trim().toLowerCase();
+    if (!query) return feedbackCandidates;
+
+    return feedbackCandidates.filter((candidate) => candidate.label.toLowerCase().includes(query));
+  }, [feedbackCandidates, feedbackSearch]);
+
+  const resetFeedbackComposer = useCallback(() => {
+    setFeedbackSheetVisible(false);
+    setFeedbackSearch('');
+    setFeedbackReason('');
+    setSelectedFeedbackCandidateId(null);
+  }, []);
 
   const submitComment = async () => {
     if (!commentText.trim()) return;
@@ -522,24 +684,104 @@ function DiscussionSection({ detail, permissions, requestId, token, onRefresh }:
       setCommentText('');
       onRefresh();
     } catch (err: any) {
-      appAlert('Error', err.message);
+      appAlert('Error', err.message || 'Failed to add the comment.');
     } finally {
       setSubmittingComment(false);
     }
   };
 
-  const submitDecision = async () => {
-    if (!decideVote) { appAlert('Required', 'Please select a decision.'); return; }
-    setSubmittingDecision(true);
+  const submitFeedbackRequest = async () => {
+    if (!selectedFeedbackCandidateId) {
+      appAlert('Required', 'Please choose a leader to request confidential feedback from.');
+      return;
+    }
+
+    setSubmittingFeedbackRequest(true);
     try {
-      await authFetch(token, `/api/calling-requests/${requestId}/decide`, {
+      await authFetch(token, `/api/calling-requests/${requestId}/request-feedback`, {
         method: 'POST',
-        body: { decision: decideVote, feedback: decideFeedback.trim() || null },
+        body: {
+          requested_of_user_id: selectedFeedbackCandidateId,
+          reason: feedbackReason.trim() || null,
+        },
+      });
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      resetFeedbackComposer();
+      onRefresh();
+    } catch (err: any) {
+      appAlert('Error', err.message || 'Failed to request confidential feedback.');
+    } finally {
+      setSubmittingFeedbackRequest(false);
+    }
+  };
+
+  const submitFeedbackResponse = async (feedbackRequestId: number) => {
+    const responseText = (feedbackResponses[feedbackRequestId] || '').trim();
+    if (!responseText) {
+      appAlert('Required', 'Please enter your confidential feedback.');
+      return;
+    }
+
+    setSubmittingFeedbackResponseId(feedbackRequestId);
+    try {
+      await authFetch(token, `/api/calling-requests/${requestId}/respond-feedback/${feedbackRequestId}`, {
+        method: 'POST',
+        body: { response: responseText },
+      });
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setFeedbackResponses((current) => ({ ...current, [feedbackRequestId]: '' }));
+      onRefresh();
+    } catch (err: any) {
+      appAlert('Error', err.message || 'Failed to send the confidential feedback.');
+    } finally {
+      setSubmittingFeedbackResponseId(null);
+    }
+  };
+
+  const submitRecommendation = async () => {
+    if (!recommendation) {
+      appAlert('Required', 'Please choose whether you recommend approval or not.');
+      return;
+    }
+
+    setSubmittingRecommendation(true);
+    try {
+      await authFetch(token, `/api/calling-requests/${requestId}/presidency-recommendation`, {
+        method: 'POST',
+        body: {
+          recommendation,
+          comment: recommendationComment.trim() || null,
+        },
       });
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onRefresh();
     } catch (err: any) {
-      appAlert('Error', err.message);
+      appAlert('Error', err.message || 'Failed to save the recommendation.');
+    } finally {
+      setSubmittingRecommendation(false);
+    }
+  };
+
+  const submitDecision = async () => {
+    if (!decision) {
+      appAlert('Required', 'Please select a decision.');
+      return;
+    }
+    if (decision === 'not_approve' && !decisionFeedback.trim()) {
+      appAlert('Required', 'Please provide feedback when the request is not approved.');
+      return;
+    }
+
+    setSubmittingDecision(true);
+    try {
+      await authFetch(token, `/api/calling-requests/${requestId}/decide`, {
+        method: 'POST',
+        body: { decision, feedback: decisionFeedback.trim() || null },
+      });
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onRefresh();
+    } catch (err: any) {
+      appAlert('Error', err.message || 'Failed to record the decision.');
     } finally {
       setSubmittingDecision(false);
     }
@@ -547,33 +789,294 @@ function DiscussionSection({ detail, permissions, requestId, token, onRefresh }:
 
   return (
     <View>
-      {feedbackRequests.length > 0 && (
-        <View style={dsStyles.fbSection}>
-          <Text style={dsStyles.subTitle}>Confidential Feedback</Text>
-          {feedbackRequests.map((fb: any) => (
-            <View key={fb.id} style={dsStyles.fbCard}>
-              <View style={dsStyles.fbHeader}>
-                <Text style={dsStyles.fbFrom}>From: {fb.requested_of?.name || 'Leader'}</Text>
-                {fb.is_pending && <View style={dsStyles.pendingDot} />}
+      {permissions.can_request_feedback && (
+        <View style={dsStyles.feedbackActionCard}>
+          <View style={dsStyles.feedbackActionHeader}>
+            <View style={dsStyles.feedbackActionIcon}>
+              <Ionicons name="chatbubble-ellipses-outline" size={18} color={Colors.brand.primary} />
+            </View>
+            <View style={dsStyles.feedbackActionTextWrap}>
+              <Text style={dsStyles.subTitle}>Request Confidential Feedback</Text>
+              <Text style={dsStyles.helperText}>
+                Confidential feedback stays visible only to the Stake President, the Bishop for this request, and the invited leader.
+              </Text>
+            </View>
+          </View>
+          <Pressable onPress={() => setFeedbackSheetVisible(true)} style={dsStyles.feedbackActionButton}>
+            <Ionicons name="add-circle-outline" size={16} color={Colors.brand.white} />
+            <Text style={dsStyles.feedbackActionButtonText}>Request Feedback</Text>
+          </Pressable>
+        </View>
+      )}
+
+      <Modal
+        visible={feedbackSheetVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={resetFeedbackComposer}
+      >
+        <View style={dsStyles.sheetBackdrop}>
+          <Pressable style={dsStyles.sheetDismissArea} onPress={resetFeedbackComposer} />
+          <View style={dsStyles.sheetCard}>
+            <View style={dsStyles.sheetHandle} />
+            <View style={dsStyles.sheetHeader}>
+              <Text style={dsStyles.sheetTitle}>Request Confidential Feedback</Text>
+              <Pressable onPress={resetFeedbackComposer} hitSlop={8}>
+                <Ionicons name="close" size={20} color={Colors.brand.midGray} />
+              </Pressable>
+            </View>
+            <TextInput
+              style={dsStyles.sheetInput}
+              value={feedbackSearch}
+              onChangeText={setFeedbackSearch}
+              placeholder="Search leaders"
+              placeholderTextColor={Colors.brand.midGray}
+              autoCapitalize="words"
+            />
+            {quickPicks.length > 0 && (
+              <View style={dsStyles.quickPickWrap}>
+                {quickPicks.map((candidate) => (
+                  <Pressable
+                    key={candidate.id}
+                    onPress={() => setSelectedFeedbackCandidateId(candidate.id)}
+                    style={[
+                      dsStyles.quickPickChip,
+                      selectedFeedbackCandidateId === candidate.id && dsStyles.quickPickChipActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        dsStyles.quickPickChipText,
+                        selectedFeedbackCandidateId === candidate.id && dsStyles.quickPickChipTextActive,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {candidate.name}
+                    </Text>
+                  </Pressable>
+                ))}
               </View>
-              {fb.response ? (
-                <Text style={dsStyles.fbResponse}>{fb.response}</Text>
-              ) : fb.is_pending ? (
-                <Text style={dsStyles.fbPending}>Awaiting response</Text>
-              ) : null}
+            )}
+            <ScrollView style={dsStyles.sheetList} keyboardShouldPersistTaps="handled">
+              {feedbackCandidatesLoading ? (
+                <ActivityIndicator size="small" color={Colors.brand.primary} style={dsStyles.sheetLoading} />
+              ) : filteredCandidates.map((candidate) => (
+                <Pressable
+                  key={candidate.id}
+                  onPress={() => setSelectedFeedbackCandidateId(candidate.id)}
+                  style={[
+                    dsStyles.sheetListItem,
+                    selectedFeedbackCandidateId === candidate.id && dsStyles.sheetListItemActive,
+                  ]}
+                >
+                  <View style={dsStyles.sheetListItemInfo}>
+                    <Text
+                      style={[
+                        dsStyles.sheetListItemTitle,
+                        selectedFeedbackCandidateId === candidate.id && dsStyles.sheetListItemTitleActive,
+                      ]}
+                    >
+                      {candidate.name}
+                    </Text>
+                    <Text style={dsStyles.sheetListItemLabel}>{candidate.label}</Text>
+                  </View>
+                  <Ionicons
+                    name={selectedFeedbackCandidateId === candidate.id ? 'checkmark-circle' : 'ellipse-outline'}
+                    size={20}
+                    color={selectedFeedbackCandidateId === candidate.id ? Colors.brand.primary : Colors.brand.lightGray}
+                  />
+                </Pressable>
+              ))}
+              {!feedbackCandidatesLoading && filteredCandidates.length === 0 && (
+                <Text style={dsStyles.sheetEmptyText}>No leaders matched that search.</Text>
+              )}
+            </ScrollView>
+            <TextInput
+              style={[dsStyles.sheetInput, dsStyles.sheetReasonInput]}
+              value={feedbackReason}
+              onChangeText={setFeedbackReason}
+              placeholder="Reason (optional)"
+              placeholderTextColor={Colors.brand.midGray}
+              multiline
+            />
+            <View style={dsStyles.sheetActions}>
+              <Pressable onPress={resetFeedbackComposer} style={dsStyles.sheetCancelButton}>
+                <Text style={dsStyles.sheetCancelButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={submitFeedbackRequest}
+                style={[
+                  dsStyles.sheetSubmitButton,
+                  (!selectedFeedbackCandidateId || submittingFeedbackRequest) && dsStyles.sheetSubmitButtonDisabled,
+                ]}
+                disabled={!selectedFeedbackCandidateId || submittingFeedbackRequest}
+              >
+                {submittingFeedbackRequest ? (
+                  <ActivityIndicator size="small" color={Colors.brand.white} />
+                ) : (
+                  <Text style={dsStyles.sheetSubmitButtonText}>Send Request</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {feedbackRequests.length > 0 && (
+        <View style={dsStyles.sectionBlock}>
+          <Text style={dsStyles.subTitle}>Confidential Feedback</Text>
+          {feedbackRequests.map((feedbackRequest) => {
+            const canRespond = feedbackRequest.is_pending && feedbackRequest.requested_of?.id === userId;
+
+            return (
+              <View key={feedbackRequest.id} style={dsStyles.feedbackCard}>
+                <View style={dsStyles.feedbackCardHeader}>
+                  <View style={dsStyles.feedbackCardHeadingWrap}>
+                    <Text style={dsStyles.feedbackCardTitle}>
+                      Requested from {feedbackRequest.requested_of?.name || 'Leader'}
+                    </Text>
+                    {feedbackRequest.requested_by?.name ? (
+                      <Text style={dsStyles.feedbackCardMeta}>Requested by {feedbackRequest.requested_by.name}</Text>
+                    ) : null}
+                  </View>
+                  <View style={[dsStyles.feedbackStatusBadge, feedbackRequest.is_pending ? dsStyles.feedbackStatusBadgePending : dsStyles.feedbackStatusBadgeDone]}>
+                    <Text style={[dsStyles.feedbackStatusText, feedbackRequest.is_pending ? dsStyles.feedbackStatusTextPending : dsStyles.feedbackStatusTextDone]}>
+                      {feedbackRequest.is_pending ? 'Pending' : 'Received'}
+                    </Text>
+                  </View>
+                </View>
+                {feedbackRequest.reason ? (
+                  <View style={dsStyles.feedbackReasonBox}>
+                    <Text style={dsStyles.feedbackReasonLabel}>Reason</Text>
+                    <Text style={dsStyles.feedbackReasonText}>{feedbackRequest.reason}</Text>
+                  </View>
+                ) : null}
+                {feedbackRequest.response ? (
+                  <View style={dsStyles.feedbackResponseBox}>
+                    <Text style={dsStyles.feedbackReasonLabel}>Response</Text>
+                    <Text style={dsStyles.feedbackResponseText}>{feedbackRequest.response}</Text>
+                  </View>
+                ) : canRespond ? (
+                  <View style={dsStyles.feedbackResponseComposer}>
+                    <Text style={dsStyles.feedbackReasonLabel}>Your response</Text>
+                    <TextInput
+                      style={dsStyles.composerInput}
+                      value={feedbackResponses[feedbackRequest.id] || ''}
+                      onChangeText={(value) => setFeedbackResponses((current) => ({ ...current, [feedbackRequest.id]: value }))}
+                      placeholder="Share your confidential feedback..."
+                      placeholderTextColor={Colors.brand.midGray}
+                      multiline
+                    />
+                    <Pressable
+                      onPress={() => submitFeedbackResponse(feedbackRequest.id)}
+                      style={[
+                        dsStyles.inlinePrimaryButton,
+                        submittingFeedbackResponseId === feedbackRequest.id && dsStyles.inlinePrimaryButtonDisabled,
+                      ]}
+                      disabled={submittingFeedbackResponseId === feedbackRequest.id}
+                    >
+                      {submittingFeedbackResponseId === feedbackRequest.id ? (
+                        <ActivityIndicator size="small" color={Colors.brand.white} />
+                      ) : (
+                        <Text style={dsStyles.inlinePrimaryButtonText}>Send Response</Text>
+                      )}
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Text style={dsStyles.feedbackPendingText}>Awaiting response from the invited leader.</Text>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      {permissions.can_decide && presidencyComments.length > 0 && (
+        <View style={dsStyles.sectionBlock}>
+          <Text style={dsStyles.subTitle}>Presidency Counsel</Text>
+          {presidencyComments.map((comment) => (
+            <View key={comment.id} style={dsStyles.counselCard}>
+              <View style={dsStyles.counselHeader}>
+                <Text style={dsStyles.counselAuthor}>{comment.author?.name || 'Counselor'}</Text>
+                <View style={[
+                  dsStyles.counselBadge,
+                  parseRecommendationLabel(comment.comment) === 'Approve'
+                    ? dsStyles.counselBadgeApprove
+                    : dsStyles.counselBadgeNotApprove,
+                ]}>
+                  <Text style={[
+                    dsStyles.counselBadgeText,
+                    parseRecommendationLabel(comment.comment) === 'Approve'
+                      ? dsStyles.counselBadgeTextApprove
+                      : dsStyles.counselBadgeTextNotApprove,
+                  ]}>
+                    {parseRecommendationLabel(comment.comment)}
+                  </Text>
+                </View>
+              </View>
+              <Text style={dsStyles.counselComment}>{comment.comment}</Text>
             </View>
           ))}
         </View>
       )}
 
+      {canProvideRecommendation && (
+        <View style={dsStyles.decisionSection}>
+          <Text style={dsStyles.subTitle}>Provide Recommendation</Text>
+          <View style={dsStyles.choiceGroup}>
+            <Pressable
+              onPress={() => setRecommendation('approve')}
+              style={[dsStyles.choiceCard, recommendation === 'approve' && dsStyles.choiceCardApprove]}
+            >
+              <Ionicons
+                name={recommendation === 'approve' ? 'checkmark-circle' : 'ellipse-outline'}
+                size={22}
+                color={recommendation === 'approve' ? '#10B981' : Colors.brand.midGray}
+              />
+              <Text style={[dsStyles.choiceText, recommendation === 'approve' && dsStyles.choiceTextApprove]}>Approve</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setRecommendation('not_approve')}
+              style={[dsStyles.choiceCard, recommendation === 'not_approve' && dsStyles.choiceCardNotApprove]}
+            >
+              <Ionicons
+                name={recommendation === 'not_approve' ? 'close-circle' : 'ellipse-outline'}
+                size={22}
+                color={recommendation === 'not_approve' ? '#EF4444' : Colors.brand.midGray}
+              />
+              <Text style={[dsStyles.choiceText, recommendation === 'not_approve' && dsStyles.choiceTextNotApprove]}>Not Approved</Text>
+            </Pressable>
+          </View>
+          <TextInput
+            style={dsStyles.composerInput}
+            value={recommendationComment}
+            onChangeText={setRecommendationComment}
+            placeholder="Comment (optional)"
+            placeholderTextColor={Colors.brand.midGray}
+            multiline
+          />
+          <Pressable
+            onPress={submitRecommendation}
+            style={[dsStyles.primaryActionButton, (!recommendation || submittingRecommendation) && dsStyles.inlinePrimaryButtonDisabled]}
+            disabled={!recommendation || submittingRecommendation}
+          >
+            {submittingRecommendation ? (
+              <ActivityIndicator size="small" color={Colors.brand.white} />
+            ) : (
+              <Text style={dsStyles.primaryActionButtonText}>Save Recommendation</Text>
+            )}
+          </Pressable>
+        </View>
+      )}
+
       {comments.length > 0 && (
-        <View style={dsStyles.commentsSection}>
+        <View style={dsStyles.sectionBlock}>
           <Text style={dsStyles.subTitle}>Discussion</Text>
-          {comments.map((c: any) => (
-            <View key={c.id} style={dsStyles.commentCard}>
-              <Text style={dsStyles.commentAuthor}>{c.author?.name || 'System'}</Text>
-              <Text style={dsStyles.commentText}>{c.comment}</Text>
-              <Text style={dsStyles.commentDate}>{new Date(c.created_at).toLocaleDateString()}</Text>
+          {comments.map((comment) => (
+            <View key={comment.id} style={dsStyles.commentCard}>
+              <Text style={dsStyles.commentAuthor}>{comment.author?.name || 'System'}</Text>
+              <Text style={dsStyles.commentText}>{comment.comment}</Text>
+              <Text style={dsStyles.commentDate}>{new Date(comment.created_at).toLocaleDateString()}</Text>
             </View>
           ))}
         </View>
@@ -602,29 +1105,43 @@ function DiscussionSection({ detail, permissions, requestId, token, onRefresh }:
       {permissions.can_decide && (
         <View style={dsStyles.decisionSection}>
           <Text style={dsStyles.subTitle}>Record Decision</Text>
-          <View style={dsStyles.radioGroup}>
-            <Pressable onPress={() => setDecideVote('approved')} style={dsStyles.radioRow}>
-              <Ionicons name={decideVote === 'approved' ? 'radio-button-on' : 'radio-button-off'} size={20} color={Colors.brand.success} />
-              <Text style={dsStyles.radioText}>Approved</Text>
+          <View style={dsStyles.choiceGroup}>
+            <Pressable
+              onPress={() => setDecision('approve')}
+              style={[dsStyles.choiceCard, decision === 'approve' && dsStyles.choiceCardApprove]}
+            >
+              <Ionicons
+                name={decision === 'approve' ? 'checkmark-circle' : 'ellipse-outline'}
+                size={22}
+                color={decision === 'approve' ? '#10B981' : Colors.brand.midGray}
+              />
+              <Text style={[dsStyles.choiceText, decision === 'approve' && dsStyles.choiceTextApprove]}>Approve</Text>
             </Pressable>
-            <Pressable onPress={() => setDecideVote('not_approved')} style={dsStyles.radioRow}>
-              <Ionicons name={decideVote === 'not_approved' ? 'radio-button-on' : 'radio-button-off'} size={20} color={Colors.brand.error} />
-              <Text style={dsStyles.radioText}>Not Approved</Text>
+            <Pressable
+              onPress={() => setDecision('not_approve')}
+              style={[dsStyles.choiceCard, decision === 'not_approve' && dsStyles.choiceCardNotApprove]}
+            >
+              <Ionicons
+                name={decision === 'not_approve' ? 'close-circle' : 'ellipse-outline'}
+                size={22}
+                color={decision === 'not_approve' ? '#EF4444' : Colors.brand.midGray}
+              />
+              <Text style={[dsStyles.choiceText, decision === 'not_approve' && dsStyles.choiceTextNotApprove]}>Not Approved</Text>
             </Pressable>
           </View>
           <TextInput
-            style={dsStyles.commentInput}
-            value={decideFeedback}
-            onChangeText={setDecideFeedback}
-            placeholder="Feedback (optional)"
+            style={dsStyles.composerInput}
+            value={decisionFeedback}
+            onChangeText={setDecisionFeedback}
+            placeholder={decision === 'not_approve' ? 'Feedback is required for a not-approved decision.' : 'Feedback (optional)'}
             placeholderTextColor={Colors.brand.midGray}
             multiline
           />
-          <Pressable onPress={submitDecision} style={dsStyles.decisionBtn} disabled={submittingDecision}>
+          <Pressable onPress={submitDecision} style={[dsStyles.primaryActionButton, submittingDecision && dsStyles.inlinePrimaryButtonDisabled]} disabled={submittingDecision}>
             {submittingDecision ? (
               <ActivityIndicator size="small" color={Colors.brand.white} />
             ) : (
-              <Text style={dsStyles.decisionBtnText}>Record Decision</Text>
+              <Text style={dsStyles.primaryActionButtonText}>Record Decision</Text>
             )}
           </Pressable>
         </View>
@@ -634,19 +1151,76 @@ function DiscussionSection({ detail, permissions, requestId, token, onRefresh }:
 }
 
 const dsStyles = StyleSheet.create({
-  fbSection: { marginBottom: 16 },
+  sectionBlock: { marginBottom: 16 },
   subTitle: { fontSize: 15, fontWeight: '700' as const, color: Colors.brand.dark, marginBottom: 10, fontFamily: 'Inter_700Bold', borderLeftWidth: 3, borderLeftColor: Colors.brand.primary, paddingLeft: 10 },
-  fbCard: { backgroundColor: Colors.brand.sectionBg, borderRadius: 12, padding: 12, marginBottom: 8 },
-  fbHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  fbFrom: { fontSize: 15, fontWeight: '600' as const, color: Colors.brand.dark, fontFamily: 'Inter_600SemiBold' },
-  pendingDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.brand.warning },
-  fbResponse: { fontSize: 15, color: Colors.brand.darkGray, fontFamily: 'Inter_400Regular' },
-  fbPending: { fontSize: 14, color: Colors.brand.midGray, fontStyle: 'italic' as const, fontFamily: 'Inter_400Regular' },
+  helperText: { fontSize: 13, color: Colors.brand.midGray, lineHeight: 18, fontFamily: 'Inter_400Regular' },
+  feedbackActionCard: { backgroundColor: '#F8FAFC', borderRadius: 14, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#DBEAFE' },
+  feedbackActionHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 12 },
+  feedbackActionIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#DBEAFE', alignItems: 'center', justifyContent: 'center' },
+  feedbackActionTextWrap: { flex: 1 },
+  feedbackActionButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: Colors.brand.primary, borderRadius: 10, paddingVertical: 12 },
+  feedbackActionButtonText: { fontSize: 14, color: Colors.brand.white, fontFamily: 'Inter_600SemiBold' },
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.45)', justifyContent: 'flex-end' },
+  sheetDismissArea: { flex: 1 },
+  sheetCard: { backgroundColor: Colors.brand.white, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 22, maxHeight: '82%' },
+  sheetHandle: { width: 46, height: 5, borderRadius: 3, backgroundColor: Colors.brand.lightGray, alignSelf: 'center', marginBottom: 12 },
+  sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  sheetTitle: { fontSize: 16, color: Colors.brand.dark, fontFamily: 'Inter_700Bold' },
+  sheetInput: { backgroundColor: Colors.brand.inputBg, borderRadius: 12, borderWidth: 1, borderColor: Colors.brand.inputBorder, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: Colors.brand.dark, fontFamily: 'Inter_400Regular', marginBottom: 12 },
+  sheetReasonInput: { minHeight: 84, textAlignVertical: 'top' as const },
+  quickPickWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  quickPickChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 18, backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE' },
+  quickPickChipActive: { backgroundColor: Colors.brand.primary, borderColor: Colors.brand.primary },
+  quickPickChipText: { fontSize: 13, color: '#1D4ED8', fontFamily: 'Inter_600SemiBold' },
+  quickPickChipTextActive: { color: Colors.brand.white },
+  sheetList: { maxHeight: 250, marginBottom: 12 },
+  sheetLoading: { paddingVertical: 18 },
+  sheetListItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.brand.lightGray },
+  sheetListItemActive: { backgroundColor: '#F8FAFC' },
+  sheetListItemInfo: { flex: 1 },
+  sheetListItemTitle: { fontSize: 14, color: Colors.brand.dark, fontFamily: 'Inter_600SemiBold' },
+  sheetListItemTitleActive: { color: Colors.brand.primary },
+  sheetListItemLabel: { fontSize: 13, color: Colors.brand.midGray, fontFamily: 'Inter_400Regular', marginTop: 2 },
+  sheetEmptyText: { fontSize: 13, color: Colors.brand.midGray, textAlign: 'center', paddingVertical: 18, fontFamily: 'Inter_400Regular' },
+  sheetActions: { flexDirection: 'row', gap: 10 },
+  sheetCancelButton: { flex: 1, borderWidth: 1, borderColor: Colors.brand.lightGray, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  sheetCancelButtonText: { fontSize: 14, color: Colors.brand.darkGray, fontFamily: 'Inter_600SemiBold' },
+  sheetSubmitButton: { flex: 1, backgroundColor: Colors.brand.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  sheetSubmitButtonDisabled: { opacity: 0.5 },
+  sheetSubmitButtonText: { fontSize: 14, color: Colors.brand.white, fontFamily: 'Inter_600SemiBold' },
+  feedbackCard: { backgroundColor: Colors.brand.sectionBg, borderRadius: 12, padding: 14, marginBottom: 10 },
+  feedbackCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 8 },
+  feedbackCardHeadingWrap: { flex: 1 },
+  feedbackCardTitle: { fontSize: 14, color: Colors.brand.dark, fontFamily: 'Inter_600SemiBold' },
+  feedbackCardMeta: { fontSize: 13, color: Colors.brand.midGray, fontFamily: 'Inter_400Regular', marginTop: 2 },
+  feedbackStatusBadge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  feedbackStatusBadgePending: { backgroundColor: '#FEF3C7' },
+  feedbackStatusBadgeDone: { backgroundColor: '#DCFCE7' },
+  feedbackStatusText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  feedbackStatusTextPending: { color: '#92400E' },
+  feedbackStatusTextDone: { color: '#166534' },
+  feedbackReasonBox: { backgroundColor: Colors.brand.white, borderRadius: 10, padding: 12, marginBottom: 10 },
+  feedbackResponseBox: { backgroundColor: Colors.brand.white, borderRadius: 10, padding: 12, marginTop: 2 },
+  feedbackReasonLabel: { fontSize: 12, color: Colors.brand.midGray, textTransform: 'uppercase' as const, letterSpacing: 0.4, fontFamily: 'Inter_600SemiBold', marginBottom: 4 },
+  feedbackReasonText: { fontSize: 14, color: Colors.brand.darkGray, fontFamily: 'Inter_400Regular', lineHeight: 20 },
+  feedbackResponseText: { fontSize: 14, color: Colors.brand.darkGray, fontFamily: 'Inter_400Regular', lineHeight: 20 },
+  feedbackResponseComposer: { marginTop: 4 },
+  feedbackPendingText: { fontSize: 13, color: Colors.brand.midGray, fontStyle: 'italic' as const, fontFamily: 'Inter_400Regular' },
+  counselCard: { backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#E2E8F0' },
+  counselHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 6 },
+  counselAuthor: { flex: 1, fontSize: 14, color: Colors.brand.dark, fontFamily: 'Inter_600SemiBold' },
+  counselBadge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  counselBadgeApprove: { backgroundColor: '#DCFCE7' },
+  counselBadgeNotApprove: { backgroundColor: '#FEE2E2' },
+  counselBadgeText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  counselBadgeTextApprove: { color: '#166534' },
+  counselBadgeTextNotApprove: { color: '#991B1B' },
+  counselComment: { fontSize: 14, color: Colors.brand.darkGray, lineHeight: 20, fontFamily: 'Inter_400Regular' },
   commentsSection: { marginBottom: 16 },
   commentCard: { paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.brand.lightGray },
   commentAuthor: { fontSize: 15, fontWeight: '600' as const, color: Colors.brand.dark, fontFamily: 'Inter_600SemiBold' },
   commentText: { fontSize: 14, color: Colors.brand.darkGray, marginTop: 4, fontFamily: 'Inter_400Regular' },
-  commentDate: { fontSize: 15, color: Colors.brand.midGray, marginTop: 4, fontFamily: 'Inter_400Regular' },
+  commentDate: { fontSize: 13, color: Colors.brand.midGray, marginTop: 4, fontFamily: 'Inter_400Regular' },
   addComment: { flexDirection: 'row', gap: 8, marginBottom: 16, alignItems: 'flex-end' },
   commentInput: {
     flex: 1, backgroundColor: Colors.brand.inputBg, borderRadius: 12, borderWidth: 1, borderColor: Colors.brand.inputBorder,
@@ -661,16 +1235,24 @@ const dsStyles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  decisionSection: { backgroundColor: Colors.brand.sectionBg, borderRadius: 14, padding: 16, marginTop: 8 },
-  radioGroup: { marginBottom: 12 },
-  radioRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
-  radioText: { fontSize: 14, color: Colors.brand.dark, fontFamily: 'Inter_400Regular' },
-  decisionBtn: { backgroundColor: Colors.brand.primary, borderRadius: 8, paddingVertical: 12, alignItems: 'center', marginTop: 8 },
-  decisionBtnText: { fontSize: 14, fontWeight: '600' as const, color: Colors.brand.white, fontFamily: 'Inter_600SemiBold' },
+  decisionSection: { backgroundColor: Colors.brand.sectionBg, borderRadius: 14, padding: 16, marginTop: 8, marginBottom: 16 },
+  choiceGroup: { marginBottom: 12, gap: 10 },
+  choiceCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: Colors.brand.white, borderRadius: 12, padding: 14, borderWidth: 1.5, borderColor: Colors.brand.lightGray },
+  choiceCardApprove: { borderColor: '#10B981', backgroundColor: '#F0FDF4' },
+  choiceCardNotApprove: { borderColor: '#EF4444', backgroundColor: '#FEF2F2' },
+  choiceText: { fontSize: 15, color: Colors.brand.dark, fontFamily: 'Inter_500Medium' },
+  choiceTextApprove: { color: '#065F46', fontFamily: 'Inter_600SemiBold' },
+  choiceTextNotApprove: { color: '#991B1B', fontFamily: 'Inter_600SemiBold' },
+  composerInput: { backgroundColor: Colors.brand.white, borderRadius: 12, borderWidth: 1, borderColor: Colors.brand.inputBorder, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: Colors.brand.dark, fontFamily: 'Inter_400Regular', minHeight: 76, textAlignVertical: 'top' as const, marginBottom: 12 },
+  primaryActionButton: { backgroundColor: Colors.brand.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  primaryActionButtonText: { fontSize: 14, color: Colors.brand.white, fontFamily: 'Inter_600SemiBold' },
+  inlinePrimaryButton: { alignSelf: 'flex-start', backgroundColor: Colors.brand.primary, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, marginTop: 10 },
+  inlinePrimaryButtonDisabled: { opacity: 0.6 },
+  inlinePrimaryButtonText: { fontSize: 14, color: Colors.brand.white, fontFamily: 'Inter_600SemiBold' },
 });
 
 function NextActionBanner({ nextAction, onActionPress, onOpenSundayBusiness }: {
-  nextAction: { type: string; heading: string; description: string; context: string | null; style: string; is_terminal: boolean; is_waiting: boolean };
+  nextAction: NextAction;
   onActionPress: (type: string) => void;
   onOpenSundayBusiness: () => void;
 }) {
@@ -689,7 +1271,7 @@ function NextActionBanner({ nextAction, onActionPress, onOpenSundayBusiness }: {
     : nextAction.is_waiting ? 'time-outline' : 'arrow-forward-circle';
 
   const ACTION_HINTS: Record<string, string> = {
-    vote: 'Provide Sustaining',
+    vote: 'Provide Recommendation',
     voted: '',
     submit: 'Submit for Review',
     begin_review: 'Begin Review',
@@ -767,17 +1349,9 @@ export default function CallingDetailScreen() {
   }, [callingDetailPath]);
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery<{
-    calling_request: any;
-    permissions: any;
-    next_action: {
-      type: string;
-      heading: string;
-      description: string;
-      context: string | null;
-      style: 'primary' | 'success' | 'warning' | 'info' | 'muted' | 'danger';
-      is_terminal: boolean;
-      is_waiting: boolean;
-    } | null;
+    calling_request: CallingRequestDetail;
+    permissions: CallingRequestPermissions;
+    next_action: NextAction | null;
     view_level: string;
     is_requestor_only: boolean;
   }>({
@@ -800,8 +1374,10 @@ export default function CallingDetailScreen() {
     const hasApprovals = detail?.approval_authority === 'high_council';
     if (nextAction) {
       const type = nextAction.type;
-      if (['vote', 'voted', 'provide_recommendation'].includes(type) && hasApprovals) {
+      if (['vote', 'voted'].includes(type) && hasApprovals) {
         setActiveTab('approvals');
+      } else if (type === 'provide_recommendation') {
+        setActiveTab('discussion');
       } else if (['next_step', 'assign_interviewer', 'mark_complete', 'waiting_setting_apart'].includes(type)) {
         setActiveTab('steps');
       }
@@ -857,6 +1433,8 @@ export default function CallingDetailScreen() {
     : (typeof detail.target_calling === 'string' ? detail.target_calling : detail.request_type_label);
   const wardName = typeof detail.target_ward === 'object' ? detail.target_ward?.name : detail.target_ward;
   const orgName = typeof detail.target_organization === 'object' ? detail.target_organization?.name : detail.target_organization;
+  const localUnitType = typeof detail.target_ward === 'object' ? detail.target_ward?.unit_type : null;
+  const localUnitTypeLabel = formatUnitType(localUnitType);
 
   const hasApprovals = detail.approval_authority === 'high_council';
   const hasSteps = detail.steps && detail.steps.length > 0;
@@ -884,7 +1462,8 @@ export default function CallingDetailScreen() {
         </View>
         <View style={styles.metaRow}>
           <Text style={styles.metaChip}>{detail.request_type_label}</Text>
-          <Text style={styles.metaChip}>{detail.scope === 'stake' ? 'Stake' : 'Ward'}</Text>
+          <Text style={styles.metaChip}>{detail.scope === 'stake' ? 'Stake' : 'Local Unit'}</Text>
+          {detail.scope !== 'stake' && localUnitTypeLabel ? <Text style={styles.metaChip}>{localUnitTypeLabel}</Text> : null}
           {detail.approval_authority_label && <Text style={styles.metaChip}>{detail.approval_authority_label}</Text>}
         </View>
         {(wardName || orgName) && (
@@ -1024,6 +1603,8 @@ export default function CallingDetailScreen() {
                 permissions={perms}
                 requestId={requestId}
                 token={token}
+                userId={user?.id || 0}
+                nextAction={nextAction}
                 onRefresh={handleRefresh}
               />
             )}

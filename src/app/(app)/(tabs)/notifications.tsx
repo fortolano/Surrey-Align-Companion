@@ -288,11 +288,13 @@ export default function NotificationsScreen() {
         router.push(withReturnTarget('/calling-detail', '/notifications', { id: String(relatedId) }));
       } else if (relatedType === 'StakeBusiness') {
         router.push(withReturnTarget('/sunday-business', '/notifications'));
+      } else if (relatedType === 'agenda' && relatedId) {
+        router.push(withReturnTarget('/agenda-entity', '/notifications', {
+          agendaId: String(relatedId),
+        }));
       } else if (
-        relatedType === 'agenda' ||
         relatedType === 'agenda_item' ||
         notif.type === 'agenda_assignment' ||
-        notif.type === 'agenda_published' ||
         notif.type === 'agenda_unassignment'
       ) {
         router.push(withReturnTarget('/assignments', '/notifications'));

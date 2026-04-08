@@ -5,6 +5,8 @@ type RouteParams = Record<string, string | number | boolean | string[] | undefin
 
 const DEFAULT_RETURN_TARGETS: Record<string, string> = {
   '/about-app': '/more',
+  '/agenda-entity': '/',
+  '/agenda-submit': '/add',
   '/align-info': '/more',
   '/align-pulse': '/',
   '/assignments': '/',

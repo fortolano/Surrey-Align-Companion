@@ -22,12 +22,14 @@ import { WEB_BOTTOM_INSET } from '@/constants/layout';
 import { triggerGlobalRefreshIndicator } from '@/lib/refresh-indicator';
 import AppButton from '@/components/ui/AppButton';
 import AppInput from '@/components/ui/AppInput';
+import AppPickerTrigger from '@/components/ui/AppPickerTrigger';
 import {
   useCouncilAgendas,
   useSubmitAgendaItem,
   type AgendaSummary,
   type AgendaSection,
   type AgendaItemData,
+  type AgendaSubmissionTypeOption,
 } from '@/lib/agenda-api';
 
 // ─── Item type → Ionicons mapping ───────────────
@@ -257,21 +259,26 @@ function SubmitModal({ visible, onClose, councilSlug, councilName }: {
   onClose: () => void;
   councilSlug: string;
   councilName: string;
+  submissionItemTypes: AgendaSubmissionTypeOption[];
 }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [itemType, setItemType] = useState('');
+  const [showItemTypeMenu, setShowItemTypeMenu] = useState(false);
   const [priority, setPriority] = useState<'low' | 'normal' | 'high'>('normal');
 
   const mutation = useSubmitAgendaItem();
+  const selectedItemType = submissionItemTypes.find((option) => option.value === itemType) ?? null;
 
   const handleSubmit = async () => {
-    if (!title.trim()) return;
+    if (!title.trim() || !itemType) return;
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     mutation.mutate(
       {
         council_slug: councilSlug,
         title: title.trim(),
+        item_type: itemType,
         description: description.trim() || undefined,
         priority,
       },
@@ -279,6 +286,8 @@ function SubmitModal({ visible, onClose, councilSlug, councilName }: {
         onSuccess: () => {
           setTitle('');
           setDescription('');
+          setItemType('');
+          setShowItemTypeMenu(false);
           setPriority('normal');
           onClose();
         },
@@ -290,6 +299,8 @@ function SubmitModal({ visible, onClose, councilSlug, councilName }: {
     if (mutation.isPending) return;
     setTitle('');
     setDescription('');
+    setItemType('');
+    setShowItemTypeMenu(false);
     setPriority('normal');
     onClose();
   };
@@ -331,6 +342,38 @@ function SubmitModal({ visible, onClose, councilSlug, councilName }: {
             style={{ marginBottom: 12, minHeight: 80, textAlignVertical: 'top', paddingTop: 12 }}
           />
 
+          <Text style={modalS.label}>What is this item for? *</Text>
+          <AppPickerTrigger
+            label={selectedItemType?.label ?? 'Choose an item type'}
+            onPress={() => setShowItemTypeMenu((current) => !current)}
+            style={{ marginBottom: showItemTypeMenu ? 8 : 12 }}
+            disabled={mutation.isPending || submissionItemTypes.length === 0}
+          />
+          {showItemTypeMenu ? (
+            <View style={modalS.pickerMenu}>
+              {submissionItemTypes.map((option) => {
+                const selected = option.value === itemType;
+
+                return (
+                  <Pressable
+                    key={option.value}
+                    onPress={() => {
+                      if (Platform.OS !== 'web') Haptics.selectionAsync();
+                      setItemType(option.value);
+                      setShowItemTypeMenu(false);
+                    }}
+                    style={[modalS.pickerOption, selected && modalS.pickerOptionSelected]}
+                  >
+                    <Text style={[modalS.pickerOptionText, selected && modalS.pickerOptionTextSelected]}>
+                      {option.label}
+                    </Text>
+                    {selected ? <Ionicons name="checkmark" size={16} color={Colors.brand.primary} /> : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
+
           <Text style={modalS.label}>Priority</Text>
           <View style={modalS.chipRow}>
             {(['low', 'normal', 'high'] as const).map((p) => {
@@ -371,7 +414,7 @@ function SubmitModal({ visible, onClose, councilSlug, councilName }: {
               label="Submit"
               onPress={handleSubmit}
               loading={mutation.isPending}
-              disabled={!title.trim()}
+              disabled={!title.trim() || !itemType}
               style={{ flex: 1 }}
             />
           </View>
@@ -421,6 +464,7 @@ export function CouncilAgendaScreen({ councilSlug }: { councilSlug: string }) {
   const agendas = data.agendas || [];
   const council = data.council;
   const canSubmit = data.can_submit;
+  const submissionItemTypes = data.submission_item_types ?? [];
 
   return (
     <View style={s.container}>
@@ -451,10 +495,11 @@ export function CouncilAgendaScreen({ councilSlug }: { councilSlug: string }) {
                     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     setShowSubmit(true);
                   }}
-                  style={s.addBtn}
+                  style={s.submitBtn}
                   accessibilityLabel="Submit agenda item"
                 >
-                  <Ionicons name="add" size={20} color={Colors.brand.white} />
+                  <Ionicons name="add-circle-outline" size={18} color={Colors.brand.white} />
+                  <Text style={s.submitBtnText}>Submit Item to Agenda</Text>
                 </Pressable>
               )}
             </View>
@@ -489,6 +534,7 @@ export function CouncilAgendaScreen({ councilSlug }: { councilSlug: string }) {
           onClose={() => setShowSubmit(false)}
           councilSlug={councilSlug}
           councilName={council.name}
+          submissionItemTypes={submissionItemTypes}
         />
       )}
     </View>
@@ -519,16 +565,19 @@ const s = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 16, paddingBottom: 14 },
   headerSub: { fontSize: 15, color: Colors.brand.darkGray, fontFamily: 'Inter_400Regular' },
 
-  addBtn: {
-    width: 44,
-    height: 44,
+  submitBtn: {
+    minHeight: 44,
     borderRadius: 22,
     backgroundColor: Colors.brand.primary,
     justifyContent: 'center',
     alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 14,
     ...webShadowRgba('rgba(1, 97, 131, 0.3)', 0, 3, 8),
     elevation: 4,
   },
+  submitBtnText: { fontSize: 14, color: Colors.brand.white, fontFamily: 'Inter_600SemiBold' },
 
   emptyState: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 20 },
   emptyIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: Colors.brand.accent, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
@@ -630,6 +679,35 @@ const modalS = StyleSheet.create({
   sheetTitle: { fontSize: 20, fontWeight: '700' as const, color: Colors.brand.black, fontFamily: 'Inter_700Bold', marginBottom: 4 },
   sheetSub: { fontSize: 15, color: Colors.brand.darkGray, fontFamily: 'Inter_400Regular', marginBottom: 16 },
   label: { fontSize: 14, fontWeight: '600' as const, color: Colors.brand.darkGray, fontFamily: 'Inter_600SemiBold', marginBottom: 6 },
+  pickerMenu: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.brand.inputBorder,
+    backgroundColor: Colors.brand.inputBg,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  pickerOption: {
+    minHeight: 48,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.brand.inputBorder,
+  },
+  pickerOptionSelected: {
+    backgroundColor: Colors.brand.primary + '10',
+  },
+  pickerOptionText: {
+    fontSize: 15,
+    color: Colors.brand.dark,
+    fontFamily: 'Inter_400Regular',
+  },
+  pickerOptionTextSelected: {
+    color: Colors.brand.primary,
+    fontFamily: 'Inter_600SemiBold',
+  },
   chipRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   chip: {
     paddingHorizontal: 18,

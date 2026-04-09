@@ -318,8 +318,14 @@ const NOTIFICATIONS_RESPONSE = {
       message: 'Open the request details to review Sunday business progress.',
       is_read: true,
       created_at: '2026-03-22T16:30:00Z',
-      data: {
-        calling_request_id: CALLING_REQUEST_ID,
+      app_action: {
+        kind: 'native_screen',
+        name: 'calling_request.detail',
+        params: {
+          calling_request_id: CALLING_REQUEST_ID,
+          tab: 'discussion',
+        },
+        fallback_url: `https://surreyalign.org/calling-requests/${CALLING_REQUEST_ID}`,
       },
     },
     {
@@ -341,9 +347,11 @@ const NOTIFICATIONS_RESPONSE = {
 const SETTINGS_RESPONSE = {
   success: true,
   notifications_enabled: true,
+  push_notifications_enabled: true,
   preferences: {
     muted_notification_categories: [],
     email_notification_frequency: 'daily',
+    push_notification_enabled: true,
   },
   options: {
     categories: [
@@ -619,12 +627,28 @@ function createMockApiHandler() {
     return json(route, { user: MOCK_USER });
   }
 
+  if (path === '/api/auth/login' && method === 'POST') {
+    return json(route, {
+      success: true,
+      token: MOCK_TOKEN,
+      user: MOCK_USER,
+    });
+  }
+
+  if (path === '/api/auth/logout' && method === 'POST') {
+    return json(route, { success: true });
+  }
+
   if (path === '/api/calling-requests/action-required' && method === 'GET') {
     return json(route, { success: true, action_required: [], meta: { total: 0 } });
   }
 
   if (path === '/api/agendas/my-items' && method === 'GET') {
-    return json(route, { items: [] });
+    return json(route, { success: true, items: [], meta: { total: 0 } });
+  }
+
+  if (path === '/api/agendas/entities' && method === 'GET') {
+    return json(route, { success: true, entities: [], meta: { total: 0 } });
   }
 
   if (path === '/api/reports/align-pulse' && method === 'GET') {
@@ -679,6 +703,7 @@ function createMockApiHandler() {
     const body = parseJsonBody(request);
     const mutedCategories = body.muted_notification_categories;
     const emailFrequency = body.email_notification_frequency;
+    const pushEnabled = body.push_notification_enabled;
 
     if (Array.isArray(mutedCategories)) {
       currentSettingsResponse.preferences.muted_notification_categories = mutedCategories.filter(
@@ -690,11 +715,38 @@ function createMockApiHandler() {
       currentSettingsResponse.preferences.email_notification_frequency = emailFrequency;
     }
 
+    if (typeof pushEnabled === 'boolean') {
+      currentSettingsResponse.preferences.push_notification_enabled = pushEnabled;
+    }
+
+    return json(route, { success: true });
+  }
+
+  if (path === '/api/notifications/push-config' && method === 'GET') {
+    return json(route, {
+      success: true,
+      push_enabled: currentSettingsResponse.push_notifications_enabled && currentSettingsResponse.preferences.push_notification_enabled,
+      stake_notifications_enabled: currentSettingsResponse.notifications_enabled,
+      stake_push_enabled: currentSettingsResponse.push_notifications_enabled,
+      user_push_enabled: currentSettingsResponse.preferences.push_notification_enabled,
+      public_key: 'mock-public-key',
+    });
+  }
+
+  if (path === '/api/notifications/push-subscriptions' && method === 'POST') {
+    return json(route, { success: true, subscription: { id: 1, is_active: true } });
+  }
+
+  if (path === '/api/notifications/push-subscriptions/current' && method === 'DELETE') {
     return json(route, { success: true });
   }
 
   if (path === '/api/calling-requests/pending-action-count' && method === 'GET') {
     return json(route, { pending_action_count: 1 });
+  }
+
+  if (path === '/api/speaking-assignments/pending-action-count' && method === 'GET') {
+    return json(route, { pending_action_count: 0 });
   }
 
   if (path === '/api/calling-requests/submission-context' && method === 'GET') {
@@ -926,7 +978,7 @@ function createMockApiHandler() {
 
 async function seedMockedSession(page: Page) {
   await page.addInitScript(
-    ({ token, user, fixedNowIso }) => {
+    ({ fixedNowIso, token, user }) => {
       const RealDate = Date;
       const fixedNowMs = new RealDate(fixedNowIso).valueOf();
 
@@ -957,7 +1009,7 @@ async function seedMockedSession(page: Page) {
       window.localStorage.setItem('sa_token', token);
       window.localStorage.setItem('sa_user', JSON.stringify(user));
     },
-    { token: MOCK_TOKEN, user: MOCK_USER, fixedNowIso: FIXED_NOW_ISO },
+    { fixedNowIso: FIXED_NOW_ISO, token: MOCK_TOKEN, user: MOCK_USER },
   );
 
   await page.route('**/api/**', createMockApiHandler());
@@ -965,7 +1017,50 @@ async function seedMockedSession(page: Page) {
 
 export async function openMockedRoute(page: Page, path: string) {
   await seedMockedSession(page);
-  await page.goto(path);
+  await page.goto('/', { waitUntil: 'networkidle' });
+
+  let bootedIntoHome = false;
+  try {
+    await page.getByText('Quick Access').waitFor({ state: 'visible', timeout: 6000 });
+    bootedIntoHome = true;
+  } catch {
+    await page.getByTestId('email-input').waitFor({ state: 'visible', timeout: 10000 });
+  }
+
+  if (!bootedIntoHome) {
+    await page.getByTestId('email-input').fill(MOCK_USER.email);
+    await page.getByTestId('password-input').fill('playwright-password');
+    await page.getByTestId('login-button').click();
+    await page.getByText('Quick Access').waitFor({ state: 'visible', timeout: 12000 });
+    await page.waitForURL(/\/(?:\?.*)?$/);
+  }
+
+  if (path === '/' || path === '') {
+    return;
+  }
+
+  if (path === '/notifications') {
+    await page.getByTestId('tab-notifications').click();
+    await page.waitForURL(/\/notifications(?:\?|$)/);
+    return;
+  }
+
+  if (path === '/settings') {
+    await page.getByTestId('avatar-menu-btn').click();
+    await page.getByText('Settings').click();
+    await page.waitForURL(/\/settings(?:\?|$)/);
+    return;
+  }
+
+  if (path.startsWith('/calling-detail')) {
+    await page.getByTestId('tab-notifications').click();
+    await page.waitForURL(/\/notifications(?:\?|$)/);
+    await page.getByTestId('notification-row-9101').click();
+    await page.waitForURL(/\/calling-detail(?:\?|$)/);
+    return;
+  }
+
+  await page.goto(path, { waitUntil: 'networkidle' });
 }
 
 export async function openMockedApp(page: Page) {

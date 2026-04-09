@@ -8,6 +8,11 @@ type BeforeInstallPromptEvent = Event & {
 let hasInitializedWebPWA = false;
 let didRefreshForUpdate = false;
 
+type BadgeNavigator = Navigator & {
+  setAppBadge?: (count?: number) => Promise<void>;
+  clearAppBadge?: () => Promise<void>;
+};
+
 function getFloatingBannerFrame(shadow: string, borderColor: string): Partial<CSSStyleDeclaration> {
   return {
     position: 'fixed',
@@ -352,6 +357,35 @@ function applyWaitingUpdate(registration: ServiceWorkerRegistration) {
   registration.waiting.postMessage({ type: 'SKIP_WAITING' });
 }
 
+async function postBadgeCountToServiceWorker(count: number) {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    registration.active?.postMessage({ type: 'BADGE_COUNT', count });
+  } catch {
+    // Badge sync is best-effort only.
+  }
+}
+
+export async function syncAppBadgeCount(count: number): Promise<void> {
+  if (Platform.OS !== 'web' || typeof navigator === 'undefined') return;
+
+  const badgeNavigator = navigator as BadgeNavigator;
+
+  try {
+    if (count > 0 && typeof badgeNavigator.setAppBadge === 'function') {
+      await badgeNavigator.setAppBadge(count);
+    } else if (count <= 0 && typeof badgeNavigator.clearAppBadge === 'function') {
+      await badgeNavigator.clearAppBadge();
+    }
+  } catch {
+    // Badge updates are progressive enhancement only.
+  }
+
+  await postBadgeCountToServiceWorker(count);
+}
+
 export async function updateAppNow(): Promise<'reloading' | 'not_supported'> {
   if (Platform.OS !== 'web' || typeof window === 'undefined' || typeof navigator === 'undefined') {
     return 'not_supported';
@@ -521,7 +555,7 @@ export function setupPWA() {
   maybeShowIosInstallTip();
 
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
+    const initializeServiceWorkerSupport = () => {
       let deferredInstallPrompt: BeforeInstallPromptEvent | null = null;
       let installBanner: HTMLDivElement | null = null;
 
@@ -585,6 +619,12 @@ export function setupPWA() {
           // 2. User closes and reopens the app (SW activates naturally)
         })
         .catch(() => {});
-    });
+    };
+
+    if (document.readyState === 'complete') {
+      initializeServiceWorkerSupport();
+    } else {
+      window.addEventListener('load', initializeServiceWorkerSupport, { once: true });
+    }
   }
 }

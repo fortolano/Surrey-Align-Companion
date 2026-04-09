@@ -11,6 +11,7 @@ import {
   subscribeGlobalRefreshIndicator,
 } from '@/lib/refresh-indicator';
 import { requestLeaveGuard } from '@/lib/navigation-leave-guard';
+import { syncAppBadgeCount } from '@/lib/pwa-setup';
 import Colors from '@/constants/colors';
 import { webShadowRgba } from '@/lib/web-styles';
 import { UI_TOUCH_MIN } from '@/constants/ui';
@@ -96,6 +97,10 @@ export default function TabLayout() {
   });
 
   const unreadCount = notifData?.notifications?.filter((n: any) => !n.is_read)?.length ?? 0;
+
+  useEffect(() => {
+    syncAppBadgeCount(unreadCount);
+  }, [unreadCount]);
 
   useEffect(() => {
     if (activeFetchCount > 0) {

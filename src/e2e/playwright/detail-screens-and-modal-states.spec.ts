@@ -47,6 +47,8 @@ test.describe('detail screens and modal states', () => {
 
   test('Notifications mark all read clears unread state and the unread filter becomes empty', async ({ page }) => {
     await openMockedRoute(page, '/notifications');
+    await expect(page).toHaveURL(/\/notifications(?:\?|$)/);
+    await expect(page.getByText('Your action inbox')).toBeVisible();
 
     await page.evaluate(async () => {
       await fetch('/api/notifications/9102/unread', { method: 'POST' });
@@ -54,7 +56,7 @@ test.describe('detail screens and modal states', () => {
     await page.reload();
 
     await expect(page).toHaveURL(/\/notifications(?:\?|$)/);
-    await expect(page.getByText('1 unread notification')).toBeVisible();
+    await expect(page.getByText('1 update still needs your attention')).toBeVisible();
     await expect(page.getByTestId('mark-all-read')).toBeVisible();
 
     await page.getByTestId('mark-all-read').click();
@@ -64,8 +66,8 @@ test.describe('detail screens and modal states', () => {
 
     await page.getByTestId('filter-unread').click();
 
-    await expect(page.getByText('No unread notifications')).toBeVisible();
-    await expect(page.getByText("You're all caught up!")).toBeVisible();
+    await expect(page.getByText('No unread updates')).toBeVisible();
+    await expect(page.getByText("You're caught up for now.")).toBeVisible();
   });
 
   test('Settings email frequency changes persist after a reload', async ({ page }) => {
@@ -77,19 +79,21 @@ test.describe('detail screens and modal states', () => {
     await expect(page.getByText('How often should we email you?')).toBeVisible();
 
     await weeklySegment.click();
-    await expect(weeklySegment).toHaveCSS('background-color', 'rgb(1, 97, 131)');
+    await expect(weeklySegment).toHaveCSS('background-color', 'rgb(238, 248, 252)');
+    await expect(weeklySegment).toHaveCSS('border-color', 'rgb(1, 97, 131)');
 
     await page.reload();
 
     await expect(page.getByText('How often should we email you?')).toBeVisible();
-    await expect(page.getByTestId('settings-email-frequency-weekly')).toHaveCSS('background-color', 'rgb(1, 97, 131)');
+    await expect(page.getByTestId('settings-email-frequency-weekly')).toHaveCSS('background-color', 'rgb(238, 248, 252)');
+    await expect(page.getByTestId('settings-email-frequency-weekly')).toHaveCSS('border-color', 'rgb(1, 97, 131)');
   });
 
   test('Notifications shell stays visually stable', async ({ page }) => {
     await openMockedRoute(page, '/notifications');
 
     await expect(page).toHaveURL(/\/notifications(?:\?|$)/);
-    await expect(page.getByText('Stay up to date')).toBeVisible();
+    await expect(page.getByText('Your action inbox')).toBeVisible();
 
     await expectScreenScreenshot(page, 'notifications-shell.png', 650);
   });

@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApiUrl, queryClient } from '@/lib/query-client';
 import { setAuthExpiredHandler } from '@/lib/api';
 import { appAlert } from '@/lib/platform-alert';
+import { disablePushForCurrentDevice, syncExistingPushSubscription } from '@/lib/push-notifications';
 
 export interface SAUser {
   id: number;
@@ -103,6 +104,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const currentToken = tokenRef.current;
 
     if (currentToken) {
+      try {
+        await disablePushForCurrentDevice(currentToken);
+      } catch {}
+
       fireAndForgetLogoutApi(currentToken);
     }
 
@@ -158,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(userData);
         setToken(storedToken);
         await secureSet('sa_user', JSON.stringify(userData));
+        void syncExistingPushSubscription(storedToken);
       } else {
         await secureDelete('sa_token');
         await secureDelete('sa_user');
@@ -193,6 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await secureSet('sa_user', JSON.stringify(data.user));
         setToken(data.token);
         setUser(data.user);
+        void syncExistingPushSubscription(data.token);
         return { success: true };
       }
 

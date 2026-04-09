@@ -307,7 +307,7 @@ export default function CallingsScreen() {
               onValueChange={setMineOnly}
               trackColor={{ false: Colors.brand.lightGray, true: Colors.brand.primary + '60' }}
               thumbColor={mineOnly ? Colors.brand.primary : '#f4f4f5'}
-              style={{ transform: [{ scale: 0.8 }] }}
+              style={{ transform: [{ scaleX: 1.08 }, { scaleY: 1.08 }] }}
             />
           </View>
           <Pressable

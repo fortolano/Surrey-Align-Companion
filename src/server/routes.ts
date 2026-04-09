@@ -50,8 +50,8 @@ function pa(app: Express, route: string, apiPath: string | ((req: Request) => st
   app.patch(route, (req, res) => proxyRequest(req, res, "PATCH", typeof apiPath === "function" ? apiPath(req) : apiPath, { includeBody: true }));
 }
 
-function d(app: Express, route: string, apiPath: string | ((req: Request) => string)) {
-  app.delete(route, (req, res) => proxyRequest(req, res, "DELETE", typeof apiPath === "function" ? apiPath(req) : apiPath));
+function d(app: Express, route: string, apiPath: string | ((req: Request) => string), includeBody = false) {
+  app.delete(route, (req, res) => proxyRequest(req, res, "DELETE", typeof apiPath === "function" ? apiPath(req) : apiPath, { includeBody }));
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -95,6 +95,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   g(app, "/api/calling-requests/:id/feedback-candidates", (req) => `calling-requests/${req.params.id}/feedback-candidates`);
 
   g(app, "/api/notifications", "notifications");
+  g(app, "/api/notifications/push-config", "notifications/push-config");
+  p(app, "/api/notifications/push-subscriptions", "notifications/push-subscriptions");
+  d(app, "/api/notifications/push-subscriptions/current", "notifications/push-subscriptions/current", true);
   p(app, "/api/notifications/read-all", "notifications/read-all", false);
   p(app, "/api/notifications/:id/read", (req) => `notifications/${req.params.id}/read`, false);
   p(app, "/api/notifications/:id/unread", (req) => `notifications/${req.params.id}/unread`, false);

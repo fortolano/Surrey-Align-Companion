@@ -30,6 +30,7 @@ export default defineConfig({
     colorScheme: 'light',
     locale: 'en-US',
     reducedMotion: 'reduce',
+    serviceWorkers: 'block',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     timezoneId: 'UTC',

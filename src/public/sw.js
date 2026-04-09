@@ -1,5 +1,5 @@
-var APP_CACHE = 'surreyalign-app-v12';
-var ASSET_CACHE = 'surreyalign-assets-v12';
+var APP_CACHE = 'surreyalign-app-v13';
+var ASSET_CACHE = 'surreyalign-assets-v13';
 var SENSITIVE_PREFIXES = ['/api/', '/auth/'];
 var STATIC_FILE_RE = /\.(?:css|js|png|jpe?g|svg|webp|ico|woff2?|ttf|map)$/i;
 var PRECACHE_URLS = [
@@ -44,6 +44,158 @@ function cacheResponse(cacheName, request, response) {
   });
 }
 
+function firstString(value) {
+  if (typeof value === 'string' && value.trim() !== '') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value) && value.length > 0) return firstString(value[0]);
+  return null;
+}
+
+function buildInternalPath(pathname, params) {
+  var url = new URL(pathname, self.location.origin);
+
+  Object.keys(params || {}).forEach(function(key) {
+    var value = params[key];
+    if (value === null || typeof value === 'undefined' || value === '') return;
+    url.searchParams.set(key, String(value));
+  });
+
+  return url.toString();
+}
+
+function normalizeTargetUrl(targetUrl) {
+  try {
+    return new URL(targetUrl || '/notifications', self.location.origin).toString();
+  } catch (_error) {
+    return new URL('/notifications', self.location.origin).toString();
+  }
+}
+
+function resolvePushTarget(payload) {
+  var action = payload && payload.app_action ? payload.app_action : {};
+  var params = action && action.params ? action.params : {};
+  var actionName = action && action.name ? action.name : '';
+
+  switch (actionName) {
+    case 'calling_request.detail': {
+      var callingRequestId = firstString(params.calling_request_id);
+      if (callingRequestId) {
+        return buildInternalPath('/calling-detail', {
+          id: callingRequestId,
+          tab: firstString(params.tab),
+          returnTo: '/notifications',
+        });
+      }
+      break;
+    }
+
+    case 'goal.detail': {
+      var goalId = firstString(params.goal_id) || firstString(params.goalId);
+      if (goalId) {
+        return buildInternalPath('/goal-detail', {
+          goalId: goalId,
+          returnTo: '/notifications',
+        });
+      }
+      break;
+    }
+
+    case 'agenda.detail': {
+      var agendaId = firstString(params.agenda_id) || firstString(params.agendaId);
+      if (agendaId) {
+        return buildInternalPath('/agenda-entity', {
+          agendaId: agendaId,
+          returnTo: '/notifications',
+        });
+      }
+      break;
+    }
+
+    case 'agenda.item_detail':
+      return buildInternalPath('/assignments', { returnTo: '/notifications' });
+
+    case 'agenda.submission_detail': {
+      var targetAgendaId = firstString(params.target_agenda_id) || firstString(params.agenda_id);
+      if (targetAgendaId) {
+        return buildInternalPath('/agenda-entity', {
+          agendaId: targetAgendaId,
+          returnTo: '/notifications',
+        });
+      }
+      break;
+    }
+
+    case 'sunday_business.index':
+      return buildInternalPath('/sunday-business', { returnTo: '/notifications' });
+
+    case 'speaking.swap_detail':
+      return buildInternalPath('/speaking-assignments', { returnTo: '/notifications' });
+
+    case 'checkin.detail':
+      return buildInternalPath('/align-pulse', { returnTo: '/notifications' });
+
+    case 'web.open':
+      return normalizeTargetUrl(action.fallback_url || payload.target_url);
+
+    default:
+      break;
+  }
+
+  if (action && action.fallback_url) {
+    return normalizeTargetUrl(action.fallback_url);
+  }
+
+  return normalizeTargetUrl(payload && payload.target_url ? payload.target_url : '/notifications');
+}
+
+function parsePushPayload(event) {
+  if (!event.data) return {};
+
+  try {
+    return event.data.json() || {};
+  } catch (_error) {
+    var text = '';
+
+    try {
+      text = event.data.text() || '';
+    } catch (_nestedError) {
+      text = '';
+    }
+
+    return {
+      title: 'SurreyALIGN',
+      body: text,
+    };
+  }
+}
+
+function focusOrOpenClient(targetUrl) {
+  var resolvedUrl = normalizeTargetUrl(targetUrl);
+
+  return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
+    for (var i = 0; i < clientList.length; i += 1) {
+      var client = clientList[i];
+
+      if (!client || !client.url) continue;
+
+      try {
+        var clientUrl = new URL(client.url);
+        if (clientUrl.origin !== self.location.origin) continue;
+      } catch (_error) {
+        continue;
+      }
+
+      return client.navigate(resolvedUrl).then(function() {
+        return client.focus();
+      }).catch(function() {
+        return client.focus();
+      });
+    }
+
+    return self.clients.openWindow(resolvedUrl);
+  });
+}
+
 self.addEventListener('install', function(event) {
   event.waitUntil(
     caches.open(APP_CACHE).then(function(cache) {
@@ -84,6 +236,35 @@ self.addEventListener('message', function(event) {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+});
+
+self.addEventListener('push', function(event) {
+  var payload = parsePushPayload(event);
+  var title = firstString(payload.title) || 'SurreyALIGN';
+  var body = firstString(payload.body) || 'Open SurreyALIGN to view this update.';
+  var targetUrl = resolvePushTarget(payload);
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: body,
+      tag: firstString(payload.tag) || 'surreyalign-notification',
+      icon: firstString(payload.icon) || '/icon-192.png',
+      badge: firstString(payload.badge) || '/icon-192.png',
+      data: {
+        targetUrl: targetUrl,
+      },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
+
+  var targetUrl = event.notification && event.notification.data
+    ? event.notification.data.targetUrl
+    : '/notifications';
+
+  event.waitUntil(focusOrOpenClient(targetUrl));
 });
 
 self.addEventListener('fetch', function(event) {

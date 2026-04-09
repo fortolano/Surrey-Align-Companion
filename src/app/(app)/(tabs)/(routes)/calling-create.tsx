@@ -535,6 +535,7 @@ function IndividualCard({ entry, index, wards, callings, onUpdate, onToggleRelea
             onValueChange={onToggleRelease}
             trackColor={{ false: Colors.brand.lightGray, true: Colors.brand.primary + '80' }}
             thumbColor={entry.requires_release ? Colors.brand.primary : '#f4f3f4'}
+            style={{ transform: [{ scaleX: 1.08 }, { scaleY: 1.08 }] }}
           />
         </View>
       )}

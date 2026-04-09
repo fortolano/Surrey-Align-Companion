@@ -7,11 +7,10 @@ import {
   FlatList,
   Pressable,
   ActivityIndicator,
-  Linking,
   Platform,
   RefreshControl,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -19,13 +18,22 @@ import * as Haptics from 'expo-haptics';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
+import {
+  resolveNotificationTarget,
+  type NotificationAppAction,
+} from '@/lib/notification-actions';
+import {
+  getNotificationPresentation,
+  notificationActionLabel,
+  notificationSurfaceLabel,
+} from '@/lib/notification-presentation';
 import { appAlert } from '@/lib/platform-alert';
 import { triggerGlobalRefreshIndicator } from '@/lib/refresh-indicator';
-import { withReturnTarget } from '@/lib/navigation-return-target';
 import Colors from '@/constants/colors';
 import { WEB_BOTTOM_INSET } from '@/constants/layout';
 import AppButton from '@/components/ui/AppButton';
 import AppSegmentedControl from '@/components/ui/AppSegmentedControl';
+import AppStatusBadge from '@/components/ui/AppStatusBadge';
 import ScreenHeader from '@/components/ScreenHeader';
 import AvatarMenu from '@/components/AvatarMenu';
 
@@ -34,6 +42,7 @@ interface Notification {
   type: string;
   title: string;
   message: string;
+  app_action?: NotificationAppAction | null;
   action_url?: string | null;
   related_type?: string | null;
   related_id?: number | null;
@@ -42,25 +51,6 @@ interface Notification {
 }
 
 type FilterTab = 'all' | 'unread' | 'read';
-
-const NOTIF_ICONS: Record<string, { name: string; color: string; bg: string }> = {
-  vote_requested: { name: 'hand-left-outline', color: '#B45309', bg: '#FEF3C7' },
-  vote_cast: { name: 'checkmark-circle-outline', color: '#065f46', bg: '#d1fae5' },
-  status_changed: { name: 'swap-horizontal-outline', color: '#1e40af', bg: '#dbeafe' },
-  decision_made: { name: 'shield-checkmark-outline', color: '#065f46', bg: '#d1fae5' },
-  calling_approved: { name: 'checkmark-done-outline', color: '#065f46', bg: '#d1fae5' },
-  calling_not_approved: { name: 'close-circle-outline', color: '#9d174d', bg: '#fce7f3' },
-  comment_added: { name: 'chatbubble-outline', color: '#1e40af', bg: '#dbeafe' },
-  feedback_requested: { name: 'help-circle-outline', color: '#B45309', bg: '#FEF3C7' },
-  feedback_received: { name: 'chatbubble-ellipses-outline', color: '#065f46', bg: '#d1fae5' },
-  step_completed: { name: 'checkbox-outline', color: '#065f46', bg: '#d1fae5' },
-  reminder: { name: 'alarm-outline', color: '#B45309', bg: '#FEF3C7' },
-  agenda_assignment: { name: 'calendar-outline', color: '#1E40AF', bg: '#DBEAFE' },
-  agenda_published: { name: 'calendar-clear-outline', color: '#065F46', bg: '#D1FAE5' },
-  agenda_unassignment: { name: 'calendar-clear-outline', color: '#B45309', bg: '#FEF3C7' },
-  agenda_response_declined: { name: 'alert-circle-outline', color: '#991B1B', bg: '#FEE2E2' },
-  default: { name: 'notifications-outline', color: Colors.brand.primary, bg: '#E8F4F8' },
-};
 
 const SWIPE_ACTION_BUTTON_WIDTH = 88;
 const SWIPE_ACTION_TOTAL_WIDTH = SWIPE_ACTION_BUTTON_WIDTH * 2;
@@ -89,22 +79,19 @@ function SwipeableNotifRow({
   onMarkRead,
   onMarkUnread,
   onDelete,
+  isActionable,
 }: {
   item: Notification;
   onPress: () => void;
   onMarkRead: () => void;
   onMarkUnread: () => void;
   onDelete: () => void;
+  isActionable: boolean;
 }) {
   const swipeableRef = useRef<any>(null);
-  const icon = NOTIF_ICONS[item.type] || NOTIF_ICONS.default;
-  const isActionable = Boolean(
-    item.action_url ||
-    item.related_type ||
-    item.type === 'agenda_assignment' ||
-    item.type === 'agenda_published' ||
-    item.type === 'agenda_unassignment'
-  );
+  const presentation = getNotificationPresentation(item);
+  const surfaceLabel = notificationSurfaceLabel(item);
+  const actionLabel = notificationActionLabel(item);
 
   const handleToggleRead = useCallback(() => {
     swipeableRef.current?.close();
@@ -161,38 +148,49 @@ function SwipeableNotifRow({
           ]}
           testID={`notification-row-${item.id}`}
         >
-          <View style={[styles.iconCircle, { backgroundColor: icon.bg }]}>
-            <Ionicons name={icon.name as any} size={18} color={icon.color} />
+          <View style={[styles.iconCircle, { backgroundColor: presentation.iconBackground }]}>
+            <Ionicons name={presentation.iconName as any} size={20} color={presentation.iconColor} />
           </View>
           <View style={styles.notifContent}>
+            <View style={styles.notifHeader}>
+              <AppStatusBadge
+                label={surfaceLabel}
+                backgroundColor="#F2F7FA"
+                textColor={Colors.brand.midGray}
+                style={styles.surfaceBadge}
+              />
+              <Text style={styles.notifTime}>{timeAgo(item.created_at)}</Text>
+            </View>
             <Text
               style={[styles.notifTitle, !item.is_read && styles.notifTitleUnread]}
-              numberOfLines={2}
+              numberOfLines={3}
             >
               {item.title || item.message}
             </Text>
             {item.title && item.message && item.message !== item.title && (
-              <Text style={styles.notifMessage} numberOfLines={2}>
+              <Text style={styles.notifMessage} numberOfLines={3}>
                 {item.message}
               </Text>
             )}
             <View style={styles.notifMeta}>
-              <Text style={styles.notifTime}>{timeAgo(item.created_at)}</Text>
               {isActionable && (
-                <View style={styles.linkChip}>
-                  <Ionicons name="open-outline" size={11} color={Colors.brand.primary} />
-                  <Text style={styles.linkChipText}>Open</Text>
-                </View>
+                <AppStatusBadge
+                  label={actionLabel}
+                  backgroundColor="#E8F4F8"
+                  textColor={Colors.brand.primary}
+                  style={styles.linkChip}
+                />
               )}
+              {!item.is_read && <Text style={styles.unreadLabel}>Unread</Text>}
             </View>
           </View>
           {!item.is_read && <View style={styles.unreadDot} />}
           {isActionable && (
             <Ionicons
-              name="chevron-forward"
-              size={16}
+              name="chevron-forward-circle"
+              size={22}
               color={Colors.brand.midGray}
-              style={{ marginLeft: 4 }}
+              style={styles.chevron}
             />
           )}
         </Pressable>
@@ -204,6 +202,7 @@ function SwipeableNotifRow({
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
+  const pathname = usePathname();
   const qClient = useQueryClient();
   const webBottomInset = WEB_BOTTOM_INSET;
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
@@ -239,6 +238,8 @@ export default function NotificationsScreen() {
 
   const invalidateAll = useCallback(() => {
     qClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+    qClient.invalidateQueries({ queryKey: ['/api/notifications', { unread_only: 'true' }] });
+    qClient.invalidateQueries({ queryKey: ['notifications-badge'] });
   }, [qClient]);
 
   const markReadMut = useMutation({
@@ -282,27 +283,31 @@ export default function NotificationsScreen() {
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       if (!notif.is_read) markReadMut.mutate(notif.id);
 
-      const relatedType = notif.related_type;
-      const relatedId = notif.related_id;
-      if (relatedType === 'CallingRequest' && relatedId) {
-        router.push(withReturnTarget('/calling-detail', '/notifications', { id: String(relatedId) }));
-      } else if (relatedType === 'StakeBusiness') {
-        router.push(withReturnTarget('/sunday-business', '/notifications'));
-      } else if (relatedType === 'agenda' && relatedId) {
-        router.push(withReturnTarget('/agenda-entity', '/notifications', {
-          agendaId: String(relatedId),
-        }));
-      } else if (
-        relatedType === 'agenda_item' ||
-        notif.type === 'agenda_assignment' ||
-        notif.type === 'agenda_unassignment'
-      ) {
-        router.push(withReturnTarget('/assignments', '/notifications'));
-      } else if (notif.action_url) {
-        await Linking.openURL(notif.action_url);
+      const target = resolveNotificationTarget(notif, '/notifications');
+      if (!target) {
+        return;
+      }
+
+      if (target.kind === 'internal') {
+        if (
+          target.path === pathname ||
+          target.path === '/notifications' ||
+          target.path.startsWith('/notifications?') ||
+          target.path.startsWith('/notifications#')
+        ) {
+          refetch();
+          return;
+        }
+
+        router.push(target.path as any);
+        return;
+      }
+
+      if (typeof window !== 'undefined') {
+        window.location.assign(target.url);
       }
     },
-    [markReadMut]
+    [markReadMut, pathname, refetch]
   );
 
   const confirmDelete = useCallback(
@@ -318,9 +323,23 @@ export default function NotificationsScreen() {
   );
 
   const renderNotif = ({ item }: { item: Notification }) => {
+    const target = resolveNotificationTarget(item, '/notifications');
+    const isActionable =
+      !!target &&
+      !(
+        target.kind === 'internal' &&
+        (
+          target.path === pathname ||
+          target.path === '/notifications' ||
+          target.path.startsWith('/notifications?') ||
+          target.path.startsWith('/notifications#')
+        )
+      );
+
     return (
       <SwipeableNotifRow
         item={item}
+        isActionable={isActionable}
         onPress={() => handleNotifPress(item)}
         onMarkRead={() => markReadMut.mutate(item.id)}
         onMarkUnread={() => markUnreadMut.mutate(item.id)}
@@ -330,15 +349,15 @@ export default function NotificationsScreen() {
   };
 
   const emptyMessage = useMemo(() => {
-    if (activeFilter === 'unread') return 'No unread notifications';
-    if (activeFilter === 'read') return 'No read notifications';
+    if (activeFilter === 'unread') return 'No unread updates';
+    if (activeFilter === 'read') return 'No read updates';
     return 'No notifications yet';
   }, [activeFilter]);
 
   const emptySubtitle = useMemo(() => {
-    if (activeFilter === 'unread') return "You're all caught up!";
-    if (activeFilter === 'read') return 'Notifications you read will appear here.';
-    return "You'll see updates here when there's new activity to review.";
+    if (activeFilter === 'unread') return "You're caught up for now.";
+    if (activeFilter === 'read') return 'Updates you already opened will stay here until you delete them.';
+    return 'Important updates from goals, meetings, tasks, and councils will appear here.';
   }, [activeFilter]);
 
   if (isLoading) {
@@ -361,7 +380,7 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title="Notifications" subtitle="Stay up to date" rightElement={<AvatarMenu />} />
+      <ScreenHeader title="Notifications" subtitle="Your action inbox" rightElement={<AvatarMenu />} />
       <View style={styles.filterBar}>
         <AppSegmentedControl
           items={filterItems}
@@ -378,7 +397,7 @@ export default function NotificationsScreen() {
       {unreadCount > 0 && activeFilter !== 'read' && (
         <View style={styles.actionBar}>
           <Text style={styles.actionBarText}>
-            {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
+            {unreadCount} update{unreadCount !== 1 ? 's' : ''} {unreadCount === 1 ? 'still needs' : 'still need'} your attention
           </Text>
           <AppButton
             label="Mark all read"
@@ -394,7 +413,7 @@ export default function NotificationsScreen() {
       {Platform.OS !== 'web' && allNotifications.length > 0 && (
         <View style={styles.swipeHint}>
           <Ionicons name="arrow-back" size={12} color={Colors.brand.midGray} />
-          <Text style={styles.swipeHintText}>Swipe left for options</Text>
+          <Text style={styles.swipeHintText}>Swipe left to mark read or delete</Text>
         </View>
       )}
 
@@ -464,11 +483,11 @@ const styles = StyleSheet.create({
   filterBar: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 10,
   },
   filterControl: {
     backgroundColor: Colors.brand.white,
-    ...webShadowRgba('rgba(15, 23, 42, 0.05)', 0, 2, 6),
+    ...webShadowRgba('rgba(15, 23, 42, 0.06)', 0, 4, 12),
     elevation: 1,
   },
   actionBar: {
@@ -476,18 +495,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginHorizontal: 16,
-    marginBottom: 4,
+    marginBottom: 8,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     backgroundColor: '#FFFBEB',
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: '#FDE68A',
     gap: 12,
   },
   actionBarText: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600' as const,
     color: '#92400E',
     fontFamily: 'Inter_600SemiBold',
@@ -504,12 +523,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.background,
   },
   swipeHintText: {
-    fontSize: 15,
+    fontSize: 14,
     color: Colors.brand.midGray,
     fontFamily: 'Inter_400Regular',
   },
   listContent: {
-    paddingTop: 8,
+    paddingTop: 4,
   },
   emptyContainer: {
     flex: 1,
@@ -518,10 +537,10 @@ const styles = StyleSheet.create({
   swipeContainer: {
     overflow: 'hidden',
     marginHorizontal: 16,
-    marginBottom: 10,
-    borderRadius: 18,
-    ...webShadowRgba('rgba(15, 23, 42, 0.06)', 0, 2, 8),
-    elevation: 1,
+    marginBottom: 14,
+    borderRadius: 22,
+    ...webShadowRgba('rgba(15, 23, 42, 0.08)', 0, 6, 16),
+    elevation: 2,
   },
   swipeActions: {
     width: SWIPE_ACTION_TOTAL_WIDTH,
@@ -536,56 +555,72 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   swipeActionText: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#fff',
     fontFamily: 'Inter_500Medium',
   },
   notifRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    alignItems: 'flex-start',
+    paddingHorizontal: 18,
+    paddingVertical: 18,
     backgroundColor: Colors.brand.white,
+    minHeight: 118,
   },
   notifRowUnread: {
-    backgroundColor: '#F0F9FF',
-    borderLeftWidth: 3,
+    backgroundColor: '#F7FCFE',
+    borderLeftWidth: 4,
     borderLeftColor: Colors.brand.primary,
-    paddingLeft: 17,
+    paddingLeft: 18,
   },
   iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
+    marginTop: 2,
   },
   notifContent: {
     flex: 1,
   },
+  notifHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 10,
+  },
+  surfaceBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
   notifTitle: {
-    fontSize: 14,
+    fontSize: 18,
     color: Colors.brand.dark,
     fontFamily: 'Inter_400Regular',
-    lineHeight: 20,
+    lineHeight: 25,
   },
   notifTitleUnread: {
     fontFamily: 'Inter_600SemiBold',
     fontWeight: '600' as const,
   },
   notifMessage: {
-    fontSize: 15,
+    fontSize: 16,
     color: Colors.brand.darkGray,
     fontFamily: 'Inter_400Regular',
-    marginTop: 2,
-    lineHeight: 18,
+    marginTop: 6,
+    lineHeight: 23,
   },
   notifMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
-    gap: 8,
+    marginTop: 12,
+    gap: 10,
+    flexWrap: 'wrap',
   },
   notifTime: {
     fontSize: 14,
@@ -593,25 +628,26 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
   },
   linkChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    backgroundColor: '#E8F4F8',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
-  linkChipText: {
-    fontSize: 15,
+  unreadLabel: {
+    fontSize: 14,
     color: Colors.brand.primary,
-    fontFamily: 'Inter_500Medium',
+    fontFamily: 'Inter_600SemiBold',
   },
   unreadDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 11,
+    height: 11,
+    borderRadius: 6,
     backgroundColor: Colors.brand.primary,
+    marginLeft: 10,
+    marginTop: 10,
+  },
+  chevron: {
     marginLeft: 8,
+    marginTop: 10,
   },
   emptyState: {
     alignItems: 'center',
@@ -627,19 +663,19 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   emptyTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '600' as const,
     color: Colors.brand.dark,
     fontFamily: 'Inter_600SemiBold',
     marginTop: 12,
   },
   emptySubtitle: {
-    fontSize: 14,
+    fontSize: 15,
     color: Colors.brand.midGray,
     fontFamily: 'Inter_400Regular',
     textAlign: 'center',
     marginTop: 8,
-    lineHeight: 20,
-    maxWidth: 260,
+    lineHeight: 22,
+    maxWidth: 280,
   },
 });

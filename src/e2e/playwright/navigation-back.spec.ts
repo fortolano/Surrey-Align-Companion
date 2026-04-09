@@ -57,7 +57,7 @@ test.describe('mobile route back navigation', () => {
     await page.getByTestId('tab-notifications').click();
 
     await expect(page).toHaveURL(/\/notifications(?:\?|$)/);
-    await expect(page.getByText('Stay up to date')).toBeVisible();
+    await expect(page.getByText('Your action inbox')).toBeVisible();
 
     await page.getByTestId('notification-row-9101').click();
 
@@ -67,7 +67,7 @@ test.describe('mobile route back navigation', () => {
     await page.locator(visibleRouteBackButton).click();
 
     await expect(page).toHaveURL(/\/notifications$/);
-    await expect(page.getByText('Stay up to date')).toBeVisible();
+    await expect(page.getByText('Your action inbox')).toBeVisible();
   });
 
   test('Callings detail and nested Sunday Business return to the right parent screens', async ({ page }) => {

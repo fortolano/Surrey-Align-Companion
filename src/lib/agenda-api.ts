@@ -12,6 +12,86 @@ export interface AgendaCouncil {
 
 export type AgendaEntityType = 'council' | 'committee' | 'organization';
 
+export interface AgendaPersonSummary {
+  id: number;
+  name: string;
+}
+
+export interface CarryForwardLinkedEvidenceSummary {
+  summary?: string | null;
+  outcome_text?: string | null;
+  tasks?: {
+    total: number;
+    completed: number;
+    items: Array<{
+      id: number;
+      title: string;
+      status: string;
+      status_label: string;
+      due_on: string | null;
+      due_label: string | null;
+      board?: { id: number; title: string } | null;
+      owner?: AgendaPersonSummary | null;
+    }>;
+  };
+  pi_actions?: {
+    total: number;
+    completed: number;
+  };
+  goal?: {
+    id: number;
+    title: string;
+    status?: string | null;
+    progress?: number | null;
+  } | null;
+}
+
+export interface CarryForwardContext {
+  id: number;
+  title: string;
+  item_type: string;
+  item_type_label: string;
+  current_status: string;
+  current_status_label: string;
+  next_review_on: string | null;
+  next_review_label: string | null;
+  report_due_on: string | null;
+  report_due_label: string | null;
+  report_prompt: string | null;
+  support_needed: boolean;
+  training_needed: boolean;
+  decision_needed: boolean;
+  requested_reporter: AgendaPersonSummary | null;
+  latest_report_back_summary: string | null;
+  latest_decision_summary: string | null;
+  latest_report_response: {
+    submitted_at: string | null;
+    accomplishment_summary: string;
+    evidence_summary: string | null;
+  } | null;
+  linked_evidence_summary: CarryForwardLinkedEvidenceSummary | null;
+  linked_task: {
+    id: number;
+    status: string;
+    board_id: number | null;
+    board_title: string | null;
+  } | null;
+  has_open_report_request: boolean;
+}
+
+export interface AgendaCarryForwardGroup {
+  key: string;
+  title: string;
+  items: CarryForwardContext[];
+}
+
+export interface AgendaCarryForwardSurface {
+  enabled: boolean;
+  auto_surface_count: number;
+  report_back_due_count: number;
+  groups: AgendaCarryForwardGroup[];
+}
+
 export interface AgendaSubmissionTypeOption {
   value: string;
   label: string;
@@ -51,6 +131,7 @@ export interface AgendaItemData {
   hymn_number: number | null;
   hymn_title: string | null;
   sort_order: number | null;
+  carry_forward_context?: CarryForwardContext | null;
 }
 
 export interface AgendaSection {
@@ -71,6 +152,7 @@ export interface AgendaSummary {
   item_count: number;
   my_item_count: number;
   sections: AgendaSection[];
+  carry_forward_context?: AgendaCarryForwardSurface | null;
 }
 
 export interface AgendasResponse {
@@ -221,6 +303,7 @@ export interface MyAgendaItem {
   presenter_responded_at: string | null;
   days_until: number | null;
   time_label: string;
+  carry_forward_context?: CarryForwardContext | null;
 }
 
 export interface MyAgendaItemsResponse {

@@ -10,9 +10,11 @@
 
 - **This repository is the companion PWA. It is mobile-first.**
 - **The web app at `/var/www/surreyalign.org` is separate and desktop-first.**
-- Shared APIs and shared data do **not** mean shared frontend rules.
+- The two apps are separate frontends but share a deeply integrated backend. This PWA depends on 50+ API endpoints from the web app for ALL data, authentication, and business logic. Both apps share a unified push notification pipeline (`NotificationCatalog` → `NotificationDispatcher` → `PushWebChannel`).
+- Shared APIs and shared data do **not** mean shared frontend rules — but they DO mean backend changes in the web app can break this PWA.
 - Do not apply Blade, Bootstrap, jQuery, or Laravel view assumptions here.
 - Do not treat this app as a full visual mirror of the desktop site. It should support the mobile workflows it was built to support.
+- If a new PWA feature needs data the API doesn't yet expose, the endpoint must be built in the web app repo first.
 
 ## Source Layout (Read Before Editing)
 

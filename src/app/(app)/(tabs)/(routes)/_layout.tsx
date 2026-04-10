@@ -92,6 +92,18 @@ export default function TabRoutesLayout() {
         options={{ title: 'My Assignments' }}
       />
       <Stack.Screen
+        name="bishop-home"
+        options={{ title: 'Bishop Home' }}
+      />
+      <Stack.Screen
+        name="carry-forward"
+        options={{ title: 'Carry-Forward' }}
+      />
+      <Stack.Screen
+        name="carry-forward-detail"
+        options={{ title: 'Carry-Forward Detail' }}
+      />
+      <Stack.Screen
         name="align-pulse"
         options={{ title: 'ALIGN Pulse' }}
       />
@@ -150,6 +162,10 @@ export default function TabRoutesLayout() {
       <Stack.Screen
         name="speaking-assignments"
         options={{ title: 'Speaking Assignments' }}
+      />
+      <Stack.Screen
+        name="sacrament-overview"
+        options={{ title: 'Sacrament Overview' }}
       />
     </Stack>
   );

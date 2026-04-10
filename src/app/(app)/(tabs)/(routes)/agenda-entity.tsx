@@ -19,8 +19,10 @@ import Colors from '@/constants/colors';
 import { WEB_BOTTOM_INSET } from '@/constants/layout';
 import { triggerGlobalRefreshIndicator } from '@/lib/refresh-indicator';
 import { buildPathWithParams, getSingleParam, withReturnTarget } from '@/lib/navigation-return-target';
+import { buildCarryForwardMeetingInstanceKey } from '@/lib/carry-forward-api';
 import AppListRow from '@/components/ui/AppListRow';
 import AppSegmentedControl from '@/components/ui/AppSegmentedControl';
+import AppStatusBadge from '@/components/ui/AppStatusBadge';
 import {
   useAgendaEntity,
   usePublishedAgenda,
@@ -73,7 +75,27 @@ function getEntitySubtitle(entity: AgendaEntity | null | undefined, currentAgend
   return `Agenda inbox for ${entity.entity_name}`;
 }
 
-function AgendaItemRow({ item }: { item: AgendaItemData }) {
+function carryForwardTone(status: string) {
+  if (status === 'waiting_for_report') {
+    return { backgroundColor: '#FEF3C7', textColor: '#92400E' };
+  }
+
+  if (status === 'resolved') {
+    return { backgroundColor: '#D1FAE5', textColor: '#065F46' };
+  }
+
+  return { backgroundColor: '#E8F4F8', textColor: Colors.brand.primary };
+}
+
+function AgendaItemRow({
+  item,
+  meetingDate,
+  onOpenCarryForward,
+}: {
+  item: AgendaItemData;
+  meetingDate?: string | null;
+  onOpenCarryForward?: (carryForwardId: number, meetingDate?: string | null) => void;
+}) {
   const icon = getItemIcon(item.item_type);
   const titleMatchesPresenter = item.title && item.presenter_name &&
     item.title.trim().toLowerCase() === item.presenter_name.trim().toLowerCase();
@@ -122,6 +144,26 @@ function AgendaItemRow({ item }: { item: AgendaItemData }) {
             ) : null}
           </View>
         ) : null}
+        {item.carry_forward_context?.id && onOpenCarryForward ? (
+          <Pressable
+            onPress={() => onOpenCarryForward(item.carry_forward_context!.id, meetingDate)}
+            style={({ pressed }) => [itemS.carryForwardLink, pressed && itemS.carryForwardLinkPressed]}
+            accessibilityRole="button"
+            testID={`agenda-item-carry-forward-${item.carry_forward_context.id}`}
+          >
+            <View style={itemS.carryForwardIcon}>
+              <Ionicons name="refresh-outline" size={14} color="#0F766E" />
+            </View>
+            <View style={itemS.carryForwardCopy}>
+              <Text style={itemS.carryForwardLabel}>Carry-Forward</Text>
+              <Text style={itemS.carryForwardMeta} numberOfLines={2}>
+                {item.carry_forward_context.current_status_label}
+                {item.carry_forward_context.report_due_label ? ` · Report ${item.carry_forward_context.report_due_label}` : ''}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={Colors.brand.midGray} />
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
@@ -129,10 +171,14 @@ function AgendaItemRow({ item }: { item: AgendaItemData }) {
 
 function SectionBlock({
   section,
+  meetingDate,
+  onOpenCarryForward,
   expanded,
   onToggle,
 }: {
   section: AgendaSection;
+  meetingDate?: string | null;
+  onOpenCarryForward?: (carryForwardId: number, meetingDate?: string | null) => void;
   expanded: boolean;
   onToggle: () => void;
 }) {
@@ -154,7 +200,12 @@ function SectionBlock({
       {expanded ? (
         <View style={secS.items}>
           {section.items.map((item) => (
-            <AgendaItemRow key={item.id} item={item} />
+            <AgendaItemRow
+              key={item.id}
+              item={item}
+              meetingDate={meetingDate}
+              onOpenCarryForward={onOpenCarryForward}
+            />
           ))}
         </View>
       ) : null}
@@ -162,14 +213,113 @@ function SectionBlock({
   );
 }
 
+function CarryForwardSurfaceCard({
+  agenda,
+  entityType,
+  entityId,
+  currentReturnTarget,
+  onOpenCarryForward,
+}: {
+  agenda: AgendaSummary;
+  entityType?: AgendaEntityType | null;
+  entityId?: number | null;
+  currentReturnTarget: string;
+  onOpenCarryForward: (carryForwardId: number, meetingDate?: string | null) => void;
+}) {
+  const surface = agenda.carry_forward_context;
+
+  if (!surface?.enabled || surface.groups.length === 0 || !entityType || !entityId) {
+    return null;
+  }
+
+  return (
+    <View style={surfaceS.card} testID="agenda-carry-forward-surface">
+      <View style={surfaceS.header}>
+        <View style={{ flex: 1 }}>
+          <Text style={surfaceS.title}>Carry-Forward</Text>
+          <Text style={surfaceS.subtitle}>
+            {surface.auto_surface_count} surfaced item{surface.auto_surface_count === 1 ? '' : 's'}
+            {surface.report_back_due_count > 0 ? ` · ${surface.report_back_due_count} report-back due` : ''}
+          </Text>
+        </View>
+        <Pressable
+          onPress={() => {
+            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push(withReturnTarget('/carry-forward', currentReturnTarget, {
+              entityType,
+              entityId,
+            }));
+          }}
+          style={({ pressed }) => [surfaceS.openListButton, pressed && surfaceS.openListButtonPressed]}
+          accessibilityRole="button"
+          testID="agenda-carry-forward-list-btn"
+        >
+          <Text style={surfaceS.openListText}>Open entity list</Text>
+        </Pressable>
+      </View>
+
+      <View style={surfaceS.groupWrap}>
+        {surface.groups.map((group) => (
+          <View key={group.key} style={surfaceS.groupCard}>
+            <Text style={surfaceS.groupTitle}>{group.title}</Text>
+            {group.items.map((item) => {
+              const tone = carryForwardTone(item.current_status);
+
+              return (
+                <Pressable
+                  key={item.id}
+                  onPress={() => onOpenCarryForward(item.id, agenda.meeting_date)}
+                  style={({ pressed }) => [surfaceS.groupItem, pressed && surfaceS.groupItemPressed]}
+                  accessibilityRole="button"
+                  testID={`agenda-carry-forward-surface-item-${item.id}`}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={surfaceS.groupItemTitle} numberOfLines={2}>
+                      {item.title}
+                    </Text>
+                    <Text style={surfaceS.groupItemMeta} numberOfLines={2}>
+                      {item.report_due_label ? `Report ${item.report_due_label}` : item.next_review_label ? `Review ${item.next_review_label}` : 'Open continuity thread'}
+                    </Text>
+                    {item.linked_evidence_summary?.summary ? (
+                      <Text style={surfaceS.groupItemSummary} numberOfLines={2}>
+                        {item.linked_evidence_summary.summary}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <View style={surfaceS.groupItemRight}>
+                    <AppStatusBadge
+                      label={item.current_status_label}
+                      backgroundColor={tone.backgroundColor}
+                      textColor={tone.textColor}
+                    />
+                    <Ionicons name="chevron-forward" size={16} color={Colors.brand.midGray} />
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function AgendaDetailCard({
   agenda,
   index,
+  entityType,
+  entityId,
+  currentReturnTarget,
+  onOpenCarryForward,
   initiallyExpanded = true,
   variant = 'standalone',
 }: {
   agenda: AgendaSummary;
   index: number;
+  entityType?: AgendaEntityType | null;
+  entityId?: number | null;
+  currentReturnTarget: string;
+  onOpenCarryForward: (carryForwardId: number, meetingDate?: string | null) => void;
   initiallyExpanded?: boolean;
   variant?: 'standalone' | 'embedded';
 }) {
@@ -258,10 +408,19 @@ function AgendaDetailCard({
 
         {cardExpanded && agenda.sections.length > 0 ? (
           <View style={cardS.sectionsWrap}>
+            <CarryForwardSurfaceCard
+              agenda={agenda}
+              entityType={entityType}
+              entityId={entityId}
+              currentReturnTarget={currentReturnTarget}
+              onOpenCarryForward={onOpenCarryForward}
+            />
             {agenda.sections.map((section) => (
               <SectionBlock
                 key={section.key}
                 section={section}
+                meetingDate={agenda.meeting_date}
+                onOpenCarryForward={onOpenCarryForward}
                 expanded={!!expandedSections[section.key]}
                 onToggle={() => toggleSection(section.key)}
               />
@@ -398,6 +557,22 @@ export default function AgendaEntityScreen() {
     (canRefetchDirectEntity && directEntityQuery.isRefetching) ||
     (canRefetchDerivedEntity && entityQuery.isRefetching) ||
     (canRefetchSelectedAgenda && selectedAgendaQuery.isRefetching);
+
+  const handleOpenCarryForward = useCallback((carryForwardId: number, meetingDate?: string | null) => {
+    if (!entity?.entity_type || !entity?.entity_id) {
+      return;
+    }
+
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    router.push(withReturnTarget('/carry-forward-detail', currentReturnTarget, {
+      itemId: carryForwardId,
+      entityType: entity.entity_type,
+      entityId: entity.entity_id,
+      meetingDate: meetingDate ?? undefined,
+      meetingInstanceKey: buildCarryForwardMeetingInstanceKey(entity.entity_type, entity.entity_id, meetingDate),
+    }));
+  }, [currentReturnTarget, entity?.entity_id, entity?.entity_type]);
 
   const handleRefresh = useCallback(async () => {
     triggerGlobalRefreshIndicator();
@@ -583,7 +758,15 @@ export default function AgendaEntityScreen() {
                     ) : null}
 
                     {detailAgenda && detailAgenda.id === currentAgenda.id ? (
-                      <AgendaDetailCard agenda={detailAgenda} index={0} variant="embedded" />
+                      <AgendaDetailCard
+                        agenda={detailAgenda}
+                        index={0}
+                        entityType={entity.entity_type}
+                        entityId={entity.entity_id}
+                        currentReturnTarget={currentReturnTarget}
+                        onOpenCarryForward={handleOpenCarryForward}
+                        variant="embedded"
+                      />
                     ) : null}
                   </View>
                 ) : (
@@ -652,7 +835,15 @@ export default function AgendaEntityScreen() {
                       ) : null}
 
                       {detailAgenda && detailAgenda.id === selectedPastAgenda.id ? (
-                        <AgendaDetailCard agenda={detailAgenda} index={1} variant="embedded" />
+                        <AgendaDetailCard
+                          agenda={detailAgenda}
+                          index={1}
+                          entityType={entity.entity_type}
+                          entityId={entity.entity_id}
+                          currentReturnTarget={currentReturnTarget}
+                          onOpenCarryForward={handleOpenCarryForward}
+                          variant="embedded"
+                        />
                       ) : null}
                     </>
                   ) : null}
@@ -811,6 +1002,104 @@ const screenS = StyleSheet.create({
   },
 });
 
+const surfaceS = StyleSheet.create({
+  card: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.brand.lightGray,
+    gap: 12,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  title: {
+    fontSize: 16,
+    color: Colors.brand.dark,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  subtitle: {
+    marginTop: 2,
+    fontSize: 14,
+    lineHeight: 20,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_400Regular',
+  },
+  openListButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: Colors.brand.sectionBg,
+    borderWidth: 1,
+    borderColor: Colors.brand.inputBorder,
+  },
+  openListButtonPressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.98 }],
+  },
+  openListText: {
+    fontSize: 13,
+    color: Colors.brand.primary,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  groupWrap: {
+    gap: 10,
+  },
+  groupCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.brand.inputBorder,
+    overflow: 'hidden',
+  },
+  groupTitle: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: Colors.brand.sectionBg,
+    fontSize: 13,
+    color: Colors.brand.darkGray,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  groupItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.brand.inputBorder,
+  },
+  groupItemPressed: {
+    backgroundColor: Colors.brand.offWhite,
+  },
+  groupItemTitle: {
+    fontSize: 15,
+    color: Colors.brand.dark,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  groupItemMeta: {
+    marginTop: 2,
+    fontSize: 13,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_400Regular',
+  },
+  groupItemSummary: {
+    marginTop: 4,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.brand.darkGray,
+    fontFamily: 'Inter_400Regular',
+  },
+  groupItemRight: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+});
+
 const cardS = StyleSheet.create({
   card: {
     backgroundColor: Colors.brand.white,
@@ -894,4 +1183,43 @@ const itemS = StyleSheet.create({
   mineBadge: { backgroundColor: '#1E40AF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
   mineBadgeText: { fontSize: 13, color: '#FFFFFF', fontFamily: 'Inter_700Bold' },
   duration: { fontSize: 14, color: Colors.brand.midGray, fontFamily: 'Inter_400Regular' },
+  carryForwardLink: {
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.brand.inputBorder,
+    backgroundColor: Colors.brand.sectionBg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  carryForwardLinkPressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.98 }],
+  },
+  carryForwardIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#E8F8F0',
+  },
+  carryForwardCopy: {
+    flex: 1,
+  },
+  carryForwardLabel: {
+    fontSize: 13,
+    color: Colors.brand.dark,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  carryForwardMeta: {
+    marginTop: 2,
+    fontSize: 12,
+    lineHeight: 17,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_400Regular',
+  },
 });

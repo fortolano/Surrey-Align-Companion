@@ -4,15 +4,65 @@ This folder is the separate SurreyAlign companion PWA at `app.surreyalign.org`. 
 
 **Default working directory for PWA sessions:** `/var/www/app.surreyalign.org`
 
+## Session Reference Files (Read When Relevant)
+
+These files contain accumulated project decisions, integration context, and user preferences for the SurreyAlign ecosystem. They live in the web app's memory folder because the web app is the backend for both apps. **Read the relevant file(s) before starting work that touches their domain.**
+
+| File | Domain | When to read |
+|------|--------|-------------|
+| `/home/webadmin/.claude/projects/-var-www-surreyalign-org/memory/reference-pwa-integration.md` | PWA + API integration | Any work touching API endpoints, notifications, push subscriptions, or new screens that need backend data |
+| `/home/webadmin/.claude/projects/-var-www-surreyalign-org/memory/project-notification-refactor.md` | Notification system | Any work touching notifications, push, or deep-linking |
+| `/home/webadmin/.claude/projects/-var-www-surreyalign-org/memory/user-profile.md` | User working style | Understanding how the product owner prefers to collaborate |
+| `/home/webadmin/.codex/memories/surreyalign-test-credentials.md` | Test accounts | Playwright or authenticated browser testing |
+| `/home/webadmin/.claude/projects/-var-www-surreyalign-org/memory/MEMORY.md` | Full index | When you need to find a specific reference file from the web app project |
+
 ## PWA vs Web App (Required Session Context)
 
 - **This repository is the companion PWA.** Default to mobile-first decisions here.
 - **Do not import Blade, Bootstrap, jQuery, or Laravel view assumptions** into this app.
-- The SurreyAlign web app at `/var/www/surreyalign.org` is a separate desktop-first product.
-- Shared APIs and shared database access do **not** make the two frontends one app.
-- Keep the boundary clear:
+- The SurreyAlign web app at `/var/www/surreyalign.org` is a separate desktop-first frontend — but this PWA depends entirely on the web app's backend API for all data and business logic. See "Backend Integration Depth" below.
+- Frontend patterns stay separate. **Backend data contracts are shared and tightly coupled.** A web app API change can break this PWA.
+- Keep the frontend boundary clear:
   - PWA owns quick mobile workflows, focused updates, mobile approvals, notifications, and simple follow-through.
   - Web app owns broader desktop workflows, denser oversight views, and Blade-based admin structure.
+- Keep the backend dependency clear:
+  - New PWA features that need data the API doesn't expose require endpoint work in the web app repo first.
+  - Changes to web app data models, notifications, or API response shapes may break this PWA.
+
+## Backend Integration Depth (Required Context)
+
+This PWA is not a standalone app with its own backend. It depends entirely on the SurreyAlign web app at `/var/www/surreyalign.org` for all data, authentication, and business logic.
+
+### Integration scope:
+
+- The PWA consumes **50+ external API endpoints** from `surreyalign.org/api/external/v1/`
+- These endpoints are defined in `routes/api-external.php` and implemented in `app/Http/Controllers/ApiExternal/` (11 controllers) in the web app repo
+- The PWA has API coverage for: **auth, goals, ALIGN Pulse, calling requests (full lifecycle), agendas, speaking assignments, Sunday business, notifications (including push), reference data, and user settings**
+- New PWA features that need data the API doesn't yet expose **require endpoint work in the web app repo first** — not client-side workarounds
+
+### Unified push notification system:
+
+- Both the web app and PWA share a **single notification pipeline**: `NotificationCatalog` → `NotificationDispatcher` → `InAppNotification` → `SendPushNotification` job → `PushWebChannel` (W3C Web Push via VAPID)
+- The PWA registers device subscriptions through `NotificationPushController` (config, store, destroy endpoints)
+- `NotificationAppActionResolver` in the web app resolves each notification into a typed `app_action` for PWA deep-linking (12 known action types: task, calling_request, goal, agenda, speaking_swap, etc.)
+- Push delivery is controlled at three levels: stake-wide enable, user preference (`UserNotificationPreference`), and device subscription (`WebPushSubscription`)
+- New notification events that should reach the PWA must register an `app_action` in `NotificationAppActionResolver`
+
+### What this means for PWA sessions:
+
+1. **Before building a new PWA screen**, check whether the needed API endpoint exists in `routes/api-external.php`. If it doesn't, the endpoint must be built in the web app repo before the PWA screen can work.
+2. **Before assuming an API response shape**, read the actual controller in `app/Http/Controllers/ApiExternal/` in the web app repo. Do not guess response fields.
+3. **Notification deep-linking** depends on `app_action` values set by `NotificationAppActionResolver` in the web app. New PWA screens that should be reachable from notifications need a corresponding `app_action` registered in the web app.
+4. **The API contract is `{ "success": true, ...data }` for success and `{ "success": false, "message": "..." }` for errors.** HTTP 401 triggers automatic logout. Permission errors use 403.
+5. **React Query caching** means the PWA aggressively caches API responses. If the web app changes a response shape without backward compatibility, the PWA may display stale or broken data until the user force-refreshes.
+
+### Cross-repo reference:
+
+- Web app API routes: `/var/www/surreyalign.org/routes/api-external.php`
+- Web app API controllers: `/var/www/surreyalign.org/app/Http/Controllers/ApiExternal/`
+- Web app AGENTS.md: `/var/www/surreyalign.org/AGENTS.md`
+- Web app notification resolver: `/var/www/surreyalign.org/app/Services/Notifications/NotificationAppActionResolver.php`
+- ALIGN refresh API docs: `/var/www/surreyalign.org/docs/plans/align-platform-refresh/23_pwa_api_impact_assessment.md` and `25_external_api_contract_for_refresh.md`
 
 ## Source Of Truth For Code Location
 

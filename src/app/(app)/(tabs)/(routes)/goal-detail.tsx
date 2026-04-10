@@ -68,10 +68,20 @@ interface GoalDetail {
   created_by: string;
 }
 
+interface LinkedExecutionSummary {
+  linked_task_count: number;
+  completed_linked_task_count: number;
+  linked_action_count: number;
+  last_linked_activity_at: string | null;
+  last_linked_activity_label: string | null;
+  summary_scope: string;
+}
+
 interface ExecutionResponse {
   success: boolean;
   goal: GoalDetail;
   entities: ExecutionEntity[];
+  linked_execution_summary?: LinkedExecutionSummary;
   meta: {
     entity_count: number;
     total_pis: number;
@@ -208,6 +218,53 @@ function PICard({ pi, entityColor }: { pi: ProgressIndicator; entityColor: strin
         </View>
       )}
     </View>
+  );
+}
+
+function LinkedExecutionCard({ summary }: { summary: LinkedExecutionSummary }) {
+  const linkedTaskLabel = summary.linked_task_count === 1 ? 'linked task' : 'linked tasks';
+  const linkedActionLabel = summary.linked_action_count === 1 ? 'linked action' : 'linked actions';
+
+  return (
+    <Animated.View entering={FadeInDown.duration(280).delay(100)}>
+      <View style={styles.linkageCard}>
+        <View style={styles.linkageHeader}>
+          <View style={styles.linkageIconWrap}>
+            <MaterialCommunityIcons name="source-branch" size={18} color={Colors.brand.primary} />
+          </View>
+          <View style={styles.linkageHeaderText}>
+            <Text style={styles.linkageEyebrow}>Linked Execution</Text>
+            <Text style={styles.linkageTitle}>Daily work is feeding this goal</Text>
+          </View>
+        </View>
+
+        <Text style={styles.linkageBody}>
+          {summary.linked_task_count} {linkedTaskLabel} are currently connected through {summary.linked_action_count} {linkedActionLabel}.
+        </Text>
+
+        <View style={styles.linkageStatsRow}>
+          <View style={styles.linkageStat}>
+            <Text style={styles.linkageStatValue}>{summary.linked_task_count}</Text>
+            <Text style={styles.linkageStatLabel}>Linked tasks</Text>
+          </View>
+          <View style={styles.linkageStat}>
+            <Text style={styles.linkageStatValue}>{summary.completed_linked_task_count}</Text>
+            <Text style={styles.linkageStatLabel}>Completed</Text>
+          </View>
+          <View style={styles.linkageStat}>
+            <Text style={styles.linkageStatValue}>{summary.linked_action_count}</Text>
+            <Text style={styles.linkageStatLabel}>Actions touched</Text>
+          </View>
+        </View>
+
+        {summary.last_linked_activity_label ? (
+          <View style={styles.linkageFooter}>
+            <Ionicons name="time-outline" size={14} color={Colors.brand.midGray} />
+            <Text style={styles.linkageFooterText}>{summary.last_linked_activity_label}</Text>
+          </View>
+        ) : null}
+      </View>
+    </Animated.View>
   );
 }
 
@@ -367,6 +424,7 @@ export default function GoalDetailScreen() {
   const goal = data?.goal;
   const entities = data?.entities || [];
   const meta = data?.meta;
+  const linkedExecutionSummary = data?.linked_execution_summary;
   if (!goal) return null;
 
   const sColor = scopeColor(goal.scope);
@@ -451,6 +509,12 @@ export default function GoalDetailScreen() {
           </View>
         </View>
       </Animated.View>
+
+      {linkedExecutionSummary && linkedExecutionSummary.linked_task_count > 0 ? (
+        <View style={styles.entitiesSection}>
+          <LinkedExecutionCard summary={linkedExecutionSummary} />
+        </View>
+      ) : null}
 
       {drillDown && drillDownLoading && (
         <View style={styles.drillDownLoading}>
@@ -668,6 +732,84 @@ const styles = StyleSheet.create({
   },
   heroMetaText: {
     fontSize: 14,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_400Regular',
+  },
+  linkageCard: {
+    backgroundColor: Colors.brand.white,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 18,
+    ...webShadowRgba(Colors.light.cardShadow, 0, 1, 4),
+    elevation: 1,
+  },
+  linkageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  linkageIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Colors.brand.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  linkageHeaderText: {
+    flex: 1,
+  },
+  linkageEyebrow: {
+    fontSize: 12,
+    color: Colors.brand.midGray,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.8,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  linkageTitle: {
+    fontSize: 16,
+    color: Colors.brand.black,
+    fontFamily: 'Inter_600SemiBold',
+    marginTop: 2,
+  },
+  linkageBody: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: Colors.brand.darkGray,
+    fontFamily: 'Inter_400Regular',
+  },
+  linkageStatsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  linkageStat: {
+    flex: 1,
+    backgroundColor: Colors.brand.offWhite,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+  },
+  linkageStatValue: {
+    fontSize: 18,
+    color: Colors.brand.black,
+    fontFamily: 'Inter_700Bold',
+  },
+  linkageStatLabel: {
+    fontSize: 12,
+    color: Colors.brand.midGray,
+    marginTop: 2,
+    fontFamily: 'Inter_500Medium',
+  },
+  linkageFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+  },
+  linkageFooterText: {
+    fontSize: 13,
     color: Colors.brand.midGray,
     fontFamily: 'Inter_400Regular',
   },

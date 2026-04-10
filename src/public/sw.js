@@ -1,8 +1,8 @@
-var APP_CACHE = 'surreyalign-app-v13';
-var ASSET_CACHE = 'surreyalign-assets-v13';
-var SENSITIVE_PREFIXES = ['/api/', '/auth/'];
-var STATIC_FILE_RE = /\.(?:css|js|png|jpe?g|svg|webp|ico|woff2?|ttf|map)$/i;
-var PRECACHE_URLS = [
+let APP_CACHE = 'surreyalign-app-v14';
+let ASSET_CACHE = 'surreyalign-assets-v14';
+let SENSITIVE_PREFIXES = ['/api/', '/auth/'];
+let STATIC_FILE_RE = /\.(?:css|js|png|jpe?g|svg|webp|ico|woff2?|ttf|map)$/i;
+let PRECACHE_URLS = [
   '/',
   '/offline.html',
   '/manifest.json',
@@ -25,7 +25,7 @@ function isCacheableAsset(request, url) {
   if (!isSameOrigin(url)) return false;
   if (isSensitivePath(url.pathname)) return false;
 
-  var destination = request.destination;
+  let destination = request.destination;
   if (destination === 'script' || destination === 'style' || destination === 'image' || destination === 'font') {
     return true;
   }
@@ -36,7 +36,7 @@ function isCacheableAsset(request, url) {
 function cacheResponse(cacheName, request, response) {
   if (!response || response.status !== 200) return;
 
-  var cacheControl = response.headers.get('Cache-Control') || '';
+  let cacheControl = response.headers.get('Cache-Control') || '';
   if (/no-store|private/i.test(cacheControl)) return;
 
   caches.open(cacheName).then(function(cache) {
@@ -52,10 +52,10 @@ function firstString(value) {
 }
 
 function buildInternalPath(pathname, params) {
-  var url = new URL(pathname, self.location.origin);
+  let url = new URL(pathname, self.location.origin);
 
   Object.keys(params || {}).forEach(function(key) {
-    var value = params[key];
+    let value = params[key];
     if (value === null || typeof value === 'undefined' || value === '') return;
     url.searchParams.set(key, String(value));
   });
@@ -72,13 +72,13 @@ function normalizeTargetUrl(targetUrl) {
 }
 
 function resolvePushTarget(payload) {
-  var action = payload && payload.app_action ? payload.app_action : {};
-  var params = action && action.params ? action.params : {};
-  var actionName = action && action.name ? action.name : '';
+  let action = payload && payload.app_action ? payload.app_action : {};
+  let params = action && action.params ? action.params : {};
+  let actionName = action && action.name ? action.name : '';
 
   switch (actionName) {
     case 'calling_request.detail': {
-      var callingRequestId = firstString(params.calling_request_id);
+      let callingRequestId = firstString(params.calling_request_id);
       if (callingRequestId) {
         return buildInternalPath('/calling-detail', {
           id: callingRequestId,
@@ -90,7 +90,7 @@ function resolvePushTarget(payload) {
     }
 
     case 'goal.detail': {
-      var goalId = firstString(params.goal_id) || firstString(params.goalId);
+      let goalId = firstString(params.goal_id) || firstString(params.goalId);
       if (goalId) {
         return buildInternalPath('/goal-detail', {
           goalId: goalId,
@@ -101,7 +101,7 @@ function resolvePushTarget(payload) {
     }
 
     case 'agenda.detail': {
-      var agendaId = firstString(params.agenda_id) || firstString(params.agendaId);
+      let agendaId = firstString(params.agenda_id) || firstString(params.agendaId);
       if (agendaId) {
         return buildInternalPath('/agenda-entity', {
           agendaId: agendaId,
@@ -115,7 +115,7 @@ function resolvePushTarget(payload) {
       return buildInternalPath('/assignments', { returnTo: '/notifications' });
 
     case 'agenda.submission_detail': {
-      var targetAgendaId = firstString(params.target_agenda_id) || firstString(params.agenda_id);
+      let targetAgendaId = firstString(params.target_agenda_id) || firstString(params.agenda_id);
       if (targetAgendaId) {
         return buildInternalPath('/agenda-entity', {
           agendaId: targetAgendaId,
@@ -133,6 +133,13 @@ function resolvePushTarget(payload) {
 
     case 'checkin.detail':
       return buildInternalPath('/align-pulse', { returnTo: '/notifications' });
+
+    case 'announcement.active':
+      return buildInternalPath('/sacrament-overview', {
+        wardId: firstString(params.ward_id),
+        announcementId: firstString(params.announcement_id),
+        returnTo: '/notifications',
+      });
 
     case 'web.open':
       return normalizeTargetUrl(action.fallback_url || payload.target_url);
@@ -154,7 +161,7 @@ function parsePushPayload(event) {
   try {
     return event.data.json() || {};
   } catch (_error) {
-    var text = '';
+    let text = '';
 
     try {
       text = event.data.text() || '';
@@ -170,16 +177,16 @@ function parsePushPayload(event) {
 }
 
 function focusOrOpenClient(targetUrl) {
-  var resolvedUrl = normalizeTargetUrl(targetUrl);
+  let resolvedUrl = normalizeTargetUrl(targetUrl);
 
   return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
-    for (var i = 0; i < clientList.length; i += 1) {
-      var client = clientList[i];
+    for (let i = 0; i < clientList.length; i += 1) {
+      const client = clientList[i];
 
       if (!client || !client.url) continue;
 
       try {
-        var clientUrl = new URL(client.url);
+        let clientUrl = new URL(client.url);
         if (clientUrl.origin !== self.location.origin) continue;
       } catch (_error) {
         continue;
@@ -239,10 +246,10 @@ self.addEventListener('message', function(event) {
 });
 
 self.addEventListener('push', function(event) {
-  var payload = parsePushPayload(event);
-  var title = firstString(payload.title) || 'SurreyALIGN';
-  var body = firstString(payload.body) || 'Open SurreyALIGN to view this update.';
-  var targetUrl = resolvePushTarget(payload);
+  let payload = parsePushPayload(event);
+  let title = firstString(payload.title) || 'SurreyALIGN';
+  let body = firstString(payload.body) || 'Open SurreyALIGN to view this update.';
+  let targetUrl = resolvePushTarget(payload);
 
   event.waitUntil(
     self.registration.showNotification(title, {
@@ -260,7 +267,7 @@ self.addEventListener('push', function(event) {
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
 
-  var targetUrl = event.notification && event.notification.data
+  let targetUrl = event.notification && event.notification.data
     ? event.notification.data.targetUrl
     : '/notifications';
 
@@ -270,7 +277,7 @@ self.addEventListener('notificationclick', function(event) {
 self.addEventListener('fetch', function(event) {
   if (event.request.method !== 'GET') return;
 
-  var url = new URL(event.request.url);
+  let url = new URL(event.request.url);
 
   if (event.request.mode === 'navigate') {
     event.respondWith(

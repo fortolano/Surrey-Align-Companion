@@ -1,8 +1,8 @@
 import { expect, type Page } from '@playwright/test';
-import { getLiveCredentials } from './live-credentials';
+import { getLiveCredentials, type LiveTestAccount } from './live-credentials';
 
-export async function loginToApp(page: Page) {
-  const { email, password } = getLiveCredentials();
+export async function loginToApp(page: Page, accountOverride?: LiveTestAccount) {
+  const { email, password } = getLiveCredentials(accountOverride);
 
   await page.goto('/');
 
@@ -11,5 +11,8 @@ export async function loginToApp(page: Page) {
   await page.getByTestId('password-input').fill(password);
   await page.getByTestId('login-button').click();
 
-  await expect(page.getByText('Quick Access')).toBeVisible();
+  await Promise.race([
+    page.getByText('Quick Access').waitFor({ state: 'visible' }),
+    page.getByTestId('bishop-home-tab-screen').waitFor({ state: 'visible' }),
+  ]);
 }

@@ -113,8 +113,8 @@ function parseAccountCredentials(noteText: string, account: LiveTestAccount): Li
   };
 }
 
-export function getLiveCredentials(): LiveCredentials {
-  const account = readConfiguredAccount();
+export function getLiveCredentials(accountOverride?: LiveTestAccount): LiveCredentials {
+  const account = accountOverride ?? readConfiguredAccount();
   const envCredentials = readFromEnvironment(account);
 
   if (envCredentials) {

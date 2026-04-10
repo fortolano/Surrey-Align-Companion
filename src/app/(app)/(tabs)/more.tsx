@@ -137,6 +137,17 @@ const ALL_FEATURE_ITEMS: (MenuItem & { visibleTo?: (user: any) => boolean })[] =
     visibleTo: (u) => u?.is_stake_presidency_member || u?.is_high_councilor || u?.is_stake_council_member || u?.is_stake_org_presidency_member || u?.is_stake_director,
   },
   {
+    id: 'sacrament-overview',
+    label: 'Sacrament Overview',
+    subtitle: 'Weekly readiness and active announcements',
+    icon: 'calendar-clear-outline',
+    iconSet: 'ionicons',
+    iconColor: Colors.brand.primary,
+    iconBg: '#E8F4F8',
+    route: '/sacrament-overview',
+    visibleTo: (u) => u?.is_bishopric_member || u?.is_high_councilor || u?.is_stake_presidency_member,
+  },
+  {
     id: 'pulse',
     label: 'ALIGN Pulse',
     subtitle: 'Monthly leadership check-in',
@@ -207,6 +218,7 @@ export default function MoreScreen() {
     const featureItems = ALL_FEATURE_ITEMS
       .filter((item) => !item.visibleTo || item.visibleTo(user))
       .map(({ visibleTo, ...rest }) => rest);
+    const canOpenCarryForward = (agendaEntitiesData?.entities ?? []).length > 0;
 
     const sections: MenuSection[] = [];
     const agendaItems = (agendaEntitiesData?.entities ?? []).map((entity) => ({
@@ -228,6 +240,18 @@ export default function MoreScreen() {
 
     if (agendaItems.length > 0) {
       sections.push({ title: 'Meeting Agendas', items: agendaItems });
+    }
+    if (canOpenCarryForward) {
+      featureItems.splice(2, 0, {
+        id: 'carry-forward',
+        label: 'Carry-Forward',
+        subtitle: 'Continuity, report-back, and next review',
+        icon: 'refresh-circle-outline',
+        iconSet: 'ionicons',
+        iconColor: '#0F766E',
+        iconBg: '#E8F8F0',
+        route: '/carry-forward',
+      });
     }
     if (featureItems.length > 0) {
       sections.push({ title: 'Features', items: featureItems });
@@ -296,6 +320,7 @@ export default function MoreScreen() {
                       <Ionicons name="chevron-forward" size={18} color={Colors.brand.midGray} />
                     )}
                     onPress={() => handlePress(item)}
+                    testID={`more-item-${item.id}`}
                   />
                   {idx < section.items.length - 1 ? <View style={styles.menuItemBorder} /> : null}
                 </View>

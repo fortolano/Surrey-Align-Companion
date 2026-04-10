@@ -54,6 +54,18 @@ function d(app: Express, route: string, apiPath: string | ((req: Request) => str
   app.delete(route, (req, res) => proxyRequest(req, res, "DELETE", typeof apiPath === "function" ? apiPath(req) : apiPath, { includeBody }));
 }
 
+function firstQueryValue(value: Request["query"][string]): string | null {
+  if (typeof value === "string" && value.trim() !== "") {
+    return value;
+  }
+
+  if (Array.isArray(value) && typeof value[0] === "string" && value[0].trim() !== "") {
+    return value[0];
+  }
+
+  return null;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/login", (req, res) =>
     proxyRequest(req, res, "POST", "auth/login", { includeBody: true, requireAuth: false })
@@ -63,6 +75,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   g(app, "/api/goals", "goals");
   g(app, "/api/goals/:goalId/execution", (req) => `goals/${req.params.goalId}/execution`);
+  app.get("/api/command-centers/bishop", (req, res) => {
+    const search = new URLSearchParams();
+    const wardId = firstQueryValue(req.query.wardId);
+    const weekStart = firstQueryValue(req.query.weekStart);
+
+    if (wardId) {
+      search.set("ward_id", wardId);
+    }
+
+    if (weekStart) {
+      search.set("week_start", weekStart);
+    }
+
+    const apiPath = search.size > 0
+      ? `command-centers/bishop?${search.toString()}`
+      : "command-centers/bishop";
+
+    return proxyRequest(req, res, "GET", apiPath, { includeQuery: false });
+  });
+  app.get("/api/carry-forward/entities/:entityType/:entityId", (req, res) => {
+    const search = new URLSearchParams();
+    const status = firstQueryValue(req.query.status);
+    const limit = firstQueryValue(req.query.limit);
+    const meetingSurface = firstQueryValue(req.query.meeting_surface);
+
+    if (status) {
+      search.set("status", status);
+    }
+
+    if (limit) {
+      search.set("limit", limit);
+    }
+
+    if (meetingSurface) {
+      search.set("meeting_surface", meetingSurface);
+    }
+
+    const basePath = `carry-forward/entities/${req.params.entityType}/${req.params.entityId}`;
+    const apiPath = search.size > 0
+      ? `${basePath}?${search.toString()}`
+      : basePath;
+
+    return proxyRequest(req, res, "GET", apiPath, { includeQuery: false });
+  });
+  g(app, "/api/carry-forward/items/:itemId", (req) => `carry-forward/items/${req.params.itemId}`);
+  p(app, "/api/carry-forward/items/:itemId/report-requests", (req) => `carry-forward/items/${req.params.itemId}/report-requests`);
+  p(app, "/api/carry-forward/report-requests/:reportRequestId/responses", (req) => `carry-forward/report-requests/${req.params.reportRequestId}/responses`);
+  p(app, "/api/carry-forward/items/:itemId/resolve", (req) => `carry-forward/items/${req.params.itemId}/resolve`);
+  p(app, "/api/carry-forward/items/:itemId/dismiss", (req) => `carry-forward/items/${req.params.itemId}/dismiss`);
 
   g(app, "/api/reference/callings", "reference/callings");
   g(app, "/api/reference/wards", "reference/wards");
@@ -116,6 +177,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   d(app, "/api/speaking-assignments/unavailable/:id", (req) => `speaking-assignments/unavailable/${req.params.id}`);
   p(app, "/api/speaking-assignments/swap", "speaking-assignments/swap");
   p(app, "/api/speaking-assignments/swap/:id/respond", (req) => `speaking-assignments/swap/${req.params.id}/respond`);
+  g(app, "/api/announcements/active", "announcements/active");
+  g(app, "/api/sacrament-planner/overview", "sacrament-planner/overview");
 
   // ALIGN Pulse
   g(app, "/api/reports/align-pulse", "reports/align-pulse");

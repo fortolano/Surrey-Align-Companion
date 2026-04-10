@@ -5,6 +5,18 @@ export function setAuthExpiredHandler(handler: () => void) {
   onAuthExpired = handler;
 }
 
+export class ApiResponseError extends Error {
+  status: number;
+  payload: unknown;
+
+  constructor(status: number, message: string, payload: unknown = null) {
+    super(message);
+    this.name = 'ApiResponseError';
+    this.status = status;
+    this.payload = payload;
+  }
+}
+
 export async function authFetch(
   token: string | null,
   path: string,
@@ -31,10 +43,10 @@ export async function authFetch(
 
   if (res.status === 401) {
     if (onAuthExpired) onAuthExpired();
-    throw new Error('Session expired. Please sign in again.');
+    throw new ApiResponseError(401, 'Session expired. Please sign in again.');
   }
 
   const data = await res.json();
-  if (!res.ok) throw new Error(data.message || `Request failed (${res.status})`);
+  if (!res.ok) throw new ApiResponseError(res.status, data.message || `Request failed (${res.status})`, data);
   return data;
 }

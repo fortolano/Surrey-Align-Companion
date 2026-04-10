@@ -28,6 +28,7 @@ const SAME_APP_FALLBACK_PATHS = new Set([
   '/sunday-business',
   '/speaking-assignments',
   '/align-pulse',
+  '/sacrament-overview',
 ]);
 
 function firstString(value: unknown): string | undefined {
@@ -155,6 +156,12 @@ function resolveAppActionTarget(
 
     case 'checkin.detail':
       return buildInternalPath('/align-pulse', returnTo);
+
+    case 'announcement.active':
+      return buildInternalPath('/sacrament-overview', returnTo, {
+        wardId: firstString(params.ward_id),
+        announcementId: firstString(params.announcement_id),
+      });
 
     case 'web.open':
       if (sameAppFallbackTarget) {

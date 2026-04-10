@@ -23,9 +23,14 @@ import Colors from '@/constants/colors';
 import AppListRow from '@/components/ui/AppListRow';
 import ScreenHeader from '@/components/ScreenHeader';
 import AvatarMenu from '@/components/AvatarMenu';
+import BishopHomeScreen from '@/components/BishopHomeScreen';
 
 function isHighCouncilor(user: any): boolean {
   return user?.is_high_councilor === true;
+}
+
+function shouldUseBishopHome(user: any): boolean {
+  return user?.is_bishop === true || user?.is_executive_secretary === true;
 }
 
 interface QuickLink {
@@ -184,7 +189,7 @@ function AgendaHomeRow({ entity, isLast }: { entity: AgendaEntityCard; isLast: b
   );
 }
 
-export default function HomeScreen() {
+function GenericHomeScreen() {
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
 
@@ -572,6 +577,16 @@ export default function HomeScreen() {
       </ScrollView>
     </View>
   );
+}
+
+export default function HomeScreen() {
+  const { user } = useAuth();
+
+  if (shouldUseBishopHome(user)) {
+    return <BishopHomeScreen mode="home-tab" fallback={<GenericHomeScreen />} />;
+  }
+
+  return <GenericHomeScreen />;
 }
 
 const styles = StyleSheet.create({

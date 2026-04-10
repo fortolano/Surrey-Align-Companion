@@ -25,6 +25,7 @@ import { withReturnTarget } from '@/lib/navigation-return-target';
 import Colors from '@/constants/colors';
 import { WEB_BOTTOM_INSET } from '@/constants/layout';
 import { useMyAgendaItems, useRespondToAgendaItem, type MyAgendaItem } from '@/lib/agenda-api';
+import { buildCarryForwardMeetingInstanceKey } from '@/lib/carry-forward-api';
 
 // ─── Unified item type ──────────────────────────
 
@@ -124,12 +125,14 @@ function AgendaCard({
   item,
   index,
   onOpen,
+  onOpenCarryForward,
   onRespond,
   isPending,
 }: {
   item: MyAgendaItem;
   index: number;
   onOpen: (item: MyAgendaItem) => void;
+  onOpenCarryForward: (item: MyAgendaItem) => void;
   onRespond: (item: MyAgendaItem, action: 'accept' | 'decline') => void;
   isPending: boolean;
 }) {
@@ -223,6 +226,28 @@ function AgendaCard({
             </Pressable>
           </View>
         )}
+
+        {item.carry_forward_context?.id ? (
+          <Pressable
+            onPress={() => onOpenCarryForward(item)}
+            style={({ pressed }) => [styles.carryForwardRow, pressed && styles.cardPressed]}
+            accessibilityRole="button"
+            testID={`assignment-carry-forward-${item.carry_forward_context.id}`}
+          >
+            <View style={styles.carryForwardIcon}>
+              <Ionicons name="refresh-outline" size={16} color="#0F766E" />
+            </View>
+            <View style={styles.carryForwardCopy}>
+              <Text style={styles.carryForwardTitle}>Carry-Forward</Text>
+              <Text style={styles.carryForwardSubtitle} numberOfLines={2}>
+                {item.carry_forward_context.current_status_label}
+                {item.carry_forward_context.report_due_label ? ` · Report due ${item.carry_forward_context.report_due_label}` : ''}
+                {item.carry_forward_context.next_review_label ? ` · Review ${item.carry_forward_context.next_review_label}` : ''}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.brand.midGray} />
+          </Pressable>
+        ) : null}
       </View>
     </Animated.View>
   );
@@ -307,6 +332,24 @@ export default function AssignmentsScreen() {
     appAlert('Meeting unavailable', 'This meeting cannot be opened right now.');
   }, []);
 
+  const handleOpenCarryForward = useCallback((item: MyAgendaItem) => {
+    const carryForwardId = item.carry_forward_context?.id;
+
+    if (!carryForwardId) {
+      return;
+    }
+
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    router.push(withReturnTarget('/carry-forward-detail', '/assignments', {
+      itemId: carryForwardId,
+      entityType: item.entity_type ?? undefined,
+      entityId: item.entity_id ?? undefined,
+      meetingDate: item.meeting_date ?? undefined,
+      meetingInstanceKey: buildCarryForwardMeetingInstanceKey(item.entity_type, item.entity_id, item.meeting_date),
+    }));
+  }, []);
+
   const handleAgendaResponse = useCallback((item: MyAgendaItem, action: 'accept' | 'decline') => {
     const submit = () => {
       agendaResponseMut.mutate(
@@ -364,6 +407,7 @@ export default function AssignmentsScreen() {
           item={item.data}
           index={index}
           onOpen={handleOpenAgenda}
+          onOpenCarryForward={handleOpenCarryForward}
           onRespond={handleAgendaResponse}
           isPending={pendingAgendaItemId === item.data.id}
         />
@@ -564,6 +608,38 @@ const styles = StyleSheet.create({
   },
   agendaActionButtonDisabled: {
     opacity: 0.7,
+  },
+  carryForwardRow: {
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.brand.inputBorder,
+    paddingTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  carryForwardIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#E8F8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  carryForwardCopy: {
+    flex: 1,
+  },
+  carryForwardTitle: {
+    fontSize: 14,
+    color: Colors.brand.dark,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  carryForwardSubtitle: {
+    marginTop: 2,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_400Regular',
   },
   agendaActionButtonText: {
     fontSize: 14,

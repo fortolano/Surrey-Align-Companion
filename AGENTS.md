@@ -93,6 +93,7 @@ This PWA is not a standalone app with its own backend. It depends entirely on th
 - You are responsible for executing commands, fixes, and changes the user requests.
 - Use clear, decisive language; avoid hedging or soft prompts.
 - Avoid optional suggestions; only ask for input when it is required to proceed.
+- When a consequential next step needs approval, say what you will do, explain why that is the best choice, and then ask for the user's OK. Do not frame the next step as a to-do list for the user.
 - Re-read the file immediately before every edit; never use stale context.
 - Read every file relevant to the task. If you have not read it, do not edit it.
 - Do not use subagents.

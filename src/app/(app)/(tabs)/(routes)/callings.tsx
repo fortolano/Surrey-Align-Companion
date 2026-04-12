@@ -32,6 +32,12 @@ interface ListIndividual {
   is_selected: boolean;
 }
 
+interface StageSummary {
+  label: string;
+  detail: string;
+  tone: 'muted' | 'info' | 'warning' | 'success' | 'danger';
+}
+
 interface CallingRequestListItem {
   id: number;
   request_type: string;
@@ -50,6 +56,7 @@ interface CallingRequestListItem {
   individuals: ListIndividual[];
   selected_individual: string | null;
   steps_progress: number | null;
+  stage_summary?: StageSummary | null;
   updated_at: string;
 }
 
@@ -59,7 +66,7 @@ const STATUS_OPTIONS = [
   { value: 'draft', label: 'Draft' },
   { value: 'submitted', label: 'Submitted' },
   { value: 'discussion', label: 'Under Consideration' },
-  { value: 'voting', label: 'Pending Approval' },
+  { value: 'voting', label: 'Pending Sustaining' },
   { value: 'approved', label: 'Approved' },
   { value: 'not_approved', label: 'Not Approved' },
   { value: 'in_progress', label: 'In Progress' },
@@ -96,6 +103,7 @@ function CallingCard({ item, index }: { item: CallingRequestListItem; index: num
   const individualsText = item.individuals
     .map(ind => ind.name + (ind.is_selected ? ' \u2713' : ''))
     .join(', ');
+  const stageSummaryText = item.stage_summary?.detail?.trim();
 
   return (
     <Animated.View entering={FadeInDown.duration(300).delay(60 + index * 40)}>
@@ -116,6 +124,12 @@ function CallingCard({ item, index }: { item: CallingRequestListItem; index: num
 
         {individualsText ? (
           <Text style={styles.individualsText} numberOfLines={1}>{individualsText}</Text>
+        ) : null}
+
+        {stageSummaryText ? (
+          <Text style={styles.stageSummaryText} numberOfLines={2}>
+            {stageSummaryText}
+          </Text>
         ) : null}
 
         <View style={styles.cardMeta}>
@@ -593,6 +607,13 @@ const styles = StyleSheet.create({
     color: Colors.brand.primary,
     fontFamily: 'Inter_500Medium',
     marginBottom: 8,
+  },
+  stageSummaryText: {
+    fontSize: 14,
+    lineHeight: 19,
+    color: Colors.brand.darkGray,
+    fontFamily: 'Inter_400Regular',
+    marginBottom: 10,
   },
   cardMeta: {
     flexDirection: 'row',

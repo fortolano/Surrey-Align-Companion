@@ -20,14 +20,16 @@ export class ApiResponseError extends Error {
 export async function authFetch(
   token: string | null,
   path: string,
-  options: { method?: string; body?: unknown; params?: Record<string, string> } = {}
+  options: { method?: string; body?: unknown; params?: Record<string, string | undefined | null | number>; signal?: AbortSignal } = {}
 ) {
   if (!token) throw new Error('Not authenticated');
   const base = getApiUrl();
   const url = new URL(path, base);
   if (options.params) {
     for (const [k, v] of Object.entries(options.params)) {
-      if (v) url.searchParams.set(k, v);
+      if (v !== undefined && v !== null && String(v) !== '') {
+        url.searchParams.set(k, String(v));
+      }
     }
   }
   const headers: Record<string, string> = {
@@ -39,6 +41,7 @@ export async function authFetch(
     method: options.method || 'GET',
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
+    signal: options.signal,
   });
 
   if (res.status === 401) {

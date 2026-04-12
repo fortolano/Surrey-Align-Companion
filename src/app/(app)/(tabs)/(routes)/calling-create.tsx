@@ -38,7 +38,25 @@ interface AssignmentOption {
   ward_id?: number | null;
   type?: string | null;
 }
-interface Holder { user_id: number; user_name: string; label: string; ward_id?: number | null; }
+interface Holder {
+  membership_record_id?: number | null;
+  user_id?: number | null;
+  user_name: string;
+  name?: string;
+  label: string;
+  ward_id?: number | null;
+  current_calling_text?: string | null;
+}
+interface DirectoryPerson {
+  membership_record_id: number;
+  user_id?: number | null;
+  name: string;
+  label: string;
+  ward_id?: number | null;
+  ward_label?: string | null;
+  current_calling_id?: number | null;
+  current_calling_text?: string | null;
+}
 interface SubmissionContext {
   allowed_scopes: ('stake' | 'ward')[];
   allowed_levels?: ('stake' | 'local_unit')[];
@@ -49,6 +67,8 @@ interface SubmissionContext {
 
 interface NomineeEntry {
   name: string;
+  user_id: string;
+  membership_record_id: string;
   ward_id: string;
   current_calling_id: string;
   current_calling_text: string;
@@ -80,7 +100,16 @@ function formatUnitLabel(unitType?: string | null, code?: string | null): string
 }
 
 function emptyNominee(): NomineeEntry {
-  return { name: '', ward_id: '', current_calling_id: '', current_calling_text: '', requires_release: true, recommendation: '' };
+  return {
+    name: '',
+    user_id: '',
+    membership_record_id: '',
+    ward_id: '',
+    current_calling_id: '',
+    current_calling_text: '',
+    requires_release: true,
+    recommendation: '',
+  };
 }
 
 function isStakeReviewedLocalCalling(calling?: CallingOption | null): boolean {
@@ -137,6 +166,12 @@ function formatAssignmentSubtitle(option: AssignmentOption): string | undefined 
   if (typeLabel) return typeLabel;
 
   return undefined;
+}
+
+function formatDirectoryPersonSubtitle(person: DirectoryPerson): string | undefined {
+  const parts = [person.ward_label, person.current_calling_text].filter(Boolean);
+
+  return parts.length > 0 ? parts.join(' · ') : undefined;
 }
 
 function SearchSheetField({
@@ -333,6 +368,125 @@ function SearchAssistButton({
   );
 }
 
+function DirectoryLookupAssistButton({
+  token,
+  label,
+  buttonText,
+  onSelect,
+  wardId,
+  disabled,
+  searchPlaceholder,
+  emptyText,
+}: {
+  token: string | null;
+  label: string;
+  buttonText: string;
+  onSelect: (person: DirectoryPerson) => void;
+  wardId?: string;
+  disabled?: boolean;
+  searchPlaceholder?: string;
+  emptyText?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+
+  useEffect(() => {
+    if (!open) {
+      setQuery('');
+      setDebouncedQuery('');
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setDebouncedQuery(query.trim());
+    }, 280);
+
+    return () => clearTimeout(timeoutId);
+  }, [open, query]);
+
+  const { data, isFetching } = useQuery<{ people?: DirectoryPerson[] }>({
+    queryKey: ['/api/reference/people/search', debouncedQuery, wardId || 'all'],
+    queryFn: ({ signal }) => authFetch(token, '/api/reference/people/search', {
+      params: {
+        q: debouncedQuery,
+        ward_id: wardId || undefined,
+      },
+      signal,
+    }),
+    enabled: !!token && open && debouncedQuery.length >= 2,
+    staleTime: 30000,
+  });
+
+  const people = data?.people || [];
+
+  return (
+    <View style={styles.assistWrap}>
+      <Pressable
+        onPress={() => !disabled && setOpen(true)}
+        style={[styles.assistButton, disabled && styles.disabledBtn]}
+      >
+        <Ionicons name="search-outline" size={16} color={Colors.brand.primary} />
+        <Text style={styles.assistButtonText}>{buttonText}</Text>
+      </Pressable>
+      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+        <View style={sheetStyles.backdrop}>
+          <Pressable style={sheetStyles.dismissArea} onPress={() => setOpen(false)} />
+          <View style={sheetStyles.card}>
+            <View style={sheetStyles.handle} />
+            <View style={sheetStyles.header}>
+              <Text style={sheetStyles.title}>{label}</Text>
+              <Pressable onPress={() => setOpen(false)} hitSlop={8}>
+                <Ionicons name="close" size={20} color={Colors.brand.midGray} />
+              </Pressable>
+            </View>
+            <TextInput
+              style={sheetStyles.searchInput}
+              value={query}
+              onChangeText={setQuery}
+              placeholder={searchPlaceholder || `Search ${label.toLowerCase()}`}
+              placeholderTextColor={Colors.brand.midGray}
+              autoCapitalize="words"
+              autoCorrect={false}
+            />
+            <ScrollView style={sheetStyles.results} keyboardShouldPersistTaps="handled">
+              {debouncedQuery.length < 2 ? (
+                <Text style={sheetStyles.emptyText}>Type at least 2 letters to search the membership directory.</Text>
+              ) : null}
+              {debouncedQuery.length >= 2 && isFetching ? (
+                <View style={styles.directoryLoading}>
+                  <ActivityIndicator size="small" color={Colors.brand.primary} />
+                </View>
+              ) : null}
+              {debouncedQuery.length >= 2 && !isFetching && people.map((person) => (
+                <Pressable
+                  key={String(person.membership_record_id)}
+                  onPress={() => {
+                    onSelect(person);
+                    setOpen(false);
+                  }}
+                  style={sheetStyles.resultItem}
+                >
+                  <View style={sheetStyles.resultInfo}>
+                    <Text style={sheetStyles.resultTitle}>{person.name}</Text>
+                    {formatDirectoryPersonSubtitle(person) ? (
+                      <Text style={sheetStyles.resultSubtitle}>{formatDirectoryPersonSubtitle(person)}</Text>
+                    ) : null}
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={Colors.brand.midGray} />
+                </Pressable>
+              ))}
+              {debouncedQuery.length >= 2 && !isFetching && people.length === 0 ? (
+                <Text style={sheetStyles.emptyText}>{emptyText || 'No matching people were found.'}</Text>
+              ) : null}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
 function PickerField({ label, value, options, onChange, placeholder, disabled }: {
   label: string;
   value: string;
@@ -451,12 +605,14 @@ const sheetStyles = StyleSheet.create({
   emptyText: { fontSize: 13, color: Colors.brand.midGray, textAlign: 'center', paddingVertical: 18, fontFamily: 'Inter_400Regular' },
 });
 
-function IndividualCard({ entry, index, wards, callings, onUpdate, onToggleRelease, onRemove, canRemove }: {
+function IndividualCard({ entry, index, wards, callings, token, onUpdate, onApplyDirectoryPerson, onToggleRelease, onRemove, canRemove }: {
   entry: NomineeEntry;
   index: number;
   wards: SearchOption[];
   callings: CallingOption[];
+  token: string | null;
   onUpdate: (field: keyof NomineeEntry, value: string) => void;
+  onApplyDirectoryPerson: (person: DirectoryPerson) => void;
   onToggleRelease: (value: boolean) => void;
   onRemove: () => void;
   canRemove: boolean;
@@ -480,6 +636,17 @@ function IndividualCard({ entry, index, wards, callings, onUpdate, onToggleRelea
           placeholder="Full name"
           placeholderTextColor={Colors.brand.midGray}
         />
+        <DirectoryLookupAssistButton
+          token={token}
+          label={`Individual ${index + 1}`}
+          buttonText="Search membership directory"
+          onSelect={onApplyDirectoryPerson}
+          searchPlaceholder="Search members by name"
+          emptyText="No matching person was found."
+        />
+        {entry.membership_record_id ? (
+          <Text style={styles.selectionSummary}>Directory match selected for this individual.</Text>
+        ) : null}
       </View>
       <SearchSheetField
         label="Local Unit"
@@ -590,6 +757,7 @@ export default function CallingCreateScreen() {
   const [callingText, setCallingText] = useState<string>('');
   const [assignmentValue, setAssignmentValue] = useState<string>('');
   const [currentHolderUserId, setCurrentHolderUserId] = useState<string>('');
+  const [currentHolderMembershipRecordId, setCurrentHolderMembershipRecordId] = useState<string>('');
   const [currentHolderName, setCurrentHolderName] = useState<string>('');
   const [holderManuallyEdited, setHolderManuallyEdited] = useState(false);
   const [contextNotes, setContextNotes] = useState('');
@@ -739,6 +907,7 @@ export default function CallingCreateScreen() {
     setCallingId('');
     setAssignmentValue('');
     setCurrentHolderUserId('');
+    setCurrentHolderMembershipRecordId('');
     setCurrentHolderName('');
     setHolderManuallyEdited(false);
   }, [scope]);
@@ -753,6 +922,7 @@ export default function CallingCreateScreen() {
     setWardId('');
     setAssignmentValue('');
     setCurrentHolderUserId('');
+    setCurrentHolderMembershipRecordId('');
     setCurrentHolderName('');
     setHolderManuallyEdited(false);
 
@@ -765,6 +935,7 @@ export default function CallingCreateScreen() {
   useEffect(() => {
     setAssignmentValue('');
     setCurrentHolderUserId('');
+    setCurrentHolderMembershipRecordId('');
     if (!holderManuallyEdited) {
       setCurrentHolderName('');
     }
@@ -772,6 +943,7 @@ export default function CallingCreateScreen() {
 
   useEffect(() => {
     setCurrentHolderUserId('');
+    setCurrentHolderMembershipRecordId('');
     if (!holderManuallyEdited) {
       setCurrentHolderName('');
     }
@@ -781,14 +953,11 @@ export default function CallingCreateScreen() {
     }
 
     const holders = holdersData?.holders || holdersData?.data || [];
-    if (!holderManuallyEdited && holders.length > 0) {
-      const matched = wardId
-        ? holders.find((h) => String(h.ward_id) === wardId)
-        : holders[0];
-      if (matched) {
-        setCurrentHolderUserId(String(matched.user_id));
-        setCurrentHolderName(matched.user_name);
-      }
+    if (!holderManuallyEdited && holders.length === 1) {
+      const matched = holders[0];
+      setCurrentHolderUserId(matched.user_id ? String(matched.user_id) : '');
+      setCurrentHolderMembershipRecordId(matched.membership_record_id ? String(matched.membership_record_id) : '');
+      setCurrentHolderName(matched.user_name || matched.name || '');
     }
   }, [holdersData, requestUsesLocalUnitContext, wardId, holderManuallyEdited]);
 
@@ -910,6 +1079,7 @@ export default function CallingCreateScreen() {
     setWardId('');
     setAssignmentValue('');
     setCurrentHolderUserId('');
+    setCurrentHolderMembershipRecordId('');
     if (!holderManuallyEdited) {
       setCurrentHolderName('');
     }
@@ -922,6 +1092,7 @@ export default function CallingCreateScreen() {
 
     setAssignmentValue('');
     setCurrentHolderUserId('');
+    setCurrentHolderMembershipRecordId('');
     if (!holderManuallyEdited) {
       setCurrentHolderName('');
     }
@@ -931,6 +1102,10 @@ export default function CallingCreateScreen() {
     setNominees(prev => prev.map((n, i) => {
       if (i !== idx) return n;
       const updated = { ...n, [field]: value };
+      if (field === 'name') {
+        updated.user_id = '';
+        updated.membership_record_id = '';
+      }
       if (field === 'current_calling_text') {
         const trimmed = value.trim();
         const match = allCallings.find((calling) => calling.name.toLowerCase() === trimmed.toLowerCase());
@@ -943,6 +1118,25 @@ export default function CallingCreateScreen() {
 
   const removeNominee = useCallback((idx: number) => {
     setNominees(prev => prev.filter((_, i) => i !== idx));
+  }, []);
+
+  const applyNomineeDirectoryPerson = useCallback((idx: number, person: DirectoryPerson) => {
+    setNominees(prev => prev.map((nominee, nomineeIndex) => {
+      if (nomineeIndex !== idx) {
+        return nominee;
+      }
+
+      return {
+        ...nominee,
+        name: person.name,
+        user_id: person.user_id ? String(person.user_id) : '',
+        membership_record_id: String(person.membership_record_id),
+        ward_id: person.ward_id ? String(person.ward_id) : '',
+        current_calling_id: person.current_calling_id ? String(person.current_calling_id) : '',
+        current_calling_text: person.current_calling_text || '',
+        requires_release: !!person.current_calling_text,
+      };
+    }));
   }, []);
 
   const addNominee = useCallback(() => {
@@ -981,7 +1175,8 @@ export default function CallingCreateScreen() {
         target_calling_text: callingText.trim(),
         nominees: validNominees.map(n => ({
           name: n.name.trim(),
-          user_id: null,
+          user_id: n.user_id ? Number(n.user_id) : null,
+          membership_record_id: n.membership_record_id ? Number(n.membership_record_id) : null,
           ward_id: n.ward_id ? Number(n.ward_id) : null,
           current_calling_id: n.current_calling_id ? Number(n.current_calling_id) : null,
           current_calling_text: n.current_calling_text.trim() || null,
@@ -1000,6 +1195,7 @@ export default function CallingCreateScreen() {
         payload.ward_id = Number(wardId);
       }
       if (currentHolderUserId) payload.current_holder_user_id = Number(currentHolderUserId);
+      if (currentHolderMembershipRecordId) payload.current_holder_membership_record_id = Number(currentHolderMembershipRecordId);
       if (currentHolderName.trim()) payload.current_holder_name = currentHolderName.trim();
       if (contextNotes.trim()) payload.context_notes = contextNotes.trim();
 
@@ -1197,6 +1393,7 @@ export default function CallingCreateScreen() {
                 onChangeText={(value) => {
                   setHolderManuallyEdited(true);
                   setCurrentHolderUserId('');
+                  setCurrentHolderMembershipRecordId('');
                   setCurrentHolderName(value);
                 }}
                 placeholder={callingText ? 'Type a name or leave blank if vacant' : 'Choose the calling first'}
@@ -1205,14 +1402,33 @@ export default function CallingCreateScreen() {
                 onBlur={() => {
                   if (!currentHolderName.trim()) {
                     setHolderManuallyEdited(false);
+                    setCurrentHolderMembershipRecordId('');
                   }
                 }}
               />
+              <DirectoryLookupAssistButton
+                token={token}
+                label="Current Holder"
+                buttonText="Search membership directory"
+                wardId={requestUsesLocalUnitContext && wardId ? wardId : undefined}
+                disabled={!callingText.trim() || (requestUsesLocalUnitContext && !wardId)}
+                onSelect={(person) => {
+                  setCurrentHolderName(person.name);
+                  setCurrentHolderUserId(person.user_id ? String(person.user_id) : '');
+                  setCurrentHolderMembershipRecordId(String(person.membership_record_id));
+                  setHolderManuallyEdited(false);
+                }}
+                searchPlaceholder="Search current holders by name"
+                emptyText="No matching current holder was found."
+              />
+              {currentHolderMembershipRecordId ? (
+                <Text style={styles.selectionSummary}>Directory match selected for the current holder.</Text>
+              ) : null}
               <Text style={styles.hintText}>
                 {callingId
                   ? (requestUsesLocalUnitContext
-                    ? 'Linked callings try to match the current holder inside the selected ward or branch. You can still adjust it manually.'
-                    : 'Linked callings try to auto-detect the current holder. You can still adjust it manually.')
+                    ? 'Linked callings try to auto-detect the current holder inside the selected ward or branch. You can still search or type over it manually.'
+                    : 'Linked callings try to auto-detect the current holder. You can still search or type over it manually.')
                   : 'Custom calling titles need a manual current-holder entry when one exists.'}
               </Text>
             </View>
@@ -1228,7 +1444,9 @@ export default function CallingCreateScreen() {
               index={idx}
               wards={individualWardOptions}
               callings={allCallings}
+              token={token}
               onUpdate={(field, value) => updateNominee(idx, field, value)}
+              onApplyDirectoryPerson={(person) => applyNomineeDirectoryPerson(idx, person)}
               onToggleRelease={(val) => setNominees(prev => prev.map((n, i) => i === idx ? { ...n, requires_release: val } : n))}
               onRemove={() => removeNominee(idx)}
               canRemove={nominees.length > 1}
@@ -1334,6 +1552,7 @@ const styles = StyleSheet.create({
   },
   assistButtonText: { fontSize: 13, color: '#1D4ED8', fontFamily: 'Inter_600SemiBold' },
   selectionSummary: { fontSize: 13, color: Colors.brand.primary, marginTop: 8, fontFamily: 'Inter_500Medium' },
+  directoryLoading: { paddingVertical: 14 },
   addButton: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
   addButtonText: { fontSize: 14, color: Colors.brand.primary, fontFamily: 'Inter_600SemiBold' },
   contextInput: {

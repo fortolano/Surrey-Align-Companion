@@ -235,7 +235,7 @@ function InlineVoteCard({
         {!canVote && (
           <View style={cardStyles.viewOnlyBar}>
             <Ionicons name="eye-outline" size={16} color={Colors.brand.primary} />
-            <Text style={cardStyles.viewOnlyText}>Tap to view voting progress</Text>
+            <Text style={cardStyles.viewOnlyText}>Tap to view sustaining progress</Text>
           </View>
         )}
       </Pressable>

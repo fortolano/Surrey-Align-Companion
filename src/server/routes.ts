@@ -128,6 +128,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   g(app, "/api/reference/callings", "reference/callings");
   g(app, "/api/reference/wards", "reference/wards");
   g(app, "/api/reference/organizations", "reference/organizations");
+  g(app, "/api/reference/people/search", "reference/people/search");
   g(app, "/api/reference/users/search", "reference/users/search");
   g(app, "/api/reference/current-holders/:callingId", (req) => `reference/current-holders/${req.params.callingId}`);
 

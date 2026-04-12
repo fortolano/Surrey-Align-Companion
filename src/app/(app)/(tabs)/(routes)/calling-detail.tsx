@@ -440,7 +440,7 @@ function VotingSection({ detail, permissions, requestId, token, userId, onRefres
               size={20}
               color={myVote.vote === 'approve' ? '#10B981' : '#EF4444'}
             />
-            <Text style={vsStyles.yourVoteTitle}>You voted</Text>
+            <Text style={vsStyles.yourVoteTitle}>You sustained</Text>
           </View>
           <Text style={vsStyles.yourVoteValue}>
             {myVote.vote === 'approve' ? 'Approve' : 'Not Approved'}
@@ -491,7 +491,7 @@ function VotingSection({ detail, permissions, requestId, token, userId, onRefres
             style={vsStyles.pendingHeader}
           >
             <Ionicons name="people-outline" size={18} color="#B45309" />
-            <Text style={vsStyles.pendingTitle}>Pending Voters ({pendingCount})</Text>
+            <Text style={vsStyles.pendingTitle}>Pending Sustainers ({pendingCount})</Text>
             <Ionicons name={pendingVotersExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.brand.midGray} />
           </Pressable>
           {pendingVotersExpanded && pendingVoters.length > 0 && (
@@ -505,7 +505,7 @@ function VotingSection({ detail, permissions, requestId, token, userId, onRefres
             </View>
           )}
           {pendingVotersExpanded && pendingVoters.length === 0 && pendingCount > 0 && (
-            <Text style={vsStyles.pendingNoData}>{pendingCount} voter(s) have not yet submitted their recommendation.</Text>
+            <Text style={vsStyles.pendingNoData}>{pendingCount} sustainer(s) have not yet submitted their recommendation.</Text>
           )}
         </View>
       )}
@@ -1496,7 +1496,7 @@ export default function CallingDetailScreen() {
             <ActionButton label="Begin Review" icon="play-circle-outline" onPress={() => performAction('move-to-discussion', 'Begin Review')} loading={actionLoading === 'move-to-discussion'} />
           )}
           {perms.can_move_to_voting && (
-            <ActionButton label="Request Approvals" icon="hand-left-outline" onPress={() => performAction('move-to-voting', 'Request Approvals')} loading={actionLoading === 'move-to-voting'} />
+            <ActionButton label="Request Sustainings" icon="hand-left-outline" onPress={() => performAction('move-to-voting', 'Request Sustainings')} loading={actionLoading === 'move-to-voting'} />
           )}
           {perms.can_complete && (
             <ActionButton label="Mark Complete" icon="checkmark-circle-outline" onPress={() => performAction('complete', 'Mark Complete')} loading={actionLoading === 'complete'} />

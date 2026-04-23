@@ -19,6 +19,7 @@ const DEFAULT_RETURN_TARGETS: Record<string, string> = {
   '/goal-detail': '/goals',
   '/goals': '/',
   '/high-council-agenda': '/',
+  '/intelligence-inbox': '/notifications',
   '/profile': '/more',
   '/settings': '/more',
   '/speaking-assignments': '/',

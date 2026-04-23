@@ -329,6 +329,26 @@ const NOTIFICATIONS_RESPONSE = {
       },
     },
     {
+      id: 9103,
+      type: 'leadership_intelligence_alert',
+      title: 'Leadership insight ready',
+      message: 'Open the insight inbox to review a repeated agenda follow-through gap.',
+      is_read: false,
+      created_at: '2026-03-23T16:45:00Z',
+      app_action: {
+        kind: 'open_insight',
+        name: 'insight.detail',
+        params: {
+          insight_id: 8801,
+          scope_type: 'agenda',
+          scope_id: 44,
+        },
+        fallback_url: 'https://surreyalign.org/my-work/intelligence/8801',
+      },
+      related_type: 'leadership_insight',
+      related_id: 8801,
+    },
+    {
       id: 9102,
       type: 'reminder',
       title: 'Review your notifications',
@@ -341,6 +361,107 @@ const NOTIFICATIONS_RESPONSE = {
   meta: {
     total: 2,
     unread_count: 0,
+  },
+};
+
+const LEADERSHIP_INTELLIGENCE_RESPONSE = {
+  insights: [
+    {
+      id: 8801,
+      insight_key: 'agenda-continuity-8801',
+      insight_type: 'agenda_continuity_overload',
+      category: 'risk',
+      severity: 'act_soon',
+      title: 'Follow through before this slips again',
+      summary: 'Ward council carry-forward has repeated across three agendas without a fresh owner update.',
+      current_surface_tier: 'inbox',
+      lifecycle_state: 'surfaced',
+      scope_type: 'agenda',
+      scope_id: 44,
+      detected_at: '2026-03-23T15:30:00Z',
+      first_surfaced_at: '2026-03-23T15:35:00Z',
+      last_surfaced_at: '2026-03-23T16:30:00Z',
+      deferred_until: null,
+      detail_url: 'https://surreyalign.org/my-work/intelligence/8801',
+      explain_payload: {
+        why_now: 'Three carry-forward commitments have repeated across consecutive meetings.',
+        evidence: [
+          'No owner update has landed in the last 14 days.',
+          'The same blocker now touches youth, music, and ward council planning.',
+        ],
+        next_step: 'Pick one owner and close the oldest blocker before the next meeting.',
+      },
+      linked_entity_refs: [
+        { type: 'agenda', id: 44 },
+      ],
+      primary_action: {
+        label: 'Open agenda',
+        action_kind: 'agenda.detail',
+        params: {
+          agenda_id: 44,
+        },
+        web_url: 'https://surreyalign.org/agendas/44',
+      },
+      suggested_actions: [
+        {
+          label: 'Open agenda',
+          action_kind: 'agenda.detail',
+          params: {
+            agenda_id: 44,
+          },
+          web_url: 'https://surreyalign.org/agendas/44',
+        },
+      ],
+    },
+    {
+      id: 8802,
+      insight_key: 'goal-velocity-8802',
+      insight_type: 'goal_velocity_risk',
+      category: 'pattern',
+      severity: 'watch',
+      title: 'Keep an eye on youth engagement momentum',
+      summary: 'Goal progress slowed this month, but one coaching nudge could recover the trend.',
+      current_surface_tier: 'inbox',
+      lifecycle_state: 'surfaced',
+      scope_type: 'goal',
+      scope_id: 17,
+      detected_at: '2026-03-22T18:00:00Z',
+      first_surfaced_at: '2026-03-22T18:15:00Z',
+      last_surfaced_at: '2026-03-23T09:30:00Z',
+      deferred_until: null,
+      detail_url: 'https://surreyalign.org/my-work/intelligence/8802',
+      explain_payload: {
+        why_now: 'Two checkpoints landed, but the most recent action bundle stalled.',
+        evidence: [
+          'No follow-up action has closed since the last bishopric review.',
+        ],
+        next_step: 'Review the next youth goal update in the next presidency huddle.',
+      },
+      linked_entity_refs: [
+        { type: 'goal', id: 17 },
+      ],
+      primary_action: {
+        label: 'Open goal',
+        action_kind: 'goal.detail',
+        params: {
+          goal_id: 17,
+        },
+        web_url: 'https://surreyalign.org/goal-progress/ward/10/3',
+      },
+      suggested_actions: [
+        {
+          label: 'Open goal',
+          action_kind: 'goal.detail',
+          params: {
+            goal_id: 17,
+          },
+          web_url: 'https://surreyalign.org/goal-progress/ward/10/3',
+        },
+      ],
+    },
+  ],
+  meta: {
+    total: 2,
   },
 };
 
@@ -576,6 +697,7 @@ function buildMockAssignmentResponse(
 function createMockApiHandler() {
   const currentSundayBusinessResponse = cloneJson(SUNDAY_BUSINESS_RESPONSE);
   const currentNotifications = cloneJson(NOTIFICATIONS_RESPONSE.notifications);
+  const currentLeadershipInsights = cloneJson(LEADERSHIP_INTELLIGENCE_RESPONSE.insights);
   const currentSettingsResponse = cloneJson(SETTINGS_RESPONSE);
   const currentCallingListResponse = cloneJson(CALLING_LIST_RESPONSE);
   const currentCallingDetailResponse = cloneJson(CALLING_DETAIL_RESPONSE);
@@ -653,6 +775,82 @@ function createMockApiHandler() {
 
   if (path === '/api/reports/align-pulse' && method === 'GET') {
     return json(route, PULSE_REPORT_RESPONSE);
+  }
+
+  if (path === '/api/leadership-intelligence/inbox' && method === 'GET') {
+    return json(route, {
+      success: true,
+      insights: cloneJson(currentLeadershipInsights),
+      meta: {
+        total: currentLeadershipInsights.length,
+      },
+    });
+  }
+
+  if (/^\/api\/leadership-intelligence\/insights\/\d+$/.test(path) && method === 'GET') {
+    const insightId = Number(path.match(/^\/api\/leadership-intelligence\/insights\/(\d+)$/)?.[1] ?? 0);
+    const insight = currentLeadershipInsights.find((candidate) => candidate.id === insightId);
+
+    if (!insight) {
+      return json(route, { success: false, message: 'Insight not found.' }, 404);
+    }
+
+    return json(route, {
+      success: true,
+      insight: cloneJson(insight),
+    });
+  }
+
+  if (/^\/api\/leadership-intelligence\/insights\/\d+\/accept$/.test(path) && method === 'POST') {
+    const insightId = Number(path.match(/^\/api\/leadership-intelligence\/insights\/(\d+)\/accept$/)?.[1] ?? 0);
+    const insightIndex = currentLeadershipInsights.findIndex((candidate) => candidate.id === insightId);
+
+    if (insightIndex >= 0) {
+      currentLeadershipInsights.splice(insightIndex, 1);
+    }
+
+    return json(route, {
+      success: true,
+      insight: {
+        id: insightId,
+        lifecycle_state: 'acted_on',
+      },
+    });
+  }
+
+  if (/^\/api\/leadership-intelligence\/insights\/\d+\/defer$/.test(path) && method === 'POST') {
+    const insightId = Number(path.match(/^\/api\/leadership-intelligence\/insights\/(\d+)\/defer$/)?.[1] ?? 0);
+    const insight = currentLeadershipInsights.find((candidate) => candidate.id === insightId);
+    const body = parseJsonBody(request);
+
+    if (!insight) {
+      return json(route, { success: false, message: 'Insight not found.' }, 404);
+    }
+
+    insight.lifecycle_state = 'deferred';
+    insight.deferred_until = typeof body.defer_until === 'string' ? body.defer_until : '2026-03-26T16:00:00.000Z';
+
+    return json(route, {
+      success: true,
+      insight: cloneJson(insight),
+    });
+  }
+
+  if (/^\/api\/leadership-intelligence\/insights\/\d+\/dismiss$/.test(path) && method === 'POST') {
+    const insightId = Number(path.match(/^\/api\/leadership-intelligence\/insights\/(\d+)\/dismiss$/)?.[1] ?? 0);
+    const insightIndex = currentLeadershipInsights.findIndex((candidate) => candidate.id === insightId);
+
+    if (insightIndex >= 0) {
+      currentLeadershipInsights.splice(insightIndex, 1);
+    }
+
+    return json(route, {
+      success: true,
+      insight: {
+        id: insightId,
+        lifecycle_state: 'dismissed',
+      },
+    });
   }
 
   if (path === '/api/notifications' && method === 'GET') {

@@ -14,16 +14,20 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
+import { appAlert } from '@/lib/platform-alert';
 import { triggerGlobalRefreshIndicator } from '@/lib/refresh-indicator';
 import Colors from '@/constants/colors';
 import { WEB_BOTTOM_INSET } from '@/constants/layout';
+import PreparedLeadershipCard from '@/components/PreparedLeadershipCard';
 import AppButton from '@/components/ui/AppButton';
 import AppPickerTrigger from '@/components/ui/AppPickerTrigger';
 import AppSegmentedControl from '@/components/ui/AppSegmentedControl';
+import type { LeadershipIntelligenceArtifact } from '@/lib/leadership-intelligence';
+import { uniqueLeadershipLines } from '@/lib/leadership-intelligence';
 
 interface WardOption {
   id: number;
@@ -46,6 +50,27 @@ interface PlannerMeeting {
     publish_ready: boolean;
   };
   missing_checks: string[];
+  leadership_intelligence?: {
+    sacrament_readiness_brief?: LeadershipIntelligenceArtifact<SacramentReadinessPayload> | null;
+  };
+}
+
+interface SacramentReadinessPayload {
+  summary_sentence?: string;
+  opening_question?: string;
+  readiness_focus?: string;
+  speaker_watch?: string;
+  publish_watch?: string;
+  recommended_actions?: {
+    title?: string;
+    why_now?: string;
+    next_step?: string;
+  }[];
+  watch_items?: {
+    title?: string;
+    detail?: string;
+    timing?: string;
+  }[];
 }
 
 interface SpeakerHistoryItem {
@@ -83,11 +108,94 @@ interface AnnouncementsResponse {
   success: boolean;
   ward: WardOption;
   meeting_date: string;
+  meeting: {
+    id: number;
+    meeting_date: string;
+    status: string;
+    status_label: string;
+    announcement_review: {
+      reviewed_at: string | null;
+      reviewed_by: {
+        id: number;
+        name: string;
+      } | null;
+      can_mark_reviewed: boolean;
+    };
+    readiness_stage: string;
+    readiness_stage_label: string;
+    completion_checks: {
+      active_announcements_reviewed: boolean;
+      publish_ready: boolean;
+    };
+    missing_checks: string[];
+  } | null;
   announcements: AnnouncementItem[];
   meta: {
     total: number;
     stake_announcement_count: number;
     ward_announcement_count: number;
+  };
+}
+
+interface SpeakerFollowUpResponse {
+  success: boolean;
+  phase4: {
+    mobile_scope: string;
+    desktop_planning_home: boolean;
+  };
+  meeting: {
+    id: number;
+    ward: WardOption;
+    meeting_date: string;
+    meeting_date_label: string;
+    status: string;
+    status_label: string;
+    meeting_mode: string;
+    meeting_mode_label: string;
+    readiness_stage: string;
+    readiness_stage_label: string;
+    speaker_follow_up: {
+      allowed: boolean;
+      blocked_reason: string | null;
+      open_invitation_count: number;
+    };
+  };
+  follow_up: {
+    id: number;
+    invitee: {
+      id: number | null;
+      name: string;
+    };
+    meeting_id: number;
+    meeting_date: string;
+    meeting_date_label: string;
+    topic_hint: string | null;
+    status: string;
+    status_label: string;
+    respond_by: string | null;
+    respond_by_label: string | null;
+    follow_up_note: string | null;
+    follow_up_date: string | null;
+    delivery: {
+      state: 'opened' | 'email_sent' | 'manual_contact_recorded' | 'not_contacted';
+      state_label: string;
+      has_contact_email: boolean;
+      contact_email: string | null;
+      sent_at: string | null;
+      opened_at: string | null;
+    };
+    follow_up_action: {
+      allowed: boolean;
+      mode: 'email_reminder' | 'manual_contact_reminder' | null;
+      label: string | null;
+      blocked_reason: string | null;
+    };
+  }[];
+  meta: {
+    open_invitation_count: number;
+    needs_follow_up_count: number;
+    emailed_count: number;
+    opened_count: number;
   };
 }
 
@@ -124,6 +232,21 @@ function formatGeneratedAt(value?: string | null): string {
   }
 }
 
+function formatDateTimeLabel(value?: string | null): string {
+  if (!value) return 'Just updated';
+
+  try {
+    return new Date(value).toLocaleString([], {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch {
+    return 'Just updated';
+  }
+}
+
 function statusTone(status: string): { bg: string; text: string } {
   if (status === 'published') {
     return { bg: '#D1FAE5', text: '#065F46' };
@@ -146,6 +269,22 @@ function sourceTone(source: string): { bg: string; text: string } {
   }
 
   return { bg: '#EEF2FF', text: '#4338CA' };
+}
+
+function deliveryTone(state: SpeakerFollowUpResponse['follow_up'][number]['delivery']['state']): { bg: string; text: string } {
+  if (state === 'opened') {
+    return { bg: '#DCFCE7', text: '#166534' };
+  }
+
+  if (state === 'email_sent') {
+    return { bg: '#DBEAFE', text: '#1D4ED8' };
+  }
+
+  if (state === 'manual_contact_recorded') {
+    return { bg: '#FEF3C7', text: '#92400E' };
+  }
+
+  return { bg: '#E5E7EB', text: '#4B5563' };
 }
 
 function OverviewCheck({ ok, label }: { ok: boolean; label: string }) {
@@ -181,9 +320,25 @@ function EmptyState({
   );
 }
 
+function buildSacramentBriefBullets(
+  artifact?: LeadershipIntelligenceArtifact<SacramentReadinessPayload> | null
+): string[] {
+  const payload = artifact?.payload;
+  if (!payload) return [];
+
+  const recommendedActions = Array.isArray(payload.recommended_actions) ? payload.recommended_actions : [];
+  const watchItems = Array.isArray(payload.watch_items) ? payload.watch_items : [];
+
+  return uniqueLeadershipLines([
+    ...recommendedActions.flatMap((item) => [item.title, item.why_now, item.next_step]),
+    ...watchItems.flatMap((item) => [item.title, item.detail, item.timing]),
+  ], 3);
+}
+
 export default function SacramentOverviewScreen() {
   const insets = useSafeAreaInsets();
   const { token, user } = useAuth();
+  const queryClient = useQueryClient();
   const params = useLocalSearchParams<{
     wardId?: string | string[];
     meetingDate?: string | string[];
@@ -194,6 +349,7 @@ export default function SacramentOverviewScreen() {
 
   const canSeeOverview = !!(user?.is_bishopric_member || user?.is_high_councilor || user?.is_stake_presidency_member);
   const canSeeAllWards = !!(user?.is_high_councilor || user?.is_stake_presidency_member);
+  const canManageWardSunday = !!user?.is_bishopric_member && !canSeeAllWards;
 
   const initialWeeks = useMemo(() => {
     const requested = Number(firstString(params.weeks));
@@ -301,14 +457,65 @@ export default function SacramentOverviewScreen() {
     staleTime: 60000,
   });
 
+  const speakerFollowUpQuery = useQuery<SpeakerFollowUpResponse>({
+    queryKey: ['/api/sacrament-planner/speaker-follow-up', selectedMeeting?.id],
+    queryFn: () => authFetch(token, `/api/sacrament-planner/${selectedMeeting?.id}/speaker-follow-up`),
+    enabled: !!token && canManageWardSunday && !!selectedMeeting?.id,
+    staleTime: 60000,
+  });
+
+  const refreshSacramentQueries = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['/api/sacrament-planner/overview'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/announcements/active'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/sacrament-planner/speaker-follow-up'] }),
+    ]);
+    triggerGlobalRefreshIndicator();
+  }, [queryClient]);
+
+  const reviewMutation = useMutation({
+    mutationFn: (meetingId: number) =>
+      authFetch(token, `/api/sacrament-planner/${meetingId}/announcements/reviewed`, {
+        method: 'POST',
+      }),
+    onSuccess: async (data: any) => {
+      if (Platform.OS !== 'web') {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      await refreshSacramentQueries();
+      appAlert('Announcements reviewed', data?.message || 'The Sunday queue is now marked reviewed for this meeting.');
+    },
+    onError: (error: any) => {
+      appAlert('Unable to mark announcements reviewed', error?.message || 'Please try again.');
+    },
+  });
+
+  const reminderMutation = useMutation({
+    mutationFn: ({ meetingId, invitationId }: { meetingId: number; invitationId: number }) =>
+      authFetch(token, `/api/sacrament-planner/${meetingId}/speaker-follow-up/${invitationId}/remind`, {
+        method: 'POST',
+      }),
+    onSuccess: async (data: any) => {
+      if (Platform.OS !== 'web') {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      await refreshSacramentQueries();
+      appAlert('Speaker follow-up updated', data?.message || 'The speaker follow-up action has been recorded.');
+    },
+    onError: (error: any) => {
+      appAlert('Unable to update speaker follow-up', error?.message || 'Please try again.');
+    },
+  });
+
   const onRefresh = useCallback(async () => {
     await Promise.all([
       overviewQuery.refetch(),
       announcementsQuery.refetch(),
+      canManageWardSunday && selectedMeeting?.id ? speakerFollowUpQuery.refetch() : Promise.resolve(),
       canSeeAllWards ? wardsQuery.refetch() : Promise.resolve(),
     ]);
     triggerGlobalRefreshIndicator();
-  }, [announcementsQuery, canSeeAllWards, overviewQuery, wardsQuery]);
+  }, [announcementsQuery, canManageWardSunday, canSeeAllWards, overviewQuery, selectedMeeting?.id, speakerFollowUpQuery, wardsQuery]);
 
   const selectedWardName = useMemo(() => {
     if (overviewQuery.data?.ward?.name) {
@@ -323,6 +530,14 @@ export default function SacramentOverviewScreen() {
   }, [canSeeAllWards, overviewQuery.data?.ward?.name, selectedWardId, user?.ward, wardsQuery.data?.wards]);
 
   const announcementItems = announcementsQuery.data?.announcements ?? [];
+  const selectedAnnouncementMeeting = announcementsQuery.data?.meeting ?? null;
+  const selectedMeetingBrief = selectedMeeting?.leadership_intelligence?.sacrament_readiness_brief ?? null;
+  const shouldShowAnnouncementReviewCard = !!selectedMeeting?.meeting_date && (
+    !!selectedAnnouncementMeeting
+    || announcementItems.length > 0
+    || (canManageWardSunday && !!selectedMeeting && selectedMeeting.id === null)
+  );
+  const speakerFollowUpItems = speakerFollowUpQuery.data?.follow_up ?? [];
 
   if (!canSeeOverview) {
     return (
@@ -501,6 +716,32 @@ export default function SacramentOverviewScreen() {
               </View>
             )}
 
+            {selectedMeetingBrief ? (
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>
+                    {selectedMeeting ? `Prepared Sunday brief for ${selectedMeeting.meeting_date_label}` : 'Prepared Sunday brief'}
+                  </Text>
+                  <Text style={styles.sectionMeta}>{selectedMeetingBrief.status_label}</Text>
+                </View>
+
+                <PreparedLeadershipCard
+                  eyebrow={selectedMeetingBrief.context_label ?? 'Prepared Sunday brief'}
+                  title={selectedMeetingBrief.title}
+                  summary={selectedMeetingBrief.summary_sentence || selectedMeetingBrief.payload.summary_sentence || 'This Sunday already has a prepared leadership read.'}
+                  question={selectedMeetingBrief.payload.opening_question}
+                  focus={selectedMeetingBrief.payload.readiness_focus}
+                  bullets={buildSacramentBriefBullets(selectedMeetingBrief)}
+                  note={selectedMeetingBrief.payload.speaker_watch || selectedMeetingBrief.payload.publish_watch || undefined}
+                  generatedLabel={selectedMeetingBrief.generated_label}
+                  statusLabel={selectedMeetingBrief.status_label}
+                  statusTone={selectedMeetingBrief.status_tone}
+                  icon="calendar-outline"
+                  testID="sacrament-overview-prepared-brief"
+                />
+              </>
+            ) : null}
+
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>
                 {selectedMeeting ? `Active announcements for ${selectedMeeting.meeting_date_label}` : 'Active announcements'}
@@ -509,6 +750,73 @@ export default function SacramentOverviewScreen() {
                 <Text style={styles.sectionMeta}>{announcementsQuery.data.meta.total} items</Text>
               ) : null}
             </View>
+
+            {shouldShowAnnouncementReviewCard ? (
+              <View style={styles.sectionCard}>
+                <View style={styles.actionHeaderRow}>
+                  <View style={styles.actionHeaderCopy}>
+                    <Text style={styles.actionHeaderTitle}>Sunday queue review</Text>
+                    <Text style={styles.actionHeaderBody}>
+                      {selectedAnnouncementMeeting?.announcement_review.reviewed_at
+                        ? `Reviewed ${formatDateTimeLabel(selectedAnnouncementMeeting.announcement_review.reviewed_at)}${selectedAnnouncementMeeting.announcement_review.reviewed_by ? ` by ${selectedAnnouncementMeeting.announcement_review.reviewed_by.name}` : ''}.`
+                        : selectedAnnouncementMeeting
+                        ? (announcementItems.length > 0
+                            ? 'Confirm the active ward and stake items, then mark this Sunday queue reviewed.'
+                            : 'No active sacrament announcements are waiting for this Sunday.')
+                        : 'Start this meeting on desktop before recording bishopric announcement review on mobile.'}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.actionStatusBadge,
+                      selectedAnnouncementMeeting?.announcement_review.reviewed_at
+                        ? styles.actionStatusBadgeSuccess
+                        : announcementItems.length > 0
+                        ? styles.actionStatusBadgePending
+                        : styles.actionStatusBadgeNeutral,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.actionStatusBadgeText,
+                        selectedAnnouncementMeeting?.announcement_review.reviewed_at
+                          ? styles.actionStatusBadgeTextSuccess
+                          : announcementItems.length > 0
+                          ? styles.actionStatusBadgeTextPending
+                          : styles.actionStatusBadgeTextNeutral,
+                      ]}
+                    >
+                      {selectedAnnouncementMeeting?.announcement_review.reviewed_at
+                        ? 'Reviewed'
+                        : announcementItems.length > 0
+                        ? 'Needs review'
+                        : 'No active items'}
+                    </Text>
+                  </View>
+                </View>
+
+                {selectedAnnouncementMeeting?.announcement_review.can_mark_reviewed
+                && !selectedAnnouncementMeeting.announcement_review.reviewed_at
+                && announcementItems.length > 0 ? (
+                  <AppButton
+                    label="Mark reviewed"
+                    variant="secondary"
+                    loading={reviewMutation.isPending}
+                    onPress={() => reviewMutation.mutate(selectedAnnouncementMeeting.id)}
+                    style={styles.inlineActionButton}
+                    testID="sacrament-announcement-review-button"
+                  />
+                ) : null}
+
+                {!selectedAnnouncementMeeting?.announcement_review.can_mark_reviewed
+                && selectedAnnouncementMeeting
+                && announcementItems.length > 0 ? (
+                  <Text style={styles.actionSupportText}>
+                    Announcement review stays with the bishopric for this ward.
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
 
             {announcementsQuery.isLoading ? (
               <View style={styles.loadingInlineCard}>
@@ -552,6 +860,133 @@ export default function SacramentOverviewScreen() {
                 })}
               </View>
             )}
+
+            {canManageWardSunday ? (
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>
+                    {selectedMeeting ? `Speaker follow-up for ${selectedMeeting.meeting_date_label}` : 'Speaker follow-up'}
+                  </Text>
+                  {speakerFollowUpQuery.data?.meta ? (
+                    <Text style={styles.sectionMeta}>{speakerFollowUpQuery.data.meta.open_invitation_count} open</Text>
+                  ) : null}
+                </View>
+
+                {!selectedMeeting?.id ? (
+                  <View style={styles.sectionCard}>
+                    <Text style={styles.actionHeaderTitle}>Desktop starts the invitation cycle</Text>
+                    <Text style={styles.actionHeaderBody}>
+                      Use the desktop planner to start or reshape the Sunday speaker plan. Mobile follow-up appears here after the meeting exists and local invitations are already open.
+                    </Text>
+                  </View>
+                ) : speakerFollowUpQuery.isLoading ? (
+                  <View style={styles.loadingInlineCard}>
+                    <ActivityIndicator size="small" color={Colors.brand.primary} />
+                    <Text style={styles.loadingInlineText}>Loading speaker follow-up…</Text>
+                  </View>
+                ) : speakerFollowUpQuery.isError ? (
+                  <View style={styles.sectionCard}>
+                    <Text style={styles.errorTitle}>Speaker follow-up could not be loaded</Text>
+                    <Text style={styles.errorBody}>
+                      The app could not load the current open local invitations for this Sunday.
+                    </Text>
+                    <AppButton
+                      label="Try again"
+                      variant="secondary"
+                      onPress={() => void speakerFollowUpQuery.refetch()}
+                      style={styles.inlineActionButton}
+                    />
+                  </View>
+                ) : (
+                  <>
+                    {speakerFollowUpQuery.data?.meeting?.speaker_follow_up.blocked_reason ? (
+                      <View style={styles.sectionCard}>
+                        <Text style={styles.actionHeaderTitle}>Follow-up stays read-only for this Sunday</Text>
+                        <Text style={styles.actionHeaderBody}>
+                          {speakerFollowUpQuery.data.meeting.speaker_follow_up.blocked_reason}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {speakerFollowUpItems.length === 0 ? (
+                      <View style={styles.sectionCard}>
+                        <Text style={styles.actionHeaderTitle}>No open speaker follow-up is waiting</Text>
+                        <Text style={styles.actionHeaderBody}>
+                          Once local invitations move into invited or needs-follow-up status, they will appear here for quick mobile continuity.
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={styles.cardList}>
+                        {speakerFollowUpItems.map((item) => {
+                          const tone = deliveryTone(item.delivery.state);
+                          const isRunning = reminderMutation.isPending && reminderMutation.variables?.invitationId === item.id;
+                          return (
+                            <View key={item.id} style={styles.followUpCard}>
+                              <View style={styles.followUpHeader}>
+                                <View style={styles.followUpHeaderCopy}>
+                                  <Text style={styles.followUpName}>{item.invitee.name}</Text>
+                                  <Text style={styles.followUpMetaText}>
+                                    {item.topic_hint ? item.topic_hint : item.status_label}
+                                  </Text>
+                                </View>
+                                <View style={[styles.followUpBadge, { backgroundColor: tone.bg }]}>
+                                  <Text style={[styles.followUpBadgeText, { color: tone.text }]}>
+                                    {item.delivery.state_label}
+                                  </Text>
+                                </View>
+                              </View>
+
+                              <View style={styles.followUpMetaList}>
+                                <Text style={styles.followUpMetaText}>
+                                  {item.delivery.opened_at
+                                    ? `Opened ${formatDateTimeLabel(item.delivery.opened_at)}`
+                                    : item.delivery.sent_at
+                                    ? `Last contact ${formatDateTimeLabel(item.delivery.sent_at)}`
+                                    : 'First contact still starts on desktop'}
+                                </Text>
+                                {item.respond_by_label ? (
+                                  <Text style={styles.followUpMetaText}>Respond by {item.respond_by_label}</Text>
+                                ) : null}
+                                {item.follow_up_date ? (
+                                  <Text style={styles.followUpMetaText}>Last follow-up note date {item.follow_up_date}</Text>
+                                ) : null}
+                                {item.delivery.has_contact_email && item.delivery.contact_email ? (
+                                  <Text style={styles.followUpMetaText}>{item.delivery.contact_email}</Text>
+                                ) : (
+                                  <Text style={styles.followUpMetaText}>Manual bishopric contact only</Text>
+                                )}
+                              </View>
+
+                              {item.follow_up_note ? (
+                                <View style={styles.followUpNoteCard}>
+                                  <Text style={styles.followUpNoteLabel}>Follow-up note</Text>
+                                  <Text style={styles.followUpNoteBody}>{item.follow_up_note}</Text>
+                                </View>
+                              ) : null}
+
+                              {item.follow_up_action.allowed && item.follow_up_action.label ? (
+                                <AppButton
+                                  label={item.follow_up_action.label}
+                                  variant="secondary"
+                                  loading={isRunning}
+                                  onPress={() => reminderMutation.mutate({ meetingId: item.meeting_id, invitationId: item.id })}
+                                  style={styles.inlineActionButton}
+                                  testID={`sacrament-speaker-follow-up-${item.id}`}
+                                />
+                              ) : (
+                                <Text style={styles.actionSupportText}>
+                                  {item.follow_up_action.blocked_reason ?? 'This invitation does not need a mobile follow-up action.'}
+                                </Text>
+                              )}
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </>
+                )}
+              </>
+            ) : null}
 
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Recent speaker history</Text>
@@ -770,6 +1205,64 @@ const styles = StyleSheet.create({
   retryButton: {
     marginTop: 16,
   },
+  actionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  actionHeaderCopy: {
+    flex: 1,
+    gap: 6,
+  },
+  actionHeaderTitle: {
+    fontSize: 16,
+    color: Colors.brand.dark,
+    fontFamily: 'Inter_700Bold',
+  },
+  actionHeaderBody: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_400Regular',
+  },
+  actionStatusBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  actionStatusBadgeSuccess: {
+    backgroundColor: '#DCFCE7',
+  },
+  actionStatusBadgePending: {
+    backgroundColor: '#FEF3C7',
+  },
+  actionStatusBadgeNeutral: {
+    backgroundColor: '#E5E7EB',
+  },
+  actionStatusBadgeText: {
+    fontSize: 12,
+    fontFamily: 'Inter_700Bold',
+  },
+  actionStatusBadgeTextSuccess: {
+    color: '#166534',
+  },
+  actionStatusBadgeTextPending: {
+    color: '#92400E',
+  },
+  actionStatusBadgeTextNeutral: {
+    color: '#4B5563',
+  },
+  inlineActionButton: {
+    marginTop: 14,
+  },
+  actionSupportText: {
+    marginTop: 12,
+    fontSize: 13,
+    lineHeight: 19,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_500Medium',
+  },
   cardList: {
     gap: 14,
   },
@@ -940,6 +1433,69 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 14,
     lineHeight: 21,
+    color: Colors.brand.darkGray,
+    fontFamily: 'Inter_400Regular',
+  },
+  followUpCard: {
+    backgroundColor: Colors.brand.cardBg,
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.brand.lightGray,
+  },
+  followUpHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  followUpHeaderCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  followUpName: {
+    fontSize: 16,
+    color: Colors.brand.dark,
+    fontFamily: 'Inter_700Bold',
+  },
+  followUpBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  followUpBadgeText: {
+    fontSize: 12,
+    fontFamily: 'Inter_700Bold',
+  },
+  followUpMetaList: {
+    marginTop: 12,
+    gap: 5,
+  },
+  followUpMetaText: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_500Medium',
+  },
+  followUpNoteCard: {
+    marginTop: 12,
+    borderRadius: 16,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+    gap: 4,
+  },
+  followUpNoteLabel: {
+    fontSize: 12,
+    color: Colors.brand.midGray,
+    fontFamily: 'Inter_700Bold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  followUpNoteBody: {
+    fontSize: 14,
+    lineHeight: 20,
     color: Colors.brand.darkGray,
     fontFamily: 'Inter_400Regular',
   },

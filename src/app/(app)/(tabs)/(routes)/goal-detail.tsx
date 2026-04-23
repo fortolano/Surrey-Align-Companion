@@ -17,8 +17,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { getApiUrl } from '@/lib/query-client';
 import { triggerGlobalRefreshIndicator } from '@/lib/refresh-indicator';
+import PreparedLeadershipCard from '@/components/PreparedLeadershipCard';
 import Colors from '@/constants/colors';
 import { WEB_BOTTOM_INSET } from '@/constants/layout';
+import type { LeadershipIntelligenceArtifact } from '@/lib/leadership-intelligence';
+import { uniqueLeadershipLines } from '@/lib/leadership-intelligence';
 
 interface ActionItem {
   id: number;
@@ -27,6 +30,14 @@ interface ActionItem {
   progress_percent: number;
   due_on: string | null;
   notes: string | null;
+}
+
+interface GoalUpdateCopilotPayload {
+  summary_sentence?: string;
+  opening_question?: string;
+  leader_focus?: string;
+  watch_for?: string;
+  note_starters?: string[];
 }
 
 interface ProgressIndicator {
@@ -43,6 +54,9 @@ interface ProgressIndicator {
   owner_id: number;
   actions: ActionItem[];
   action_summary: { total: number; completed: number; avg_progress: number };
+  leadership_intelligence?: {
+    goal_update_copilot?: LeadershipIntelligenceArtifact<GoalUpdateCopilotPayload> | null;
+  };
 }
 
 interface ExecutionEntity {
@@ -163,10 +177,17 @@ function ActionRow({ action }: { action: ActionItem }) {
   );
 }
 
+function buildGoalCopilotBullets(artifact?: LeadershipIntelligenceArtifact<GoalUpdateCopilotPayload> | null): string[] {
+  const starters = Array.isArray(artifact?.payload.note_starters) ? artifact.payload.note_starters : [];
+
+  return uniqueLeadershipLines(starters, 3);
+}
+
 function PICard({ pi, entityColor }: { pi: ProgressIndicator; entityColor: string }) {
   const [expanded, setExpanded] = useState(false);
   const statusIcon = piStatusIcon(pi.status);
   const hasActions = pi.actions && pi.actions.length > 0;
+  const copilot = pi.leadership_intelligence?.goal_update_copilot ?? null;
 
   return (
     <View style={styles.piCard}>
@@ -209,6 +230,26 @@ function PICard({ pi, entityColor }: { pi: ProgressIndicator; entityColor: strin
           </Text>
         </View>
       )}
+
+      {copilot ? (
+        <View style={styles.copilotCardWrap}>
+          <PreparedLeadershipCard
+            compact
+            eyebrow={copilot.context_label ?? 'Prepared leadership read'}
+            title={copilot.title}
+            summary={copilot.summary_sentence || copilot.payload.summary_sentence || 'A prepared update read is ready.'}
+            question={copilot.payload.opening_question}
+            focus={copilot.payload.leader_focus}
+            bullets={buildGoalCopilotBullets(copilot)}
+            note={copilot.payload.watch_for ? `Keep it honest: ${copilot.payload.watch_for}` : undefined}
+            generatedLabel={copilot.generated_label}
+            statusLabel={copilot.status_label}
+            statusTone={copilot.status_tone}
+            icon="sparkles-outline"
+            testID={`goal-update-copilot-${pi.id}`}
+          />
+        </View>
+      ) : null}
 
       {expanded && hasActions && (
         <View style={styles.actionsContainer}>
@@ -984,6 +1025,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.brand.midGray,
     fontFamily: 'Inter_400Regular',
+  },
+  copilotCardWrap: {
+    marginTop: 12,
   },
   actionsContainer: {
     marginTop: 12,

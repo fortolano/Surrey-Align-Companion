@@ -1,5 +1,5 @@
-let APP_CACHE = 'surreyalign-app-v14';
-let ASSET_CACHE = 'surreyalign-assets-v14';
+let APP_CACHE = 'surreyalign-app-v15';
+let ASSET_CACHE = 'surreyalign-assets-v15';
 let SENSITIVE_PREFIXES = ['/api/', '/auth/'];
 let STATIC_FILE_RE = /\.(?:css|js|png|jpe?g|svg|webp|ico|woff2?|ttf|map)$/i;
 let PRECACHE_URLS = [
@@ -140,6 +140,17 @@ function resolvePushTarget(payload) {
         announcementId: firstString(params.announcement_id),
         returnTo: '/notifications',
       });
+
+    case 'insight.detail': {
+      let insightId = firstString(params.insight_id) || firstString(params.insightId);
+      return buildInternalPath('/intelligence-inbox', {
+        insightId: insightId,
+        returnTo: '/notifications',
+      });
+    }
+
+    case 'insight.inbox':
+      return buildInternalPath('/intelligence-inbox', { returnTo: '/notifications' });
 
     case 'web.open':
       return normalizeTargetUrl(action.fallback_url || payload.target_url);

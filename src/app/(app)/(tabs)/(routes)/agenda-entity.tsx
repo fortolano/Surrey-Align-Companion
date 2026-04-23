@@ -23,9 +23,11 @@ import { buildCarryForwardMeetingInstanceKey } from '@/lib/carry-forward-api';
 import AppListRow from '@/components/ui/AppListRow';
 import AppSegmentedControl from '@/components/ui/AppSegmentedControl';
 import AppStatusBadge from '@/components/ui/AppStatusBadge';
+import PreparedLeadershipCard from '@/components/PreparedLeadershipCard';
 import {
   useAgendaEntity,
   usePublishedAgenda,
+  type AgendaPrepBriefPayload,
   type AgendaEntity,
   type AgendaEntityType,
   type AgendaItemData,
@@ -33,6 +35,7 @@ import {
   type AgendaSummary,
   type AgendaSummaryListItem,
 } from '@/lib/agenda-api';
+import { uniqueLeadershipLines } from '@/lib/leadership-intelligence';
 
 type AgendaTab = 'current' | 'past';
 
@@ -85,6 +88,21 @@ function carryForwardTone(status: string) {
   }
 
   return { backgroundColor: '#E8F4F8', textColor: Colors.brand.primary };
+}
+
+function buildAgendaBriefBullets(
+  artifact?: AgendaSummary['leadership_intelligence'] extends { agenda_prep_brief?: infer T | null } ? T | null : never
+): string[] {
+  const payload = artifact?.payload as AgendaPrepBriefPayload | undefined;
+  if (!payload) return [];
+
+  const placementCandidates = Array.isArray(payload.placement_candidates) ? payload.placement_candidates : [];
+  const watchItems = Array.isArray(payload.watch_items) ? payload.watch_items : [];
+
+  return uniqueLeadershipLines([
+    ...placementCandidates.flatMap((item) => [item.title, item.why_now, item.next_step]),
+    ...watchItems.flatMap((item) => [item.title, item.detail, item.timing]),
+  ], 3);
 }
 
 function AgendaItemRow({
@@ -530,6 +548,11 @@ export default function AgendaEntityScreen() {
   );
 
   const detailAgenda = selectedAgendaQuery.data?.agenda ?? null;
+  const currentAgendaBrief = activeTab === 'current'
+    ? detailAgenda?.leadership_intelligence?.agenda_prep_brief
+      ?? currentAgenda?.leadership_intelligence?.agenda_prep_brief
+      ?? null
+    : null;
   const canQuickAddToCurrentDraft = Boolean(
     entity?.can_submit
       && currentAgenda?.status === 'draft'
@@ -721,6 +744,23 @@ export default function AgendaEntityScreen() {
               {activeTab === 'current' ? (
                 currentAgenda ? (
                   <View style={screenS.workspaceBody}>
+                    {currentAgendaBrief ? (
+                      <PreparedLeadershipCard
+                        eyebrow={currentAgendaBrief.context_label ?? 'Prepared meeting brief'}
+                        title={currentAgendaBrief.title}
+                        summary={currentAgendaBrief.summary_sentence || currentAgendaBrief.payload.summary_sentence || 'This draft already has a prepared meeting read.'}
+                        question={currentAgendaBrief.payload.opening_question}
+                        focus={currentAgendaBrief.payload.meeting_focus}
+                        bullets={buildAgendaBriefBullets(currentAgendaBrief)}
+                        note={currentAgendaBrief.payload.continuity_watch || currentAgendaBrief.payload.publish_watch || undefined}
+                        generatedLabel={currentAgendaBrief.generated_label}
+                        statusLabel={currentAgendaBrief.status_label}
+                        statusTone={currentAgendaBrief.status_tone}
+                        icon="clipboard-outline"
+                        testID="agenda-entity-prepared-brief"
+                      />
+                    ) : null}
+
                     {canQuickAddToCurrentDraft ? (
                       <Pressable
                         onPress={() => {

@@ -34,6 +34,7 @@
 - Treat that file as the mobile design source of truth for this repo.
 - Reuse the shared PWA components and token files named there before creating one-off patterns.
 - If a pattern repeats, move it into shared UI instead of leaving it page-local.
+- Use the mobile equivalent of the shared density rules: compact titles, no default multi-line orientation paragraphs, zero-count badges suppressed or materially muted, first actionable content visible quickly, and danger styling reserved for real urgency.
 
 ## Agent Rules (Required)
 
@@ -74,6 +75,9 @@
 - Favor one clear primary action per screen or section.
 - Preserve immediate pressed states, clear loading states, and appropriate haptic feedback patterns.
 - Preserve SurreyAlign’s calm and trustworthy tone.
+- Keep title support text optional and short. Do not stack orientation copy above the first action or first list item by default.
+- Suppress zero-count badges unless zero itself changes the decision a leader needs to make next.
+- Lead with opportunity or next-move framing. Use danger styling only when the state is truly urgent.
 - Keep ALIGN as a full methodology. Never reduce goals to one ALIGN letter.
 - Prefer organization-level insight over people-ranking behavior.
 

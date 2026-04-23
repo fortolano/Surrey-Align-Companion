@@ -76,6 +76,10 @@ export default function TabRoutesLayout() {
         options={{ title: 'High Council Agenda' }}
       />
       <Stack.Screen
+        name="intelligence-inbox"
+        options={{ title: 'Leadership Intelligence' }}
+      />
+      <Stack.Screen
         name="agenda-entity"
         options={{ title: 'Agenda' }}
       />

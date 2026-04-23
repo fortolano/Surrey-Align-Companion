@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api';
+import type { LeadershipIntelligenceArtifact } from '@/lib/leadership-intelligence';
 
 // ─── Types ──────────────────────────────────────
 
@@ -140,6 +141,24 @@ export interface AgendaSection {
   items: AgendaItemData[];
 }
 
+export interface AgendaPrepBriefPayload {
+  summary_sentence?: string;
+  opening_question?: string;
+  meeting_focus?: string;
+  continuity_watch?: string;
+  publish_watch?: string;
+  placement_candidates?: Array<{
+    title?: string;
+    why_now?: string;
+    next_step?: string;
+  }>;
+  watch_items?: Array<{
+    title?: string;
+    detail?: string;
+    timing?: string;
+  }>;
+}
+
 export interface AgendaSummary {
   id: number;
   title: string;
@@ -153,6 +172,9 @@ export interface AgendaSummary {
   my_item_count: number;
   sections: AgendaSection[];
   carry_forward_context?: AgendaCarryForwardSurface | null;
+  leadership_intelligence?: {
+    agenda_prep_brief?: LeadershipIntelligenceArtifact<AgendaPrepBriefPayload> | null;
+  };
 }
 
 export interface AgendasResponse {
@@ -212,6 +234,9 @@ export interface AgendaSummaryListItem {
   location: string | null;
   status: string;
   item_count: number;
+  leadership_intelligence?: {
+    agenda_prep_brief?: LeadershipIntelligenceArtifact<AgendaPrepBriefPayload> | null;
+  };
 }
 
 export interface AgendaEntitiesResponse {

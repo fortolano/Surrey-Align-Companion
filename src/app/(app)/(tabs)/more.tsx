@@ -106,6 +106,16 @@ const ALL_FEATURE_ITEMS: (MenuItem & { visibleTo?: (user: any) => boolean })[] =
     visibleTo: (u) => u?.is_high_councilor || u?.is_stake_presidency_member || u?.is_executive_secretary || u?.is_bishopric_member || u?.is_ward_org_president || u?.is_stake_org_president,
   },
   {
+    id: 'intelligence-inbox',
+    label: 'Leadership Intelligence',
+    subtitle: 'Prepared signals and follow-through nudges',
+    icon: 'bulb-outline',
+    iconSet: 'ionicons',
+    iconColor: Colors.brand.primary,
+    iconBg: '#E8F4F8',
+    route: '/intelligence-inbox',
+  },
+  {
     id: 'goals',
     label: 'Goals & Execution',
     subtitle: 'Track stake and ward goals',

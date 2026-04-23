@@ -23,10 +23,13 @@ import { triggerGlobalRefreshIndicator } from '@/lib/refresh-indicator';
 import Colors from '@/constants/colors';
 import { WEB_BOTTOM_INSET } from '@/constants/layout';
 import AvatarMenu from '@/components/AvatarMenu';
+import PreparedLeadershipCard from '@/components/PreparedLeadershipCard';
 import ScreenHeader from '@/components/ScreenHeader';
 import AppButton from '@/components/ui/AppButton';
 import AppPickerTrigger from '@/components/ui/AppPickerTrigger';
 import AppStatusBadge from '@/components/ui/AppStatusBadge';
+import type { LeadershipIntelligenceArtifact } from '@/lib/leadership-intelligence';
+import { uniqueLeadershipLines } from '@/lib/leadership-intelligence';
 
 type BishopHomeMode = 'home-tab' | 'route';
 type BishopHomeCardKey = 'sacrament_meeting' | 'calling_requests' | 'sunday_business' | 'my_work';
@@ -109,6 +112,37 @@ interface CommandCenterCard {
   pulse_due_count?: number | null;
 }
 
+interface LeadershipDailyBriefPayload {
+  role_focus?: string;
+  opening_question?: string;
+  focus_items?: {
+    title?: string;
+    suggestion?: string;
+    reason?: string;
+  }[];
+  watch_items?: {
+    title?: string;
+    signal?: string;
+    why?: string;
+  }[];
+}
+
+interface LeadershipActionBundlePayload {
+  summary_sentence?: string;
+  opening_question?: string;
+  encouragement?: string;
+  actions?: {
+    title?: string;
+    why_now?: string;
+    next_step?: string;
+  }[];
+  watch_items?: {
+    title?: string;
+    detail?: string;
+    timing?: string;
+  }[];
+}
+
 interface BishopHomeResponse {
   success: boolean;
   command_center: {
@@ -122,6 +156,10 @@ interface BishopHomeResponse {
     navigation: WeekNavigation;
     headline: CommandCenterHeadline;
     cards: Record<BishopHomeCardKey, CommandCenterCard>;
+    leadership_intelligence?: {
+      daily_brief?: LeadershipIntelligenceArtifact<LeadershipDailyBriefPayload> | null;
+      prepared_next_moves?: LeadershipIntelligenceArtifact<LeadershipActionBundlePayload> | null;
+    };
   };
   meta?: {
     generated_at?: string;
@@ -363,6 +401,32 @@ function buildHighlights(card: CommandCenterCard): CardTopItem[] {
   return [];
 }
 
+function buildDailyBriefBullets(artifact?: LeadershipIntelligenceArtifact<LeadershipDailyBriefPayload> | null): string[] {
+  const payload = artifact?.payload;
+  if (!payload) return [];
+
+  const focusItems = Array.isArray(payload.focus_items) ? payload.focus_items : [];
+  const watchItems = Array.isArray(payload.watch_items) ? payload.watch_items : [];
+
+  return uniqueLeadershipLines([
+    ...focusItems.flatMap((item) => [item.title, item.suggestion, item.reason]),
+    ...watchItems.flatMap((item) => [item.title, item.signal, item.why]),
+  ], 3);
+}
+
+function buildActionBundleBullets(artifact?: LeadershipIntelligenceArtifact<LeadershipActionBundlePayload> | null): string[] {
+  const payload = artifact?.payload;
+  if (!payload) return [];
+
+  const actions = Array.isArray(payload.actions) ? payload.actions : [];
+  const watchItems = Array.isArray(payload.watch_items) ? payload.watch_items : [];
+
+  return uniqueLeadershipLines([
+    ...actions.flatMap((item) => [item.title, item.why_now, item.next_step]),
+    ...watchItems.flatMap((item) => [item.title, item.detail, item.timing]),
+  ], 3);
+}
+
 function EmptyState({
   icon,
   title,
@@ -445,6 +509,10 @@ export default function BishopHomeScreen({ mode, fallback }: BishopHomeScreenPro
   const availableWards = commandCenter?.available_wards ?? [];
   const activeWardId = commandCenter?.ward.id ?? selectedWardId ?? user?.ward_id ?? null;
   const activeWeekStart = commandCenter?.week.week_start ?? selectedWeekStart ?? null;
+  const leadershipIntelligence = commandCenter?.leadership_intelligence;
+  const dailyBrief = leadershipIntelligence?.daily_brief ?? null;
+  const preparedNextMoves = leadershipIntelligence?.prepared_next_moves ?? null;
+  const preparedCount = [dailyBrief, preparedNextMoves].filter(Boolean).length;
   const returnTarget = mode === 'route'
     ? buildPathWithParams('/bishop-home', {
       wardId: activeWardId ?? undefined,
@@ -561,6 +629,50 @@ export default function BishopHomeScreen({ mode, fallback }: BishopHomeScreenPro
             </View>
             <Text style={styles.generatedAt}>{formatGeneratedAt(bishopHomeQuery.data?.meta?.generated_at)}</Text>
           </View>
+
+          {preparedCount > 0 ? (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Prepared for you</Text>
+                <Text style={styles.sectionMeta}>{preparedCount} ready</Text>
+              </View>
+
+              <View style={styles.preparedCardList}>
+                {dailyBrief ? (
+                  <PreparedLeadershipCard
+                    eyebrow={dailyBrief.context_label ?? 'Daily brief'}
+                    title={dailyBrief.title}
+                    summary={dailyBrief.summary_sentence || dailyBrief.payload.role_focus || 'Today already has a clear leadership focus.'}
+                    question={dailyBrief.payload.opening_question}
+                    bullets={buildDailyBriefBullets(dailyBrief)}
+                    generatedLabel={dailyBrief.generated_label}
+                    statusLabel={dailyBrief.status_label}
+                    statusTone={dailyBrief.status_tone}
+                    icon="sunny-outline"
+                    testID="bishop-home-daily-brief-card"
+                  />
+                ) : null}
+
+                {preparedNextMoves ? (
+                  <PreparedLeadershipCard
+                    eyebrow={preparedNextMoves.context_label ?? 'Prepared next moves'}
+                    title={preparedNextMoves.title}
+                    summary={preparedNextMoves.summary_sentence || preparedNextMoves.payload.summary_sentence || 'One prepared next move already deserves first attention.'}
+                    question={preparedNextMoves.payload.opening_question}
+                    focus={preparedNextMoves.payload.encouragement}
+                    bullets={buildActionBundleBullets(preparedNextMoves)}
+                    generatedLabel={preparedNextMoves.generated_label}
+                    statusLabel={preparedNextMoves.status_label}
+                    statusTone={preparedNextMoves.status_tone}
+                    actionLabel="Open My Work"
+                    onAction={() => router.push(withReturnTarget('/assignments', returnTarget))}
+                    icon="checkmark-done-outline"
+                    testID="bishop-home-action-bundle-card"
+                  />
+                ) : null}
+              </View>
+            </>
+          ) : null}
 
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Scope and timing</Text>
@@ -968,6 +1080,9 @@ const styles = StyleSheet.create({
   },
   cardList: {
     gap: 14,
+  },
+  preparedCardList: {
+    gap: 12,
   },
   summaryCard: {
     backgroundColor: Colors.brand.cardBg,

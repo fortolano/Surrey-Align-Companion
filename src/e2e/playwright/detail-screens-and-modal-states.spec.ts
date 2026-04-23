@@ -70,6 +70,26 @@ test.describe('detail screens and modal states', () => {
     await expect(page.getByText("You're caught up for now.")).toBeVisible();
   });
 
+  test('Insight notification opens the intelligence inbox and dismissal removes the surfaced insight', async ({ page }) => {
+    await openMockedRoute(page, '/notifications');
+
+    await expect(page).toHaveURL(/\/notifications(?:\?|$)/);
+    await expect(page.getByTestId('notification-row-9103')).toBeVisible();
+
+    await page.getByTestId('notification-row-9103').click();
+
+    await expect(page).toHaveURL(/\/intelligence-inbox\?/);
+    await expect(page.getByRole('heading', { name: 'Leadership Intelligence' })).toBeVisible();
+    await expect(page.getByTestId('intelligence-detail-card')).toBeVisible();
+    await expect(page.getByTestId('intelligence-detail-card').getByText('Follow through before this slips again')).toBeVisible();
+
+    await page.getByTestId('intelligence-dismiss-toggle').click();
+    await page.getByTestId('intelligence-dismiss-reason-not_now').click();
+
+    await expect(page.getByText('Follow through before this slips again')).toHaveCount(0);
+    await expect(page.getByTestId('intelligence-detail-card').getByText('Keep an eye on youth engagement momentum')).toBeVisible();
+  });
+
   test('Settings email frequency changes persist after a reload', async ({ page }) => {
     await openMockedRoute(page, '/settings');
 

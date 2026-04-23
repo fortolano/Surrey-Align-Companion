@@ -87,6 +87,15 @@ This PWA is not a standalone app with its own backend. It depends entirely on th
 - Reuse the shared PWA components and tokens named in that document before inventing new patterns.
 - If a mobile pattern is needed in more than one place, move toward a shared component or shared token instead of page-level styling drift.
 
+## Cross-Platform Alignment Rules (Required For Shared SurreyAlign UX Work)
+
+- Align the PWA with SurreyAlign web workflows by job order, naming, action priority, and calm tone. Do not copy the desktop admin chrome into mobile.
+- Do not import tiered admin nav clusters, multi-row filter bars, dense tables, metric bands, or stacked summary shells from the web app.
+- Shared cross-platform rule: one clear primary action, one meaningful control layer, real work visible in the first screenful, and helper text only when it prevents mistakes.
+- Use the mobile equivalent of the shared density rules: compact titles, no default multi-line orientation paragraphs, zero-count badges suppressed or materially muted, first actionable content visible quickly, and danger styling reserved for real urgency.
+- If a desktop flow has multiple toolbars or summary layers, compress it to the smallest honest mobile equivalent instead of reproducing each layer.
+- Keep cross-platform consistency in terminology and states, not in identical layout.
+
 ## Agent Execution Policy (Strict)
 
 - Do not instruct the user on what to do; explain what you will do next.
@@ -163,6 +172,10 @@ Key files and folders:
 - Keep touch targets at least 44px and primary buttons generally 48px to 52px tall.
 - Keep one clear primary action per screen or section when possible.
 - Preserve native-feeling feedback such as pressed states, loading states, and appropriate haptics.
+- Keep titles compact. Use one short support line only when it changes the next action.
+- Do not burn the first screenful on orientation copy above the first action or first list item.
+- Suppress zero-count badges by default. If zero matters, show it as quiet context rather than loud status.
+- Lead with opportunity or next-move framing. Use danger styling only for real urgency.
 - Do not import desktop-web habits such as crowded toolbars, multi-column forms, or stacked competing actions.
 - Reuse the shared PWA components before creating new ones:
   - `src/components/ScreenHeader.tsx`

@@ -153,6 +153,15 @@ function presentationForAction(action: NotificationAppAction | null | undefined)
         label: 'Speaking',
         actionLabel: 'Open assignment',
       };
+    case 'insight.detail':
+    case 'insight.inbox':
+      return {
+        iconName: 'bulb-outline',
+        iconColor: Colors.brand.primary,
+        iconBackground: '#E8F4F8',
+        label: 'Insight',
+        actionLabel: 'Open insight',
+      };
     default:
       return null;
   }
@@ -178,6 +187,15 @@ function presentationForType(type: string | null | undefined): NotificationPrese
       return TYPE_PRESENTATIONS.task_overdue;
     case 'vote_requested':
       return TYPE_PRESENTATIONS.vote_requested;
+    case 'leadership_intelligence_alert':
+    case 'leadership_intelligence_digest':
+      return {
+        iconName: 'bulb-outline',
+        iconColor: Colors.brand.primary,
+        iconBackground: '#E8F4F8',
+        label: 'Insight',
+        actionLabel: 'Open insight',
+      };
     case 'reminder':
       return TYPE_PRESENTATIONS.reminder;
     default:
@@ -250,6 +268,7 @@ export function notificationSurfaceLabel(notification: NotificationLike): string
   if (action.startsWith('agenda.')) return 'Meeting';
   if (action.startsWith('goal.')) return 'Goal';
   if (action.startsWith('calling_request.')) return 'Calling';
+  if (action.startsWith('insight.')) return 'Insight';
 
   return DEFAULT_PRESENTATION.label;
 }

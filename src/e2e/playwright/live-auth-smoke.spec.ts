@@ -190,6 +190,16 @@ test('live account can sign in and reach the home shell', async ({ page }) => {
   await expect(page.getByTestId('quick-goals')).toBeVisible();
 });
 
+test('live account can open the leadership intelligence inbox route', async ({ page }) => {
+  await loginToApp(page);
+
+  await page.goto('/intelligence-inbox');
+
+  await expect(page).toHaveURL(/\/intelligence-inbox(?:\?|$)/);
+  await expect(page.getByTestId('intelligence-inbox-screen')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Leadership Intelligence' })).toBeVisible();
+});
+
 test('ward bishop account can open the direct bishop-home route', async ({ page }) => {
   const { account } = getLiveCredentials();
 

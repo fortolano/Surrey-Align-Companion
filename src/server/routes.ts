@@ -1,7 +1,11 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "node:http";
 
-const SA_API_BASE = "https://surreyalign.org/api/external/v1";
+const DEFAULT_SURREYALIGN_API_BASE = "https://surreyalign.org/api/external/v1";
+const SA_API_BASE = (
+  process.env.SURREYALIGN_PWA_UPSTREAM_API_BASE?.trim()
+  || DEFAULT_SURREYALIGN_API_BASE
+).replace(/\/+$/, "");
 
 async function proxyRequest(
   req: Request,
@@ -75,6 +79,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   g(app, "/api/goals", "goals");
   g(app, "/api/goals/:goalId/execution", (req) => `goals/${req.params.goalId}/execution`);
+  g(app, "/api/leadership-intelligence/inbox", "leadership-intelligence/inbox");
+  g(app, "/api/leadership-intelligence/insights/:insightId", (req) => `leadership-intelligence/insights/${req.params.insightId}`);
+  p(app, "/api/leadership-intelligence/insights/:insightId/accept", (req) => `leadership-intelligence/insights/${req.params.insightId}/accept`, false);
+  p(app, "/api/leadership-intelligence/insights/:insightId/defer", (req) => `leadership-intelligence/insights/${req.params.insightId}/defer`);
+  p(app, "/api/leadership-intelligence/insights/:insightId/dismiss", (req) => `leadership-intelligence/insights/${req.params.insightId}/dismiss`);
   app.get("/api/command-centers/bishop", (req, res) => {
     const search = new URLSearchParams();
     const wardId = firstQueryValue(req.query.wardId);
@@ -180,6 +189,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   p(app, "/api/speaking-assignments/swap/:id/respond", (req) => `speaking-assignments/swap/${req.params.id}/respond`);
   g(app, "/api/announcements/active", "announcements/active");
   g(app, "/api/sacrament-planner/overview", "sacrament-planner/overview");
+  p(app, "/api/sacrament-planner/:meetingId/announcements/reviewed", (req) => `sacrament-planner/${req.params.meetingId}/announcements/reviewed`, false);
+  g(app, "/api/sacrament-planner/:meetingId/speaker-follow-up", (req) => `sacrament-planner/${req.params.meetingId}/speaker-follow-up`);
+  p(app, "/api/sacrament-planner/:meetingId/speaker-follow-up/:invitationId/remind", (req) => `sacrament-planner/${req.params.meetingId}/speaker-follow-up/${req.params.invitationId}/remind`, false);
 
   // ALIGN Pulse
   g(app, "/api/reports/align-pulse", "reports/align-pulse");

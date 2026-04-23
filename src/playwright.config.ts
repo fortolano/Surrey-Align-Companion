@@ -2,6 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 const port = Number(process.env.PWA_E2E_PORT || 4173);
 const baseURL = process.env.PWA_E2E_BASE_URL || `http://127.0.0.1:${port}`;
+const htmlReportDirectory = process.env.PLAYWRIGHT_HTML_REPORT_DIR || 'output/playwright/report';
+const outputDirectory = process.env.PLAYWRIGHT_OUTPUT_DIR || 'output/playwright/artifacts';
 
 export default defineConfig({
   testDir: './e2e/playwright',
@@ -21,9 +23,9 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: [
     ['list'],
-    ['html', { outputFolder: 'output/playwright/report', open: 'never' }],
+    ['html', { outputFolder: htmlReportDirectory, open: 'never' }],
   ],
-  outputDir: 'output/playwright/artifacts',
+  outputDir: outputDirectory,
   use: {
     baseURL,
     testIdAttribute: 'data-testid',

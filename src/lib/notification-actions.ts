@@ -21,6 +21,7 @@ export type NotificationNavigationTarget =
 
 const SAME_APP_FALLBACK_PATHS = new Set([
   '/notifications',
+  '/intelligence-inbox',
   '/calling-detail',
   '/goal-detail',
   '/agenda-entity',
@@ -163,6 +164,18 @@ function resolveAppActionTarget(
         announcementId: firstString(params.announcement_id),
       });
 
+    case 'insight.detail': {
+      const insightId = firstString(params.insight_id) ?? firstString(params.insightId);
+      if (!insightId) {
+        return buildInternalPath('/intelligence-inbox', returnTo);
+      }
+
+      return buildInternalPath('/intelligence-inbox', returnTo, { insightId });
+    }
+
+    case 'insight.inbox':
+      return buildInternalPath('/intelligence-inbox', returnTo);
+
     case 'web.open':
       if (sameAppFallbackTarget) {
         return sameAppFallbackTarget;
@@ -200,6 +213,12 @@ function resolveLegacyTarget(
 
   if (relatedType === 'StakeBusiness') {
     return buildInternalPath('/sunday-business', returnTo);
+  }
+
+  if (relatedType === 'leadership_insight') {
+    return buildInternalPath('/intelligence-inbox', returnTo, {
+      insightId: relatedId ?? undefined,
+    });
   }
 
   if (relatedType === 'agenda' && relatedId) {

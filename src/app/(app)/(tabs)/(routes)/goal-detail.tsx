@@ -30,6 +30,9 @@ interface ActionItem {
   progress_percent: number;
   due_on: string | null;
   notes: string | null;
+  owner_label?: string | null;
+  timing_label?: string | null;
+  support_label?: string | null;
 }
 
 interface GoalUpdateCopilotPayload {
@@ -152,9 +155,18 @@ function formatDate(dateStr: string | null): string {
   return `${months[d.getMonth()]} ${d.getDate()}`;
 }
 
+function actionLabelRows(action: ActionItem): { key: string; icon: string; text: string }[] {
+  return [
+    { key: 'owner', icon: 'user', text: action.owner_label || '' },
+    { key: 'timing', icon: 'calendar', text: action.timing_label || '' },
+    { key: 'support', icon: 'users', text: action.support_label || '' },
+  ].filter((row) => row.text.trim().length > 0);
+}
+
 function ActionRow({ action }: { action: ActionItem }) {
   const icon = actionStatusIcon(action.status);
   const isOverdue = action.due_on && new Date(action.due_on) < new Date() && action.status !== 'completed';
+  const labelRows = actionLabelRows(action);
 
   return (
     <View style={styles.actionRow}>
@@ -171,6 +183,16 @@ function ActionRow({ action }: { action: ActionItem }) {
         </View>
         {action.notes ? (
           <Text style={styles.actionNotes} numberOfLines={1}>{action.notes}</Text>
+        ) : null}
+        {labelRows.length > 0 ? (
+          <View style={styles.actionLabelList}>
+            {labelRows.map((row) => (
+              <View key={row.key} style={styles.actionLabelPill}>
+                <Feather name={row.icon as any} size={12} color={Colors.brand.midGray} />
+                <Text style={styles.actionLabelText} numberOfLines={2}>{row.text}</Text>
+              </View>
+            ))}
+          </View>
         ) : null}
       </View>
     </View>
@@ -1077,5 +1099,28 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: 2,
     fontFamily: 'Inter_400Regular',
+  },
+  actionLabelList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 7,
+  },
+  actionLabelPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    maxWidth: '100%',
+    backgroundColor: Colors.brand.white,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  actionLabelText: {
+    flexShrink: 1,
+    fontSize: 12,
+    lineHeight: 16,
+    color: Colors.brand.darkGray,
+    fontFamily: 'Inter_500Medium',
   },
 });

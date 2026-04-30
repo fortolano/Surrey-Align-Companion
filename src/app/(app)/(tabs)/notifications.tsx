@@ -155,7 +155,7 @@ function SwipeableNotifRow({
             <View style={styles.notifHeader}>
               <AppStatusBadge
                 label={surfaceLabel}
-                backgroundColor="#F2F7FA"
+                backgroundColor={Colors.brand.accentWarm}
                 textColor={Colors.brand.midGray}
                 style={styles.surfaceBadge}
               />

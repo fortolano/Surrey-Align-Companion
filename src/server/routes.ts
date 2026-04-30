@@ -7,6 +7,17 @@ const SA_API_BASE = (
   || DEFAULT_SURREYALIGN_API_BASE
 ).replace(/\/+$/, "");
 
+const FORWARDED_RESPONSE_HEADERS = ["cache-control", "etag", "last-modified", "vary"] as const;
+
+function forwardSafeResponseHeaders(response: globalThis.Response, res: Response) {
+  for (const header of FORWARDED_RESPONSE_HEADERS) {
+    const value = response.headers.get(header);
+    if (value) {
+      res.setHeader(header, value);
+    }
+  }
+}
+
 async function proxyRequest(
   req: Request,
   res: Response,
@@ -36,6 +47,7 @@ async function proxyRequest(
       body: includeBody ? JSON.stringify(req.body) : undefined,
     });
     const data = await response.json();
+    forwardSafeResponseHeaders(response, res);
     res.status(response.status).json(data);
   } catch {
     res.status(502).json({ success: false, message: "Unable to reach SurreyAlign." });

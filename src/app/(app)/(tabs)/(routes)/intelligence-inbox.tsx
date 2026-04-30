@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.brand.lightGray,
   },
   insightRowSelected: {
-    backgroundColor: '#F2F7FA',
+    backgroundColor: Colors.brand.accentWarm,
   },
   pressed: {
     opacity: 0.84,
